@@ -118,6 +118,14 @@ export type Database = {
                     comments_count: number
                     created_at: string
                     updated_at: string
+                    status?: string | null
+                    music_url?: string | null
+                    video_url?: string | null
+                    engagement_score?: number | null
+                    moderator_id?: string | null
+                    moderator_username?: string | null
+                    moderated_at?: string | null
+                    moderation_reason?: string | null
                 }
                 Insert: {
                     id?: string
