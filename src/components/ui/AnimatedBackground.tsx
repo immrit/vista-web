@@ -73,45 +73,44 @@ export function AnimatedBackground() {
                     ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2)
                     ctx.fill()
                     ctx.restore()
-                    particles.forEach((particle, i) => {
-                        particles.slice(i + 1).forEach(otherParticle => {
-                            const dx = particle.x - otherParticle.x
-                            const dy = particle.y - otherParticle.y
-                            const distance = Math.sqrt(dx * dx + dy * dy)
-
-                            if (distance < 100 && ctx) {
-                                ctx.save()
-                                ctx.globalAlpha = (100 - distance) / 100 * 0.1
-                                ctx.strokeStyle = '#3B82F6'
-                                ctx.lineWidth = 1
-                                ctx.beginPath()
-                                ctx.moveTo(particle.x, particle.y)
-                                ctx.lineTo(otherParticle.x, otherParticle.y)
-                                ctx.stroke()
-                                ctx.restore()
-                            }
-                        })
-                    })
-
-                    requestAnimationFrame(animate)
                 }
+            })
 
-                animate()
+            particles.forEach((particle, i) => {
+                particles.slice(i + 1).forEach(otherParticle => {
+                    const dx = particle.x - otherParticle.x
+                    const dy = particle.y - otherParticle.y
+                    const distance = Math.sqrt(dx * dx + dy * dy)
 
-                return () => {
-                    window.removeEventListener('resize', resizeCanvas)
-                }
-            }, [])
+                    if (distance < 100 && ctx) {
+                        ctx.save()
+                        ctx.globalAlpha = (100 - distance) / 100 * 0.1
+                        ctx.strokeStyle = '#3B82F6'
+                        ctx.lineWidth = 1
+                        ctx.beginPath()
+                        ctx.moveTo(particle.x, particle.y)
+                        ctx.lineTo(otherParticle.x, otherParticle.y)
+                        ctx.stroke()
+                        ctx.restore()
+                    }
+                })
+            })
 
-            return (
-                <canvas
-                    ref={canvasRef}
-                    className="absolute inset-0 w-full h-full"
-                    style={{ zIndex: -1 }}
-                />
-            )
+            requestAnimationFrame(animate)
         }
-    }
 
+        animate()
+
+        return () => {
+            window.removeEventListener('resize', resizeCanvas)
+        }
+    }, [])
+
+    return (
+        <canvas
+            ref={canvasRef}
+            className="absolute inset-0 w-full h-full"
+            style={{ zIndex: -1 }}
+        />
     )
 }

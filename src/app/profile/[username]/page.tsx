@@ -1,20 +1,20 @@
 import { supabase, Post, Profile } from '@/lib/supabase';
-import { Navigation } from '@/components/ui/Navigation';
 import ProfileTabsUI from './ProfileTabsUI';
-import { notFound } from 'next/navigation';
 
 interface PostWithProfile extends Post {
     profiles?: Profile;
 }
 
-export default async function ProfileByUsernamePage({ params }: { params: { username: string } }) {
-    const lang: 'fa' = 'fa';
+export default async function ProfileByUsernamePage({ params }: { params: Promise<{ username: string }> }) {
+    const { username } = await params;
+    const lang = 'fa' as const;
     const isRtl = lang === 'fa';
+
     // Fetch profile by username
     const { data: profile } = await supabase
         .from('profiles')
         .select('*')
-        .eq('username', params.username)
+        .eq('username', username)
         .single();
 
     if (!profile) {
@@ -36,5 +36,5 @@ export default async function ProfileByUsernamePage({ params }: { params: { user
     const posts = (postsData || []) as PostWithProfile[];
     const musicPosts = posts.filter(post => post.music_url);
 
-    return <ProfileTabsUI profile={profile} posts={posts} musicPosts={musicPosts} lang={lang} isRtl={isRtl} />;
+    return <ProfileTabsUI profile={profile} posts={posts} musicPosts={musicPosts} isRtl={isRtl} />;
 } 

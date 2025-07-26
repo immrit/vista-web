@@ -2,8 +2,12 @@
   "name": "vista-web",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -20,16 +24,16 @@
     "zustand": "^5.0.6"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4",
+    "@eslint/eslintrc": "^3.0.0",
+    "@tailwindcss/postcss": "^4.0.0",
     "@types/next-pwa": "^5.6.9",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
+    "@types/node": "^20.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
     "@types/serviceworker": "^0.0.146",
-    "eslint": "^9",
+    "eslint": "^9.0.0",
     "eslint-config-next": "15.4.4",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.0.0"
   }
 }

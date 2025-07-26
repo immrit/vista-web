@@ -2,23 +2,31 @@
 
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/Button'
-import { profileHelpers } from '@/lib/supabase'
 import { useEffect, useState } from 'react'
 import { supabase, Post, Profile } from '@/lib/supabase'
 import { Navigation } from '@/components/ui/Navigation'
 import { Bell } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 interface PostWithProfile extends Post {
     profiles?: Profile;
 }
 
-export default function DashboardPage() {
-    const { user, profile, signOut } = useAuth()
+export default function FeedPage() {
+    const { user, profile, loading } = useAuth()
+    const router = useRouter()
     const [posts, setPosts] = useState<PostWithProfile[]>([])
     const [loadingPosts, setLoadingPosts] = useState(true)
     const [suggested, setSuggested] = useState<Profile[]>([])
     const lang = 'fa'
     const isRtl = lang === 'fa'
+
+    // اگر loading تمام شد و کاربر لاگین نکرده، به auth redirect کن
+    useEffect(() => {
+        if (!loading && !user) {
+            router.replace('/auth')
+        }
+    }, [user, loading, router])
 
     useEffect(() => {
         const fetchPosts = async () => {
@@ -58,7 +66,8 @@ export default function DashboardPage() {
         fetchSuggested()
     }, [])
 
-    if (!user || !profile) {
+    // اگر هنوز loading است یا کاربر لاگین نکرده، loading screen نشان بده
+    if (loading || !user || !profile) {
         return (
             <div className="min-h-screen flex items-center justify-center dark:bg-zinc-950 bg-gray-50">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>

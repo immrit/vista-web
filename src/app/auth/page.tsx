@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Mail, Lock, User, Eye, EyeOff } from "lucide-react";
+import { Mail, User, Eye, EyeOff } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";
@@ -114,7 +114,7 @@ export default function AuthPage() {
     const router = useRouter();
 
     useEffect(() => {
-        if (user) router.push("/");
+        if (user) router.push("/feed");
     }, [user, router]);
 
     const validateForm = () => {

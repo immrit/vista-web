@@ -8,7 +8,7 @@ interface NavigationProps {
 }
 
 const menu = [
-    { key: 'home', label: { fa: 'خانه', en: 'Home' }, icon: Home, href: '/dashboard' },
+    { key: 'home', label: { fa: 'خانه', en: 'Home' }, icon: Home, href: '/feed' },
     { key: 'explore', label: { fa: 'جستجو', en: 'Explore' }, icon: Search, href: '/explore' },
     { key: 'notifications', label: { fa: 'اعلان‌ها', en: 'Notifications' }, icon: Bell, href: '/notifications' },
     { key: 'messages', label: { fa: 'پیام‌ها', en: 'Messages' }, icon: Mail, href: '/messages' },

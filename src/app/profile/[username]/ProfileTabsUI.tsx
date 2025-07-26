@@ -7,11 +7,10 @@ interface PostWithProfile extends Post {
     profiles?: Profile;
 }
 
-export default function ProfileTabsUI({ profile, posts, musicPosts, lang, isRtl }: {
+export default function ProfileTabsUI({ profile, posts, musicPosts, isRtl }: {
     profile: Profile;
     posts: PostWithProfile[];
     musicPosts: PostWithProfile[];
-    lang: 'fa' | 'en';
     isRtl: boolean;
 }) {
     const [activeTab, setActiveTab] = useState<'posts' | 'music'>('posts');
@@ -105,7 +104,7 @@ export default function ProfileTabsUI({ profile, posts, musicPosts, lang, isRtl 
                             ) : (
                                 <div className="space-y-6">
                                     {musicPosts.map(post => (
-                                        <ProfilePostCard key={post.id} post={post} showMusicPlayer />
+                                        <ProfilePostCard key={post.id} post={post} showMusicPlayer={true} />
                                     ))}
                                 </div>
                             )
