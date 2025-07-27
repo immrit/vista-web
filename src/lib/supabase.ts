@@ -107,7 +107,6 @@ export type Database = {
                     is_online?: boolean | null
                 }
             }
-            // جداول دیگه رو بعداً اضافه می‌کنیم (posts, likes, comments, messages)
             posts: {
                 Row: {
                     id: string
@@ -147,6 +146,61 @@ export type Database = {
                     updated_at?: string
                 }
             }
+            likes: {
+                Row: {
+                    id: string
+                    post_id: string
+                    user_id: string
+                    created_at: string
+                    owner_id: string
+                }
+                Insert: {
+                    id?: string
+                    post_id: string
+                    user_id: string
+                    created_at?: string
+                    owner_id?: string
+                }
+                Update: {
+                    id?: string
+                    post_id?: string
+                    user_id?: string
+                    created_at?: string
+                    owner_id?: string
+                }
+            }
+            comments: {
+                Row: {
+                    id: string
+                    post_id: string
+                    owner_id: string
+                    content: string
+                    created_at: string
+                    user_id: string
+                    parent_comment_id: string | null
+                    mentioned_users: string[] | null
+                }
+                Insert: {
+                    id?: string
+                    post_id: string
+                    owner_id?: string
+                    content: string
+                    created_at?: string
+                    user_id: string
+                    parent_comment_id?: string | null
+                    mentioned_users?: string[] | null
+                }
+                Update: {
+                    id?: string
+                    post_id?: string
+                    owner_id?: string
+                    content?: string
+                    created_at?: string
+                    user_id?: string
+                    parent_comment_id?: string | null
+                    mentioned_users?: string[] | null
+                }
+            }
         }
     }
 }
@@ -156,6 +210,8 @@ export type Profile = Database['public']['Tables']['profiles']['Row']
 export type ProfileInsert = Database['public']['Tables']['profiles']['Insert']
 export type ProfileUpdate = Database['public']['Tables']['profiles']['Update']
 export type Post = Database['public']['Tables']['posts']['Row']
+export type Like = Database['public']['Tables']['likes']['Row']
+export type Comment = Database['public']['Tables']['comments']['Row']
 
 // Account Status Types
 export type AccountStatus = 'active' | 'suspended' | 'deactivated' | 'banned'

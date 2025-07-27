@@ -1,5 +1,8 @@
-import { Home, Search, Bell, Mail, User, Plus } from 'lucide-react';
+import { Home, Search, Bell, Mail, User, Plus, LogOut } from 'lucide-react';
 import Link from 'next/link';
+import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
 import { Logo } from './Logo';
 
 interface NavigationProps {
@@ -17,6 +20,39 @@ const menu = [
 
 export function Navigation({ lang, user }: NavigationProps) {
     const isRtl = lang === 'fa';
+    const [showDropdown, setShowDropdown] = useState(false);
+    const [showMobileDropdown, setShowMobileDropdown] = useState(false);
+    const router = useRouter();
+    const { signOut } = useAuth();
+    const dropdownRef = useRef<HTMLDivElement>(null);
+    const mobileDropdownRef = useRef<HTMLDivElement>(null);
+
+    const handleLogout = async () => {
+        try {
+            await signOut();
+            router.push('/auth');
+        } catch (error) {
+            console.error('Error signing out:', error);
+        }
+    };
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setShowDropdown(false);
+            }
+            if (mobileDropdownRef.current && !mobileDropdownRef.current.contains(event.target as Node)) {
+                setShowMobileDropdown(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
+
     // Sidebar (Desktop)
     return (
         <>
@@ -84,18 +120,37 @@ export function Navigation({ lang, user }: NavigationProps) {
                 </div>
                 {/* User profile bottom */}
                 {user && (
-                    <div className="mt-8 flex items-center gap-3 p-3 rounded-xl hover:bg-zinc-900 transition cursor-pointer">
-                        {user.avatar_url ? (
-                            <img src={user.avatar_url} alt="avatar" className="w-10 h-10 rounded-full object-cover border border-zinc-800" />
-                        ) : (
-                            <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-xl text-white font-bold">
-                                {user.full_name?.charAt(0) || user.username?.charAt(0) || '👤'}
+                    <div className="mt-8 relative" ref={dropdownRef}>
+                        <div
+                            className="flex items-center gap-3 p-3 rounded-xl hover:bg-zinc-900 transition cursor-pointer"
+                            onClick={() => setShowDropdown(!showDropdown)}
+                        >
+                            {user.avatar_url ? (
+                                <img src={user.avatar_url} alt="avatar" className="w-10 h-10 rounded-full object-cover border border-zinc-800" />
+                            ) : (
+                                <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-xl text-white font-bold">
+                                    {user.full_name?.charAt(0) || user.username?.charAt(0) || '👤'}
+                                </div>
+                            )}
+                            <div className="flex flex-col">
+                                <span className="text-zinc-200 font-semibold text-base">{user.full_name || user.username}</span>
+                                <span className="text-zinc-400 text-xs">@{user.username}</span>
+                            </div>
+                        </div>
+
+                        {/* Dropdown menu */}
+                        {showDropdown && (
+                            <div className={`absolute bottom-full ${isRtl ? 'right-0' : 'left-0'} mb-2 w-full bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl overflow-hidden`}>
+                                <button
+                                    onClick={handleLogout}
+                                    className="flex items-center gap-3 w-full px-4 py-3 text-red-400 hover:bg-red-900/20 hover:text-red-300 transition text-right"
+                                >
+                                    <LogOut className="w-5 h-5" />
+                                    <span>{lang === 'fa' ? 'خروج' : 'Logout'}</span>
+                                </button>
                             </div>
                         )}
-                        <div className="flex flex-col">
-                            <span className="text-zinc-200 font-semibold text-base">{user.full_name || user.username}</span>
-                            <span className="text-zinc-400 text-xs">@{user.username}</span>
-                        </div>
+
                     </div>
                 )}
             </nav>
@@ -138,7 +193,7 @@ export function Navigation({ lang, user }: NavigationProps) {
                     <Mail className="w-6 h-6 mb-1" />
                     <span className="text-xs">{menu[3].label[lang]}</span>
                 </Link>
-                {/* Profile */}
+                {/* Profile - Direct link without dropdown */}
                 <Link
                     key={menu[4].key}
                     href={menu[4].href}
