@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Heart, MessageSquare, Share2, MoreHorizontal } from 'lucide-react';
+import { Heart, MessageSquare, Share2 } from 'lucide-react';
 import { supabase, Post, Profile, Like, Comment } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { usePostStats } from '@/hooks/usePostStats';
 import { CommentSheet } from './CommentSheet';
+import { PostMenu } from './PostMenu';
 
 interface PostWithProfile extends Post {
     profiles?: Profile;
@@ -14,11 +15,12 @@ interface PostWithProfile extends Post {
 interface PostCardProps {
     post: PostWithProfile;
     onUpdate?: (updatedPost: PostWithProfile) => void;
+    onPostDeleted?: () => void;
     showComments?: boolean;
     className?: string;
 }
 
-export function PostCard({ post, onUpdate, showComments = false, className = '' }: PostCardProps) {
+export function PostCard({ post, onUpdate, onPostDeleted, showComments = false, className = '' }: PostCardProps) {
     const { user, profile } = useAuth();
     const [isLiked, setIsLiked] = useState(false);
     const [showCommentSheet, setShowCommentSheet] = useState(false);
@@ -152,9 +154,13 @@ export function PostCard({ post, onUpdate, showComments = false, className = '' 
                             </div>
                         </div>
                     </div>
-                    <button className="p-2 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition">
-                        <MoreHorizontal className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-                    </button>
+                    {user && (
+                        <PostMenu
+                            post={post}
+                            currentUserId={user.id}
+                            onPostDeleted={onPostDeleted}
+                        />
+                    )}
                 </div>
 
                 {/* Post Content */}
@@ -166,12 +172,27 @@ export function PostCard({ post, onUpdate, showComments = false, className = '' 
 
                 {/* Post Media */}
                 {post.image_url && (
-                    <div className="mb-4">
+                    <div className="mb-4 overflow-auto">
                         <img
                             src={post.image_url}
                             alt="post"
-                            className="rounded-xl w-full max-h-96 object-cover border border-zinc-200 dark:border-zinc-700"
+                            className="rounded-xl border border-zinc-200 dark:border-zinc-700"
+                            style={{ maxWidth: '100%', height: 'auto', display: 'block' }}
                         />
+                    </div>
+                )}
+
+                {/* Video Player */}
+                {post.video_url && (
+                    <div className="mb-4 overflow-auto">
+                        <video
+                            src={post.video_url}
+                            controls
+                            className="rounded-xl border border-zinc-200 dark:border-zinc-700"
+                            style={{ maxWidth: '100%', height: 'auto', display: 'block' }}
+                        >
+                            مرورگر شما از پخش ویدیو پشتیبانی نمی‌کند.
+                        </video>
                     </div>
                 )}
 
@@ -199,8 +220,8 @@ export function PostCard({ post, onUpdate, showComments = false, className = '' 
                             onClick={handleLike}
                             disabled={isLikeLoading}
                             className={`flex items-center gap-2 px-3 py-2 rounded-full transition ${isLiked
-                                    ? 'text-red-500 bg-red-50 dark:bg-red-900/20'
-                                    : 'text-gray-500 dark:text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
+                                ? 'text-red-500 bg-red-50 dark:bg-red-900/20'
+                                : 'text-gray-500 dark:text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
                                 } ${isLikeLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                             <Heart className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />

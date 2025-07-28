@@ -76,6 +76,22 @@ export default function FeedPage() {
         );
     };
 
+    const handlePostDeleted = () => {
+        // Refresh posts after deletion
+        const fetchPosts = async () => {
+            setLoadingPosts(true)
+            const { data, error } = await supabase
+                .from('posts')
+                .select('*, profiles:profiles!posts_user_id_fkey(*)')
+                .eq('status', 'published')
+                .order('created_at', { ascending: false })
+                .limit(10)
+            if (!error && data) setPosts(data as PostWithProfile[])
+            setLoadingPosts(false)
+        }
+        fetchPosts()
+    };
+
     // اگر هنوز loading است یا کاربر لاگین نکرده، loading screen نشان بده
     if (loading || !user || !profile) {
         return (
@@ -116,6 +132,7 @@ export default function FeedPage() {
                                         key={post.id}
                                         post={post}
                                         onUpdate={handlePostUpdate}
+                                        onPostDeleted={handlePostDeleted}
                                     />
                                 ))}
                             </div>

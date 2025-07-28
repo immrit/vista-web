@@ -113,13 +113,13 @@ export type Database = {
                     user_id: string
                     content: string
                     image_url: string | null
+                    video_url: string | null
                     likes_count: number
                     comments_count: number
                     created_at: string
                     updated_at: string
                     status?: string | null
                     music_url?: string | null
-                    video_url?: string | null
                     engagement_score?: number | null
                     moderator_id?: string | null
                     moderator_username?: string | null
@@ -131,6 +131,7 @@ export type Database = {
                     user_id: string
                     content: string
                     image_url?: string | null
+                    video_url?: string | null
                     likes_count?: number
                     comments_count?: number
                     created_at?: string
@@ -141,6 +142,7 @@ export type Database = {
                     user_id?: string
                     content?: string
                     image_url?: string | null
+                    video_url?: string | null
                     likes_count?: number
                     comments_count?: number
                     updated_at?: string
