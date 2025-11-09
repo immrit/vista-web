@@ -1,4 +1,4 @@
-import { Home, Search, Bell, Mail, User, Plus, LogOut } from 'lucide-react';
+import { Home, Search, Bell, Mail, User, Plus, LogOut, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
@@ -16,16 +16,15 @@ const menu = [
     { key: 'notifications', label: { fa: 'اعلان‌ها', en: 'Notifications' }, icon: Bell, href: '/notifications' },
     { key: 'messages', label: { fa: 'پیام‌ها', en: 'Messages' }, icon: Mail, href: '/messages' },
     { key: 'profile', label: { fa: 'پروفایل', en: 'Profile' }, icon: User, href: '/profile' },
+    { key: 'settings', label: { fa: 'تنظیمات', en: 'Settings' }, icon: Settings, href: '/settings' },
 ];
 
 export function Navigation({ lang, user }: NavigationProps) {
     const isRtl = lang === 'fa';
     const [showDropdown, setShowDropdown] = useState(false);
-    const [showMobileDropdown, setShowMobileDropdown] = useState(false);
     const router = useRouter();
     const { signOut } = useAuth();
     const dropdownRef = useRef<HTMLDivElement>(null);
-    const mobileDropdownRef = useRef<HTMLDivElement>(null);
 
     const handleLogout = async () => {
         try {
@@ -41,9 +40,6 @@ export function Navigation({ lang, user }: NavigationProps) {
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
                 setShowDropdown(false);
-            }
-            if (mobileDropdownRef.current && !mobileDropdownRef.current.contains(event.target as Node)) {
-                setShowMobileDropdown(false);
             }
         };
 
@@ -109,6 +105,15 @@ export function Navigation({ lang, user }: NavigationProps) {
                         <User className="w-7 h-7 group-hover:text-blue-500 transition" />
                         <span className="hidden xl:inline">{menu[4].label[lang]}</span>
                     </Link>
+                    {/* Settings */}
+                    <Link
+                        key={menu[5].key}
+                        href={menu[5].href}
+                        className="flex items-center gap-4 rounded-2xl px-4 py-3 text-lg font-medium text-zinc-200 hover:bg-zinc-900 transition group"
+                    >
+                        <Settings className="w-7 h-7 group-hover:text-blue-500 transition" />
+                        <span className="hidden xl:inline">{menu[5].label[lang]}</span>
+                    </Link>
                     {/* Post button */}
                     <Link
                         href="/post"
@@ -150,10 +155,10 @@ export function Navigation({ lang, user }: NavigationProps) {
                                 </button>
                             </div>
                         )}
-
                     </div>
                 )}
             </nav>
+
             {/* Bottom Navigation (Mobile) */}
             <nav
                 className="md:hidden fixed bottom-0 left-0 right-0 bg-black dark:bg-zinc-950 border-t border-zinc-800 z-30 flex justify-between px-2 py-1"
@@ -193,7 +198,7 @@ export function Navigation({ lang, user }: NavigationProps) {
                     <Mail className="w-6 h-6 mb-1" />
                     <span className="text-xs">{menu[3].label[lang]}</span>
                 </Link>
-                {/* Profile - Direct link without dropdown */}
+                {/* Profile - Direct link */}
                 <Link
                     key={menu[4].key}
                     href={menu[4].href}

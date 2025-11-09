@@ -8,21 +8,20 @@ export function middleware(request: NextRequest) {
     const response = NextResponse.next()
     response.headers.set('Content-Language', 'fa')
 
-    // اگر کاربر به root path می‌رود، اجازه بده تا client-side routing کار کند
+    // Skip middleware for static files and API routes
+    if (
+        pathname.startsWith('/_next') ||
+        pathname.startsWith('/api') ||
+        pathname.startsWith('/static') ||
+        pathname.includes('.')
+    ) {
+        return response
+    }
+
+    // Simple route protection - let client-side handle authentication
     if (pathname === '/') {
-        return response
-    }
-
-    // اگر کاربر به auth page می‌رود و قبلاً لاگین کرده، redirect به feed
-    if (pathname === '/auth') {
-        // این کار را در client-side انجام می‌دهیم
-        return response
-    }
-
-    // اگر کاربر به feed می‌رود و لاگین نکرده، redirect به auth
-    if (pathname === '/feed') {
-        // این کار را در client-side انجام می‌دهیم
-        return response
+        // Redirect root to feed (client-side will handle auth)
+        return NextResponse.redirect(new URL('/feed', request.url))
     }
 
     return response

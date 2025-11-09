@@ -1,24 +1,37 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('Missing Supabase environment variables')
+// Check if we're on the client side
+if (typeof window !== 'undefined') {
+    if (!supabaseUrl || !supabaseAnonKey) {
+        console.error('Missing Supabase environment variables')
+        throw new Error('Missing Supabase environment variables')
+    }
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-    },
-    realtime: {
-        params: {
-            eventsPerSecond: 10,
+export const supabase = createClient(
+    supabaseUrl || 'https://placeholder.supabase.co',
+    supabaseAnonKey || 'placeholder-key',
+    {
+        auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true,
         },
-    },
-})
+        realtime: {
+            params: {
+                eventsPerSecond: 10,
+            },
+        },
+        global: {
+            headers: {
+                'X-Client-Info': 'vista-web',
+            },
+        },
+    }
+)
 
 // Types برای TypeScript طبق جدول واقعی شما
 export type Database = {

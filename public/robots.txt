@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /post/
+Allow: /profile/
+Allow: /feed
+Allow: /.well-known/
+Sitemap: https://coffevista.ir/sitemap.xml 

@@ -1,0 +1,15 @@
+{
+    "applinks": {
+        "apps": [],
+        "details": [
+            {
+                "appID": "TEAM_ID.ir.coffevista.vista",
+                "paths": [
+                    "/post/*",
+                    "/profile/*",
+                    "/feed"
+                ]
+            }
+        ]
+    }
+}

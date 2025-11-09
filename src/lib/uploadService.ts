@@ -138,6 +138,47 @@ export class UploadService {
         }
     }
 
+    // Upload avatar file
+    static async uploadAvatar(file: File, userId: string): Promise<string> {
+        try {
+            // Validate file type
+            if (!this.isValidImageFormat(file.type)) {
+                throw new Error('فقط فایل‌های تصویری (jpg, jpeg, png, gif) پشتیبانی می‌شوند');
+            }
+
+            // Validate file size (max 5MB for avatars)
+            if (file.size > 5 * 1024 * 1024) {
+                throw new Error('حجم فایل آواتار باید کمتر از ۵ مگابایت باشد');
+            }
+
+            // Generate unique filename
+            const timestamp = Date.now();
+            const extension = file.name.split('.').pop();
+            const fileName = `avatars/${userId}_${timestamp}.${extension}`;
+
+            // Convert File to ArrayBuffer for AWS S3
+            const arrayBuffer = await file.arrayBuffer();
+            const uint8Array = new Uint8Array(arrayBuffer);
+
+            // Upload to Arvan Cloud
+            await s3Client.send(new PutObjectCommand({
+                Bucket: BUCKET_NAME,
+                Key: fileName,
+                Body: uint8Array,
+                ContentType: file.type,
+                ACL: 'public-read',
+            }));
+
+            const uploadedUrl = `${CDN_BASE_URL}/${BUCKET_NAME}/${fileName}`;
+            console.log('آواتار با موفقیت آپلود شد:', uploadedUrl);
+
+            return uploadedUrl;
+        } catch (error) {
+            console.error('خطا در آپلود آواتار:', error);
+            throw new Error('آپلود آواتار با شکست مواجه شد');
+        }
+    }
+
     // Delete file from storage
     static async deleteFile(fileUrl: string): Promise<boolean> {
         try {

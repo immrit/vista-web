@@ -6,6 +6,7 @@ import { Mail, User, Eye, EyeOff } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";
+import { MultiStepSignUp } from "@/components/ui/MultiStepSignUp";
 import { useAuth } from "@/hooks/useAuth";
 
 // Auth mode type
@@ -19,16 +20,10 @@ const texts = {
         register: "ثبت‌نام",
         welcome: "خوش برگشتی! ورود سریع و امن.",
         join: "حساب جدید بساز و به جمع ما بپیوند!",
-        fullName: "نام کامل",
-        username: "نام کاربری",
         email: "ایمیل",
         password: "رمز عبور",
-        confirmPassword: "تأیید رمز عبور",
-        placeholderFullName: "نام و نام خانوادگی",
-        placeholderUsername: "نام کاربری (لاتین)",
         placeholderEmail: "example@gmail.com",
         placeholderPassword: "رمز عبور",
-        placeholderConfirmPassword: "تکرار رمز عبور",
         noAccount: "حساب نداری؟",
         haveAccount: "حساب داری؟",
         switchToRegister: "ثبت‌نام",
@@ -42,12 +37,6 @@ const texts = {
         invalidEmail: "فرمت ایمیل صحیح نیست",
         requiredPassword: "رمز عبور الزامی است",
         shortPassword: "رمز عبور باید حداقل ۶ کاراکتر باشد",
-        requiredUsername: "نام کاربری الزامی است",
-        shortUsername: "نام کاربری باید حداقل ۳ کاراکتر باشد",
-        invalidUsername: "نام کاربری فقط شامل حروف، اعداد و _ باشد",
-        requiredFullName: "نام کامل الزامی است",
-        requiredConfirmPassword: "تأیید رمز عبور الزامی است",
-        passwordMismatch: "رمز عبور و تأیید آن یکسان نیستند",
         invalidLogin: "ایمیل یا رمز عبور اشتباه است",
         alreadyRegistered: "این ایمیل قبلاً ثبت‌نام شده است",
         emailNotConfirmed: "لطفاً ایمیل خود را تأیید کنید",
@@ -58,16 +47,10 @@ const texts = {
         register: "Sign Up",
         welcome: "Welcome back! Fast and secure login.",
         join: "Create a new account and join us!",
-        fullName: "Full Name",
-        username: "Username",
         email: "Email",
         password: "Password",
-        confirmPassword: "Confirm Password",
-        placeholderFullName: "Your full name",
-        placeholderUsername: "Username (latin)",
         placeholderEmail: "example@gmail.com",
         placeholderPassword: "Password",
-        placeholderConfirmPassword: "Repeat password",
         noAccount: "Don't have an account?",
         haveAccount: "Already have an account?",
         switchToRegister: "Sign Up",
@@ -81,12 +64,6 @@ const texts = {
         invalidEmail: "Invalid email format",
         requiredPassword: "Password is required",
         shortPassword: "Password must be at least 6 characters",
-        requiredUsername: "Username is required",
-        shortUsername: "Username must be at least 3 characters",
-        invalidUsername: "Username can only contain letters, numbers, and _",
-        requiredFullName: "Full name is required",
-        requiredConfirmPassword: "Confirm password is required",
-        passwordMismatch: "Passwords do not match",
         invalidLogin: "Invalid email or password",
         alreadyRegistered: "This email is already registered",
         emailNotConfirmed: "Please confirm your email",
@@ -101,21 +78,22 @@ export default function AuthPage() {
     const [formData, setFormData] = useState({
         email: "",
         password: "",
-        username: "",
-        fullName: "",
-        confirmPassword: "",
     });
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-    const { signIn, signUp, user } = useAuth();
+    const { signIn, user } = useAuth();
     const router = useRouter();
 
     useEffect(() => {
         if (user) router.push("/feed");
     }, [user, router]);
+
+    // If mode is register, show MultiStepSignUp component
+    if (mode === "register") {
+        return <MultiStepSignUp />;
+    }
 
     const validateForm = () => {
         const newErrors: Record<string, string> = {};
@@ -123,14 +101,6 @@ export default function AuthPage() {
         else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = t.invalidEmail;
         if (!formData.password) newErrors.password = t.requiredPassword;
         else if (formData.password.length < 6) newErrors.password = t.shortPassword;
-        if (mode === "register") {
-            if (!formData.username) newErrors.username = t.requiredUsername;
-            else if (formData.username.length < 3) newErrors.username = t.shortUsername;
-            else if (!/^[a-zA-Z0-9_]+$/.test(formData.username)) newErrors.username = t.invalidUsername;
-            if (!formData.fullName) newErrors.fullName = t.requiredFullName;
-            if (!formData.confirmPassword) newErrors.confirmPassword = t.requiredConfirmPassword;
-            else if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = t.passwordMismatch;
-        }
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -141,11 +111,7 @@ export default function AuthPage() {
         setLoading(true);
         setErrors({});
         try {
-            if (mode === "login") {
-                await signIn(formData.email, formData.password);
-            } else {
-                await signUp(formData.email, formData.password, formData.username, formData.fullName);
-            }
+            await signIn(formData.email, formData.password);
         } catch (error: unknown) {
             const errMsg = typeof error === 'object' && error && 'message' in error ? (error as { message?: string }).message : undefined;
             if (errMsg?.includes("Invalid login credentials")) setErrors({ general: t.invalidLogin });
@@ -181,10 +147,10 @@ export default function AuthPage() {
                 {/* Title */}
                 <div className="text-center mb-6">
                     <h1 className="text-3xl font-bold text-zinc-900 dark:text-white mb-2">
-                        {mode === "login" ? t.login + ' ' + 'به ویستا' : t.register + ' ' + 'در ویستا'}
+                        {t.login + ' ' + 'به ویستا'}
                     </h1>
                     <p className="text-zinc-500 dark:text-zinc-300 text-base">
-                        {mode === "login" ? t.welcome : t.join}
+                        {t.welcome}
                     </p>
                 </div>
                 {/* Form */}
@@ -193,30 +159,6 @@ export default function AuthPage() {
                         <div className="bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 text-red-700 dark:text-red-200 px-4 py-2 rounded-xl text-sm text-center">
                             {errors.general}
                         </div>
-                    )}
-                    {mode === "register" && (
-                        <Input
-                            label={t.fullName}
-                            type="text"
-                            placeholder={t.placeholderFullName}
-                            value={formData.fullName}
-                            onChange={handleInputChange("fullName")}
-                            error={errors.fullName}
-                            icon={<User size={18} />}
-                            className="bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
-                        />
-                    )}
-                    {mode === "register" && (
-                        <Input
-                            label={t.username}
-                            type="text"
-                            placeholder={t.placeholderUsername}
-                            value={formData.username}
-                            onChange={handleInputChange("username")}
-                            error={errors.username}
-                            icon={<span className="text-zinc-400 dark:text-zinc-500">@</span>}
-                            className="bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
-                        />
                     )}
                     <Input
                         label={t.email}
@@ -242,47 +184,31 @@ export default function AuthPage() {
                         }
                         className="bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
                     />
-                    {mode === "register" && (
-                        <Input
-                            label={t.confirmPassword}
-                            type={showConfirmPassword ? "text" : "password"}
-                            placeholder={t.placeholderConfirmPassword}
-                            value={formData.confirmPassword}
-                            onChange={handleInputChange("confirmPassword")}
-                            error={errors.confirmPassword}
-                            icon={
-                                <button type="button" onClick={() => setShowConfirmPassword((v) => !v)} className="text-zinc-400 dark:text-zinc-500">
-                                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                                </button>
-                            }
-                            className="bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
-                        />
-                    )}
                     <Button
                         type="submit"
                         size="lg"
                         loading={loading}
                         className="w-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 border border-zinc-900 dark:border-white shadow-md transition-all duration-200"
                     >
-                        {mode === "login" ? t.login : t.register}
+                        {t.login}
                     </Button>
                 </form>
                 {/* Switch mode */}
                 <div className="mt-8 text-center">
                     <span className="text-zinc-500 dark:text-zinc-300">
-                        {mode === "login" ? t.noAccount : t.haveAccount}
+                        {t.noAccount}
                     </span>
                     <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                            setMode(mode === "login" ? "register" : "login");
+                            setMode("register");
                             setErrors({});
-                            setFormData({ email: "", password: "", username: "", fullName: "", confirmPassword: "" });
+                            setFormData({ email: "", password: "" });
                         }}
                         className="ml-2 text-blue-600 dark:text-blue-400 hover:underline"
                     >
-                        {mode === "login" ? t.switchToRegister : t.switchToLogin}
+                        {t.switchToRegister}
                     </Button>
                 </div>
                 {/* Footer */}

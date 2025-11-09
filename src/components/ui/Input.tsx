@@ -14,24 +14,26 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         return (
             <div className="w-full">
                 {label && (
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
                         {label}
                     </label>
                 )}
                 <div className="relative">
                     {icon && (
-                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-zinc-400 dark:text-zinc-500">
                             {icon}
                         </div>
                     )}
                     <input
                         type={type}
                         className={cn(
-                            "flex h-12 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm transition-all duration-200",
-                            "placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10",
+                            "flex h-12 w-full rounded-xl border border-zinc-200 dark:border-zinc-700",
+                            "bg-white dark:bg-zinc-800 px-4 py-3 text-sm transition-all duration-200",
+                            "text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500",
+                            "focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10 dark:focus:ring-blue-400/10",
                             "disabled:cursor-not-allowed disabled:opacity-50",
                             icon && "pr-12",
-                            error && "border-red-500 focus:border-red-500 focus:ring-red-500/10",
+                            error && "border-red-500 dark:border-red-400 focus:border-red-500 dark:focus:border-red-400 focus:ring-red-500/10 dark:focus:ring-red-400/10",
                             className
                         )}
                         ref={ref}
@@ -39,7 +41,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
                     />
                 </div>
                 {error && (
-                    <p className="mt-2 text-sm text-red-600">{error}</p>
+                    <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>
                 )}
             </div>
         )

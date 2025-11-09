@@ -1,6 +1,6 @@
 {
   "name": "vista-web",
-  "version": "0.1.0",
+  "version": "0.2.5",
   "private": true,
   "engines": {
     "node": ">=18.0.0",
@@ -16,10 +16,12 @@
     "@aws-sdk/client-s3": "^3.855.0",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.52.1",
+    "@types/nodemailer": "^6.4.17",
     "clsx": "^2.1.1",
     "lucide-react": "^0.525.0",
     "next": "^15.4.4",
     "next-pwa": "^5.6.0",
+    "nodemailer": "^7.0.5",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "tailwind-merge": "^3.3.1",
@@ -27,15 +29,16 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.0.0",
-    "@tailwindcss/postcss": "^4.0.0",
     "@types/next-pwa": "^5.6.9",
     "@types/node": "^20.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@types/serviceworker": "^0.0.146",
+    "autoprefixer": "^10.4.21",
     "eslint": "^9.0.0",
     "eslint-config-next": "15.4.4",
-    "tailwindcss": "^4.0.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
     "typescript": "^5.0.0"
   }
 }
