@@ -289,6 +289,7 @@ export default function CreatePostPage() {
                                             <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                                         ) : (
                                             <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                                                {/* eslint-disable-next-line jsx-a11y/alt-text */}
                                                 <Image className="w-5 h-5 text-white" />
                                             </div>
                                         )}

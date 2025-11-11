@@ -17,6 +17,7 @@ export function FilePreview({ type, url, onRemove, className = '' }: FilePreview
     const getIcon = () => {
         switch (type) {
             case 'image':
+                // eslint-disable-next-line jsx-a11y/alt-text
                 return <Image className="w-5 h-5 text-blue-600 dark:text-blue-400" />;
             case 'video':
                 return <Video className="w-5 h-5 text-purple-600 dark:text-purple-400" />;

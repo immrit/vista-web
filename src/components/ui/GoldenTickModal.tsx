@@ -1,21 +1,25 @@
 'use client'
 
 import { useState } from 'react'
-import { X, Crown, Check, Star, Zap, Shield, Users, Sparkles } from 'lucide-react'
+import * as React from 'react'
+import { X, Check, Star, Zap, Shield, Users, Sparkles, Crown } from 'lucide-react'
 import { Button } from './Button'
 
 interface GoldenTickModalProps {
     isOpen: boolean
     onClose: () => void
-    onPurchase: (plan: string) => void
+    onPurchase: (plan: string) => Promise<void>
+    isLoading?: boolean
 }
 
 const plans = [
     {
         id: 'monthly',
         name: 'اشتراک ماهانه',
-        price: '99,000',
-        originalPrice: '149,000',
+        price: 99000,
+        priceFormatted: '99,000',
+        originalPrice: 149000,
+        originalPriceFormatted: '149,000',
         currency: 'تومان',
         period: 'ماهانه',
         features: [
@@ -23,7 +27,8 @@ const plans = [
             'دسترسی به ویژگی‌های ویژه',
             'اولویت در نمایش پست‌ها',
             'پشتیبانی ویژه',
-            'بدون تبلیغات'
+            'بدون تبلیغات',
+            'ویژگی‌های پیشرفته'
         ],
         popular: false,
         discount: '33%'
@@ -31,8 +36,10 @@ const plans = [
     {
         id: 'yearly',
         name: 'اشتراک سالانه',
-        price: '899,000',
-        originalPrice: '1,788,000',
+        price: 899000,
+        priceFormatted: '899,000',
+        originalPrice: 1788000,
+        originalPriceFormatted: '1,788,000',
         currency: 'تومان',
         period: 'سالانه',
         features: [
@@ -40,26 +47,42 @@ const plans = [
             '2 ماه رایگان',
             'دسترسی زودهنگام به ویژگی‌های جدید',
             'پشتیبانی 24/7',
-            'نمایش ویژه در جستجوها'
+            'نمایش ویژه در جستجوها',
+            'دسترسی به ابزارهای حرفه‌ای'
         ],
         popular: true,
         discount: '50%'
     }
 ]
 
-export default function GoldenTickModal({ isOpen, onClose, onPurchase }: GoldenTickModalProps) {
+export default function GoldenTickModal({ 
+    isOpen, 
+    onClose, 
+    onPurchase,
+    isLoading = false
+}: GoldenTickModalProps) {
     const [selectedPlan, setSelectedPlan] = useState('yearly')
+
+    // Reset to default when modal opens
+    React.useEffect(() => {
+        if (isOpen) {
+            setSelectedPlan('yearly')
+        }
+    }, [isOpen])
 
     if (!isOpen) return null
 
+    const selectedPlanData = plans.find(p => p.id === selectedPlan) || plans[1]
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="relative w-full max-w-4xl bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
+            <div className="relative w-full max-w-4xl bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl overflow-hidden my-8">
                 {/* Header */}
                 <div className="relative p-6 bg-gradient-to-r from-amber-500 via-yellow-500 to-orange-500">
                     <button
                         onClick={onClose}
-                        className="absolute top-4 right-4 p-2 text-white/80 hover:text-white transition-colors"
+                        disabled={isLoading}
+                        className="absolute top-4 right-4 p-2 text-white/80 hover:text-white transition-colors disabled:opacity-50"
                     >
                         <X size={20} />
                     </button>
@@ -81,11 +104,12 @@ export default function GoldenTickModal({ isOpen, onClose, onPurchase }: GoldenT
                         {plans.map((plan) => (
                             <div
                                 key={plan.id}
-                                className={`relative p-6 rounded-xl border-2 transition-all duration-300 cursor-pointer ${selectedPlan === plan.id
+                                className={`relative p-6 rounded-xl border-2 transition-all duration-300 cursor-pointer ${
+                                    selectedPlan === plan.id
                                         ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20'
                                         : 'border-zinc-200 dark:border-zinc-700 hover:border-amber-300'
-                                    }`}
-                                onClick={() => setSelectedPlan(plan.id)}
+                                }`}
+                                onClick={() => !isLoading && setSelectedPlan(plan.id)}
                             >
                                 {plan.popular && (
                                     <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
@@ -102,7 +126,7 @@ export default function GoldenTickModal({ isOpen, onClose, onPurchase }: GoldenT
 
                                     <div className="flex items-center justify-center gap-2 mb-2">
                                         <span className="text-3xl font-bold text-amber-600 dark:text-amber-400">
-                                            {plan.price}
+                                            {plan.priceFormatted}
                                         </span>
                                         <span className="text-zinc-600 dark:text-zinc-400">
                                             {plan.currency}
@@ -111,7 +135,7 @@ export default function GoldenTickModal({ isOpen, onClose, onPurchase }: GoldenT
 
                                     <div className="flex items-center justify-center gap-2">
                                         <span className="text-sm text-zinc-500 line-through">
-                                            {plan.originalPrice} {plan.currency}
+                                            {plan.originalPriceFormatted} {plan.currency}
                                         </span>
                                         <span className="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2 py-1 rounded text-xs font-medium">
                                             {plan.discount} تخفیف
@@ -199,16 +223,27 @@ export default function GoldenTickModal({ isOpen, onClose, onPurchase }: GoldenT
                     <div className="flex flex-col sm:flex-row gap-3">
                         <Button
                             onClick={() => onPurchase(selectedPlan)}
-                            className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-medium py-3 rounded-xl transition-all duration-300 transform hover:scale-105"
+                            disabled={isLoading}
+                            className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-medium py-3 rounded-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                         >
-                            <Sparkles className="w-5 h-5 mr-2" />
-                            خرید تیک طلایی
+                            {isLoading ? (
+                                <>
+                                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                                    در حال پردازش...
+                                </>
+                            ) : (
+                                <>
+                                    <Sparkles className="w-5 h-5 mr-2" />
+                                    خرید تیک طلایی ({selectedPlanData.priceFormatted} {selectedPlanData.currency})
+                                </>
+                            )}
                         </Button>
 
                         <Button
                             onClick={onClose}
+                            disabled={isLoading}
                             variant="outline"
-                            className="flex-1 border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                            className="flex-1 border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50"
                         >
                             انصراف
                         </Button>
@@ -221,4 +256,4 @@ export default function GoldenTickModal({ isOpen, onClose, onPurchase }: GoldenT
             </div>
         </div>
     )
-} 
+}

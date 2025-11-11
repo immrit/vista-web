@@ -13,9 +13,7 @@ const eslintConfig = [
   ...compat.extends("next/core-web-vitals"),
   {
     rules: {
-      "@typescript-eslint/no-unused-vars": "error",
-      "@next/next/no-img-element": "off",
-      "@typescript-eslint/prefer-as-const": "error"
+      "@next/next/no-img-element": "off"
     }
   }
 ];

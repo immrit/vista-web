@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Heart, MessageSquare, Share2, Check, Smartphone, Globe } from 'lucide-react';
 import { supabase, Post, Profile, Like, Comment } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
@@ -49,14 +49,7 @@ export function PostCard({ post, onUpdate, onPostDeleted, showComments = false, 
         setIsMobile(/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
     }, []);
 
-    // Check if current user has liked this post
-    useEffect(() => {
-        if (user && post.id) {
-            checkIfLiked();
-        }
-    }, [user, post.id]);
-
-    const checkIfLiked = async () => {
+    const checkIfLiked = useCallback(async () => {
         if (!user) return;
 
         try {
@@ -72,7 +65,14 @@ export function PostCard({ post, onUpdate, onPostDeleted, showComments = false, 
             // If no like found, it's not liked
             setIsLiked(false);
         }
-    };
+    }, [user, post.id]);
+
+    // Check if current user has liked this post
+    useEffect(() => {
+        if (user && post.id) {
+            checkIfLiked();
+        }
+    }, [user, post.id, checkIfLiked]);
 
     const handleLike = async () => {
         if (!user || !profile || isLikeLoading) {
@@ -136,7 +136,7 @@ export function PostCard({ post, onUpdate, onPostDeleted, showComments = false, 
     };
 
     const generateShareUrl = (type: 'web' | 'app') => {
-        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://coffevista.ir';
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://coffevista.ir';
         const postUrl = `${baseUrl}/post/${post.id}`;
 
         if (type === 'app') {

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { Logo } from './Logo';
+import SearchDrawer from './SearchDrawer';
 
 interface NavigationProps {
     lang: 'fa' | 'en';
@@ -22,6 +23,7 @@ const menu = [
 export function Navigation({ lang, user }: NavigationProps) {
     const isRtl = lang === 'fa';
     const [showDropdown, setShowDropdown] = useState(false);
+    const [showSearchDrawer, setShowSearchDrawer] = useState(false);
     const router = useRouter();
     const { signOut } = useAuth();
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -53,7 +55,7 @@ export function Navigation({ lang, user }: NavigationProps) {
     return (
         <>
             <nav
-                className={`hidden md:flex flex-col fixed top-0 ${isRtl ? 'right-0' : 'left-0'} h-full w-64 bg-black dark:bg-zinc-950 border-r border-zinc-800 z-30 py-8 px-4 space-y-2`}
+                className={`hidden md:flex flex-col fixed top-0 ${isRtl ? 'right-0' : 'left-0'} h-full w-[220px] bg-black dark:bg-zinc-950 border-r border-zinc-800 z-30 py-8 px-4 space-y-2`}
                 dir={isRtl ? 'rtl' : 'ltr'}
             >
                 <div className="mb-8 flex items-center justify-center">
@@ -173,15 +175,14 @@ export function Navigation({ lang, user }: NavigationProps) {
                     <Home className="w-6 h-6 mb-1" />
                     <span className="text-xs">{menu[0].label[lang]}</span>
                 </Link>
-                {/* Explore */}
-                <Link
-                    key={menu[1].key}
-                    href={menu[1].href}
+                {/* Explore - Opens Search Drawer on Mobile */}
+                <button
+                    onClick={() => setShowSearchDrawer(true)}
                     className="flex flex-col items-center justify-center flex-1 py-2 text-zinc-200 hover:text-blue-500 hover:bg-zinc-900 rounded-xl transition"
                 >
                     <Search className="w-6 h-6 mb-1" />
                     <span className="text-xs">{menu[1].label[lang]}</span>
-                </Link>
+                </button>
                 {/* Plus (center) */}
                 <Link
                     href="/post"
@@ -208,6 +209,12 @@ export function Navigation({ lang, user }: NavigationProps) {
                     <span className="text-xs">{menu[4].label[lang]}</span>
                 </Link>
             </nav>
+
+            {/* Search Drawer (Mobile) */}
+            <SearchDrawer
+                isOpen={showSearchDrawer}
+                onClose={() => setShowSearchDrawer(false)}
+            />
         </>
     );
 } 

@@ -2,8 +2,9 @@
 
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/Button'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase, Post, Profile } from '@/lib/supabase'
+import { formatError } from '@/lib/utils/error'
 import { Navigation } from '@/components/ui/Navigation'
 import { PostCard } from '@/components/ui/PostCard'
 import { Bell } from 'lucide-react'
@@ -17,15 +18,19 @@ export default function FeedPage() {
     const { user, profile, loading } = useAuth()
     const router = useRouter()
     const [posts, setPosts] = useState<PostWithProfile[]>([])
-    const [loadingPosts, setLoadingPosts] = useState(true)
+    const [loadingPosts, setLoadingPosts] = useState(false)
     const [loadingMore, setLoadingMore] = useState(false)
     const [hasMore, setHasMore] = useState(true)
     const [page, setPage] = useState(0)
     const [suggested, setSuggested] = useState<Profile[]>([])
     const [authChecked, setAuthChecked] = useState(false)
+    const [postsError, setPostsError] = useState<'timeout' | 'error' | null>(null)
+    const [loadMoreError, setLoadMoreError] = useState<'timeout' | 'error' | null>(null)
     const lang = 'fa'
     const isRtl = lang === 'fa'
     const POSTS_PER_PAGE = 10
+    const FETCH_TIMEOUT_MS = 15000
+    const activeFetchIdRef = useRef(0)
 
     // بررسی authentication با منطق بهتر
     useEffect(() => {
@@ -41,7 +46,7 @@ export default function FeedPage() {
             console.log('User not authenticated, redirecting to /auth')
             router.replace('/auth')
         }
-    }, [user, loading, router, authChecked])
+    }, [user, loading, router, authChecked, profile])
 
     // تنظیم authChecked بعد از 1 ثانیه
     useEffect(() => {
@@ -68,22 +73,53 @@ export default function FeedPage() {
     }, [authChecked, user])
 
     const fetchPosts = async (pageNumber: number, isInitial: boolean = false) => {
+        const fetchId = activeFetchIdRef.current + 1
+        activeFetchIdRef.current = fetchId
+
         if (isInitial) {
             setLoadingPosts(true)
             setPage(0)
+            setPostsError(null)
+            setLoadMoreError(null)
         } else {
             setLoadingMore(true)
+            setLoadMoreError(null)
         }
+
+        let timeoutId: ReturnType<typeof setTimeout> | undefined
 
         try {
             console.log(`Fetching posts for page ${pageNumber}...`)
 
-            const { data, error } = await supabase
+            const fetchPromise = supabase
                 .from('posts')
                 .select('*, profiles:profiles!posts_user_id_fkey(*)')
                 .eq('status', 'published')
                 .order('created_at', { ascending: false })
                 .range(pageNumber * POSTS_PER_PAGE, (pageNumber * POSTS_PER_PAGE) + POSTS_PER_PAGE - 1)
+
+            const timeoutPromise = new Promise<any>((resolve) => {
+                timeoutId = setTimeout(() => {
+                    resolve({
+                        data: null,
+                        error: {
+                            message: 'Request timed out',
+                            code: 'FETCH_TIMEOUT'
+                        },
+                        status: 408,
+                        statusText: 'Request Timeout',
+                        count: null
+                    })
+                }, FETCH_TIMEOUT_MS)
+            })
+
+            const response = await Promise.race([fetchPromise, timeoutPromise])
+
+            if (activeFetchIdRef.current !== fetchId) {
+                return
+            }
+
+            const { data, error } = response
 
             if (!error && data) {
                 console.log(`Fetched ${data.length} posts for page ${pageNumber}`)
@@ -97,23 +133,50 @@ export default function FeedPage() {
                 // بررسی اینکه آیا پست‌های بیشتری وجود دارد
                 setHasMore(data.length === POSTS_PER_PAGE)
                 setPage(pageNumber)
+            } else if (error?.code === 'FETCH_TIMEOUT') {
+                console.warn('Fetch posts timed out')
+                if (isInitial) {
+                    setPostsError('timeout')
+                } else {
+                    setLoadMoreError('timeout')
+                }
             } else {
-                console.error('Error fetching posts:', error)
+                const message = formatError(error)
+                console.error('Error fetching posts:', message, error)
+                if (isInitial) {
+                    setPostsError('error')
+                } else {
+                    setLoadMoreError('error')
+                }
             }
         } catch (err) {
-            console.error('Failed to fetch posts:', err)
+            const message = formatError(err)
+            console.error('Failed to fetch posts:', message, err)
+            if (activeFetchIdRef.current !== fetchId) {
+                return
+            }
+            if (isInitial) {
+                setPostsError('error')
+            } else {
+                setLoadMoreError('error')
+            }
         } finally {
-            setLoadingPosts(false)
-            setLoadingMore(false)
+            if (timeoutId) {
+                clearTimeout(timeoutId)
+            }
+            if (activeFetchIdRef.current === fetchId) {
+                setLoadingPosts(false)
+                setLoadingMore(false)
+            }
         }
     }
 
-    const loadMorePosts = async () => {
+    const loadMorePosts = useCallback(async () => {
         if (!loadingMore && hasMore) {
             console.log('Loading more posts...')
             await fetchPosts(page + 1)
         }
-    }
+    }, [loadingMore, hasMore, page])
 
     const fetchSuggested = async () => {
         try {
@@ -180,7 +243,7 @@ export default function FeedPage() {
                 observer.unobserve(trigger)
             }
         }
-    }, [hasMore, loadingMore, page])
+    }, [hasMore, loadingMore, page, loadMorePosts])
 
     // Refresh posts when user scrolls to top
     const handleRefresh = () => {
@@ -327,8 +390,47 @@ export default function FeedPage() {
                             <div className="flex items-center justify-center py-8">
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                             </div>
+                        ) : postsError && posts.length === 0 ? (
+                            <div className="text-center py-10">
+                                <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v4m0 4h.01M4.93 4.93l14.14 14.14M12 2a10 10 0 1010 10A10 10 0 0012 2z" />
+                                    </svg>
+                                </div>
+                                <p className="text-gray-700 dark:text-gray-300 mb-3">
+                                    {postsError === 'timeout'
+                                        ? 'بارگذاری پست‌ها بیش از حد طول کشید.'
+                                        : 'در بارگذاری پست‌ها خطایی رخ داد.'}
+                                </p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    لطفاً اتصال اینترنت خود را بررسی کرده و دوباره تلاش کنید.
+                                </p>
+                                <Button
+                                    onClick={() => fetchPosts(0, true)}
+                                    className="mt-5 px-5"
+                                >
+                                    تلاش مجدد
+                                </Button>
+                            </div>
                         ) : posts.length > 0 ? (
                             <div className="space-y-4">
+                                {postsError && (
+                                    <div className="rounded-lg border border-amber-200 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-200">
+                                        <p className="mb-2">
+                                            {postsError === 'timeout'
+                                                ? 'آخرین تلاش برای به‌روزرسانی فید با پایان زمان مواجه شد.'
+                                                : 'در به‌روزرسانی فید مشکلی پیش آمد.'}
+                                        </p>
+                                        <Button
+                                            variant="secondary"
+                                            size="sm"
+                                            onClick={() => fetchPosts(0, true)}
+                                            className="text-sm"
+                                        >
+                                            تلاش مجدد
+                                        </Button>
+                                    </div>
+                                )}
                                 {posts.map((post) => (
                                     <PostCard
                                         key={post.id}
@@ -349,6 +451,19 @@ export default function FeedPage() {
                                             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
                                             <span className="text-sm text-gray-500 dark:text-gray-400">در حال بارگذاری پست‌های بیشتر...</span>
                                         </div>
+                                    </div>
+                                )}
+
+                                {loadMoreError && (
+                                    <div className="flex flex-col items-center justify-center py-6 text-sm text-gray-600 dark:text-gray-300">
+                                        <p className="mb-3">
+                                            {loadMoreError === 'timeout'
+                                                ? 'دریافت پست‌های بیشتر به زمان بیشتری نیاز داشت.'
+                                                : 'در دریافت پست‌های بیشتر مشکلی رخ داد.'}
+                                        </p>
+                                        <Button size="sm" onClick={() => loadMorePosts()}>
+                                            تلاش مجدد
+                                        </Button>
                                     </div>
                                 )}
 

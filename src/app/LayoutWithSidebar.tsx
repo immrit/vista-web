@@ -1,9 +1,10 @@
 "use client";
+import React, { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import NavigationWrapper from "./NavigationWrapper";
 import { Navigation } from "@/components/ui/Navigation";
 import { useAuth } from "@/hooks/useAuth";
-import React, { useEffect, useState } from "react";
+import EnamadBadge from "@/components/ui/EnamadBadge";
 
 export default function LayoutWithSidebar({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
@@ -35,7 +36,7 @@ export default function LayoutWithSidebar({ children }: { children: React.ReactN
     }
 
     return (
-        <div className="min-h-screen w-full">
+        <div className="min-h-screen w-full flex">
             {!hideSidebar && <NavigationWrapper />}
             {/* Mobile Navigation - Always visible except on auth pages */}
             {!hideSidebar && (
@@ -43,9 +44,12 @@ export default function LayoutWithSidebar({ children }: { children: React.ReactN
                     <Navigation lang="fa" user={profile || undefined} />
                 </div>
             )}
-            <main className={`flex-1 ${!hideSidebar ? "md:mr-[220px]" : ""}`}>
-                {children}
+            <main className={`flex-1 w-full transition-all duration-300 ${!hideSidebar ? "md:mr-[220px]" : ""}`}>
+                <div className="w-full h-full">
+                    {children}
+                </div>
             </main>
+            <EnamadBadge />
         </div>
     );
 } 

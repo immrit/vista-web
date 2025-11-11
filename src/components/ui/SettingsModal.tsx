@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { X, Crown, Settings, User, Bell, Shield, Palette, Globe, HelpCircle, LogOut } from 'lucide-react'
 import { Button } from './Button'
 import GoldenTickModal from './GoldenTickModal'
+import { useAuth } from '@/hooks/useAuth'
 
 interface SettingsModalProps {
     isOpen: boolean
@@ -54,22 +55,58 @@ const settingsSections = [
 ]
 
 export default function SettingsModal({ isOpen, onClose, onLogout }: SettingsModalProps) {
-    const [showGoldenTick, setShowGoldenTick] = useState(false)
+    const [showGoldenTickModal, setShowGoldenTickModal] = useState(false)
+    const [isPurchasing, setIsPurchasing] = useState(false)
+    const { user, profile } = useAuth()
 
     if (!isOpen) return null
 
+    const hasGoldenTick = profile?.verification_type === 'premium'
+
     const handleItemClick = (item: any) => {
         if (item.action === 'open-golden-tick') {
-            setShowGoldenTick(true)
+            setShowGoldenTickModal(true)
         } else if (item.href) {
             window.location.href = item.href
         }
     }
 
-    const handleGoldenTickPurchase = (plan: string) => {
-        console.log('Purchasing Golden Tick plan:', plan)
-        // TODO: Implement purchase logic
-        setShowGoldenTick(false)
+    const handlePurchase = async (plan: string) => {
+        if (!user) return
+
+        setIsPurchasing(true)
+        try {
+            const planData = plan === 'monthly' 
+                ? { price: 99000, name: 'ماهانه' }
+                : { price: 899000, name: 'سالانه' }
+
+            // Create payment request
+            const response = await fetch('/api/payment/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    userId: user.id,
+                    plan,
+                    amount: planData.price
+                }),
+            })
+
+            const data = await response.json()
+
+            if (response.ok && data.success) {
+                // Redirect to payment URL
+                window.location.href = `${data.paymentUrl}&plan=${plan}`
+            } else {
+                alert(data.error || 'خطا در ایجاد درخواست پرداخت')
+                setIsPurchasing(false)
+            }
+        } catch (error) {
+            console.error('Error creating payment:', error)
+            alert('خطا در ایجاد درخواست پرداخت')
+            setIsPurchasing(false)
+        }
     }
 
     return (
@@ -124,9 +161,11 @@ export default function SettingsModal({ isOpen, onClose, onLogout }: SettingsMod
                                                         <div className="w-6 h-6 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full flex items-center justify-center">
                                                             <Crown className="w-3 h-3 text-white" />
                                                         </div>
-                                                        <span className="text-xs bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent font-medium">
-                                                            ویژه
-                                                        </span>
+                                                        {hasGoldenTick && (
+                                                            <span className="text-xs bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent font-medium">
+                                                                فعال
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 )}
 
@@ -161,9 +200,10 @@ export default function SettingsModal({ isOpen, onClose, onLogout }: SettingsMod
 
             {/* Golden Tick Modal */}
             <GoldenTickModal
-                isOpen={showGoldenTick}
-                onClose={() => setShowGoldenTick(false)}
-                onPurchase={handleGoldenTickPurchase}
+                isOpen={showGoldenTickModal}
+                onClose={() => setShowGoldenTickModal(false)}
+                onPurchase={handlePurchase}
+                isLoading={isPurchasing}
             />
         </>
     )

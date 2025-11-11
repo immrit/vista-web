@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+
 import { UploadService } from '@/lib/uploadService'
+import { env } from '@/lib/env'
 
 export async function POST(request: NextRequest) {
     try {
@@ -15,7 +17,7 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        const cookieStore = await cookies()
+        const cookieStore = cookies()
         console.log('Cookies found:', cookieStore.getAll().length)
 
         const supabase = createServerClient(
@@ -244,7 +246,7 @@ export async function POST(request: NextRequest) {
 
         // Call the separate API route for auth deletion using service role key
         try {
-            const authDeleteResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/auth/delete-user-auth`, {
+            const authDeleteResponse = await fetch(`${env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/auth/delete-user-auth`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

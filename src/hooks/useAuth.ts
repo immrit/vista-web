@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase, Profile } from '@/lib/supabase'
+import { formatError } from '@/lib/utils/error'
 
 export function useAuth() {
     const [user, setUser] = useState<User | null>(null)
@@ -102,8 +103,10 @@ export function useAuth() {
                 .single()
 
             if (error) {
-                console.error('Error fetching profile:', error)
-                setError(error.message)
+                const message = formatError(error)
+
+                console.error('Error fetching profile:', message, error)
+                setError(message || 'پروفایل یافت نشد.')
                 setLoading(false)
                 return
             }
@@ -112,8 +115,9 @@ export function useAuth() {
             setProfile(data)
             setLoading(false)
         } catch (err) {
-            console.error('Failed to fetch profile:', err)
-            setError(err instanceof Error ? err.message : 'Failed to fetch profile')
+            const message = formatError(err)
+            console.error('Failed to fetch profile:', message, err)
+            setError(message)
             setLoading(false)
         }
     }
@@ -324,6 +328,12 @@ export function useAuth() {
 
     // Return loading state during hydration
     if (!isHydrated) {
+        const refreshProfile = async () => {
+            if (user) {
+                await fetchProfile(user.id)
+            }
+        }
+
         return {
             user: null,
             profile: null,
@@ -334,8 +344,15 @@ export function useAuth() {
             signOut,
             updateProfile,
             fetchProfile,
+            refreshProfile,
             sendDeleteCode,
             verifyDeleteCode,
+        }
+    }
+
+    const refreshProfile = async () => {
+        if (user) {
+            await fetchProfile(user.id)
         }
     }
 
@@ -349,6 +366,7 @@ export function useAuth() {
         signOut,
         updateProfile,
         fetchProfile,
+        refreshProfile,
         sendDeleteCode,
         verifyDeleteCode,
     }

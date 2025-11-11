@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import GoldenTickPromo from '@/components/ui/GoldenTickPromo';
 import GoldenTickBadge from '@/components/ui/GoldenTickBadge';
 import SettingsDrawer from '@/components/ui/SettingsDrawer';
+import GoldenTickModal from '@/components/ui/GoldenTickModal';
 
 interface PostWithProfile extends Post {
     profiles?: Profile;
@@ -24,14 +25,16 @@ export default function ProfileTabsUI({ profile, posts, musicPosts, isRtl }: {
     const [localPosts, setLocalPosts] = useState(posts);
     const [localMusicPosts, setLocalMusicPosts] = useState(musicPosts);
     const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
+    const [showGoldenTickModal, setShowGoldenTickModal] = useState(false);
+    const [isPurchasing, setIsPurchasing] = useState(false);
     const { user, signOut } = useAuth();
     const router = useRouter();
 
     // Check if the current user is viewing their own profile
     const isOwnProfile = user?.id === profile.id;
 
-    // TODO: Replace with actual golden tick status from profile
-    const hasGoldenTick = false; // profile.has_golden_tick || false
+    // Get current verification status
+    const hasGoldenTick = profile?.verification_type === 'premium';
 
     const handlePostUpdate = (updatedPost: PostWithProfile) => {
         setLocalPosts(prevPosts =>
@@ -128,8 +131,30 @@ export default function ProfileTabsUI({ profile, posts, musicPosts, isRtl }: {
                             </div>
                         </div>
 
-                        {/* Golden Tick Promo - Show for users without golden tick */}
-                        {!hasGoldenTick && (
+                        {/* Golden Tick CTA - Show for own profile without golden tick */}
+                        {isOwnProfile && !hasGoldenTick && (
+                            <div className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-2xl border border-amber-200 dark:border-amber-800 p-6">
+                                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                                    <div className="flex-1 text-center md:text-right">
+                                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+                                            تیک طلایی ویستا
+                                        </h3>
+                                        <p className="text-gray-600 dark:text-gray-400 text-sm">
+                                            با خرید تیک طلایی، اعتبار و ویژگی‌های بیشتری کسب کنید
+                                        </p>
+                                    </div>
+                                    <Button
+                                        onClick={() => setShowGoldenTickModal(true)}
+                                        className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
+                                    >
+                                        خرید تیک طلایی
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Golden Tick Promo - Show for users without golden tick (fallback) */}
+                        {!hasGoldenTick && !isOwnProfile && (
                             <div className="mb-6">
                                 <GoldenTickPromo />
                             </div>
@@ -205,6 +230,50 @@ export default function ProfileTabsUI({ profile, posts, musicPosts, isRtl }: {
                 isOpen={showSettingsDrawer}
                 onClose={() => setShowSettingsDrawer(false)}
                 onLogout={handleLogout}
+            />
+
+            {/* Golden Tick Modal */}
+            <GoldenTickModal
+                isOpen={showGoldenTickModal}
+                onClose={() => setShowGoldenTickModal(false)}
+                onPurchase={async (plan) => {
+                    if (!user) return
+
+                    setIsPurchasing(true)
+                    try {
+                        const planData = plan === 'monthly' 
+                            ? { price: 99000, name: 'ماهانه' }
+                            : { price: 899000, name: 'سالانه' }
+
+                        // Create payment request
+                        const response = await fetch('/api/payment/create', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                userId: user.id,
+                                plan,
+                                amount: planData.price
+                            }),
+                        })
+
+                        const data = await response.json()
+
+                        if (response.ok && data.success) {
+                            // Redirect to payment URL
+                            window.location.href = `${data.paymentUrl}&plan=${plan}`
+                        } else {
+                            alert(data.error || 'خطا در ایجاد درخواست پرداخت')
+                            setIsPurchasing(false)
+                        }
+                    } catch (error) {
+                        console.error('Error creating payment:', error)
+                        alert('خطا در ایجاد درخواست پرداخت')
+                        setIsPurchasing(false)
+                    }
+                }}
+                isLoading={isPurchasing}
             />
         </>
     );

@@ -12,7 +12,7 @@ interface GoldenTickPromoProps {
 export default function GoldenTickPromo({ className = '' }: GoldenTickPromoProps) {
     const [showModal, setShowModal] = useState(false)
 
-    const handlePurchase = (plan: string) => {
+    const handlePurchase = async (plan: string) => {
         console.log('Purchasing Golden Tick plan:', plan)
         // TODO: Implement purchase logic
         setShowModal(false)

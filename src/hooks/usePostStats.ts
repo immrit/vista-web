@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 
 interface UsePostStatsProps {
@@ -19,7 +19,7 @@ export function usePostStats({ postId, initialLikesCount, initialCommentsCount }
         setCommentsCount(initialCommentsCount);
     }, [initialLikesCount, initialCommentsCount]);
 
-    const refreshStats = async () => {
+    const refreshStats = useCallback(async () => {
         try {
             // Count likes directly from likes table
             const { count: likesCountResult } = await supabase
@@ -41,14 +41,14 @@ export function usePostStats({ postId, initialLikesCount, initialCommentsCount }
         } catch (error) {
             console.error('Error refreshing post stats:', error);
         }
-    };
+    }, [postId]);
 
     // Initial load of stats
     useEffect(() => {
         if (postId) {
             refreshStats();
         }
-    }, [postId]);
+    }, [postId, refreshStats]);
 
     // Listen for real-time updates on likes table
     useEffect(() => {
@@ -93,7 +93,7 @@ export function usePostStats({ postId, initialLikesCount, initialCommentsCount }
             supabase.removeChannel(likesChannel);
             supabase.removeChannel(commentsChannel);
         };
-    }, [postId]);
+    }, [postId, refreshStats]);
 
     return {
         likesCount,

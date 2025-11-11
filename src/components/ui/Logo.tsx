@@ -20,16 +20,19 @@ export function Logo({ variant = 'default', size = 'md', className }: LogoProps)
             case 'white':
                 return '/assets/images/logo-white.png'
             case 'icon':
-                return '/assets/images/logo-icon.png'
+                // Fallback to default logo if icon doesn't exist
+                return '/assets/images/logo.png'
             default:
                 return '/assets/images/logo.png'
         }
     }
 
+    const logoSrc = getLogoSrc()
+    
     return (
         <div className={cn('flex items-center justify-center', className)}>
             <Image
-                src={getLogoSrc()}
+                src={logoSrc}
                 alt="Vista Logo"
                 width={200}
                 height={80}

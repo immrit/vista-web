@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { X, Send, MessageSquare } from 'lucide-react';
 import { supabase, Post, Profile, Comment } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
@@ -31,13 +31,7 @@ export function CommentSheet({ isOpen, onClose, post, onUpdate }: CommentSheetPr
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
-    useEffect(() => {
-        if (isOpen) {
-            loadComments();
-        }
-    }, [isOpen, post.id]);
-
-    const loadComments = async () => {
+    const loadComments = useCallback(async () => {
         setIsLoading(true);
         try {
             // Load main comments
@@ -80,7 +74,13 @@ export function CommentSheet({ isOpen, onClose, post, onUpdate }: CommentSheetPr
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [post.id]);
+
+    useEffect(() => {
+        if (isOpen) {
+            loadComments();
+        }
+    }, [isOpen, loadComments]);
 
     const handleAddComment = async () => {
         if (!user || !profile || !newComment.trim() || isSubmitting) return;

@@ -44,6 +44,7 @@ export default function SettingsPage() {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [showVerificationModal, setShowVerificationModal] = useState(false);
     const [showGoldenTickModal, setShowGoldenTickModal] = useState(false);
+    const [isPurchasing, setIsPurchasing] = useState(false);
     const [deleteConfirmText, setDeleteConfirmText] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
@@ -147,15 +148,45 @@ export default function SettingsPage() {
         }
     };
 
+    const hasGoldenTick = profile?.verification_type === 'premium';
+
     const handleGoldenTickPurchase = async (plan: string) => {
+        if (!user) return
+
+        setIsPurchasing(true)
         try {
             setError(null);
             setSuccess(null);
-            console.log('Purchasing golden tick plan:', plan);
-            setSuccess('تیک طلایی با موفقیت خریداری شد');
-            setShowGoldenTickModal(false);
+            
+            const planData = plan === 'monthly' 
+                ? { price: 99000, name: 'ماهانه' }
+                : { price: 899000, name: 'سالانه' }
+
+            // Create payment request
+            const response = await fetch('/api/payment/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    userId: user.id,
+                    plan,
+                    amount: planData.price
+                }),
+            })
+
+            const data = await response.json()
+
+            if (response.ok && data.success) {
+                // Redirect to payment URL
+                window.location.href = `${data.paymentUrl}&plan=${plan}`
+            } else {
+                setError(data.error || 'خطا در ایجاد درخواست پرداخت')
+                setIsPurchasing(false)
+            }
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'خطا در خرید تیک طلایی');
+            setError(err instanceof Error ? err.message : 'خطا در ایجاد درخواست پرداخت');
+            setIsPurchasing(false);
         }
     };
 
@@ -763,9 +794,10 @@ export default function SettingsPage() {
                 <Button
                     onClick={() => setShowGoldenTickModal(true)}
                     className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold"
+                    disabled={hasGoldenTick}
                 >
                     <Crown className="w-4 h-4 mr-2" />
-                    خرید تیک طلایی
+                    {hasGoldenTick ? 'تیک طلایی فعال است' : 'خرید تیک طلایی'}
                 </Button>
             </div>
         </div>
@@ -889,7 +921,7 @@ export default function SettingsPage() {
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                    برای تأیید، کلمه "حذف" را وارد کنید
+                                    برای تأیید، کلمه &quot;حذف&quot; را وارد کنید
                                 </label>
                                 <Input
                                     type="text"
@@ -946,6 +978,7 @@ export default function SettingsPage() {
                 isOpen={showGoldenTickModal}
                 onClose={() => setShowGoldenTickModal(false)}
                 onPurchase={handleGoldenTickPurchase}
+                isLoading={isPurchasing}
             />
         </>
     );

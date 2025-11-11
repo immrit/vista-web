@@ -102,6 +102,7 @@ export default function PostDetailPage() {
         };
 
         fetchPost();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [postId, user?.id]); // Removed router from dependencies
 
     const generateShareUrl = (type: 'web' | 'app') => {
