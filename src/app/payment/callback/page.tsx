@@ -11,7 +11,7 @@ type PaymentStatus = 'loading' | 'success' | 'error' | 'cancelled'
 export default function PaymentCallbackPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { user, refreshProfile } = useAuth()
+  const { user, refreshProfile, loading: authLoading } = useAuth()
   const [status, setStatus] = useState<PaymentStatus>('loading')
   const [message, setMessage] = useState('در حال بررسی پرداخت...')
   const [paymentDetails, setPaymentDetails] = useState<{
@@ -26,17 +26,24 @@ export default function PaymentCallbackPage() {
   }>({})
 
   useEffect(() => {
+    // 🔥 صبر کن تا auth لود بشه
+    if (authLoading) {
+      console.log('⏳ Waiting for auth...')
+      return
+    }
+
     const verifyPayment = async () => {
       try {
         const success = searchParams.get('success')
         const trackId = searchParams.get('trackId')
         const orderId = searchParams.get('orderId')
 
-        console.log('📥 Zibal callback:', { success, trackId, orderId })
+        console.log('📥 Zibal callback:', { success, trackId, orderId, user: !!user })
 
         if (!user) {
           setStatus('error')
           setMessage('لطفاً ابتدا وارد حساب کاربری خود شوید')
+          setTimeout(() => router.push('/auth'), 2000)
           return
         }
 
@@ -86,6 +93,9 @@ export default function PaymentCallbackPage() {
           })
 
           localStorage.removeItem('payment_plan')
+          
+          // 🔥 رفرش profile
+          console.log('🔄 Refreshing profile...')
           await refreshProfile()
 
           setTimeout(() => {
@@ -104,7 +114,7 @@ export default function PaymentCallbackPage() {
     }
 
     verifyPayment()
-  }, [searchParams, user, refreshProfile, router])
+  }, [searchParams, user, refreshProfile, router, authLoading])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-zinc-950 px-4">

@@ -34,7 +34,7 @@ export default function ProfileTabsUI({ profile, posts, musicPosts, isRtl }: {
     const isOwnProfile = user?.id === profile.id;
 
     // Get current verification status
-    const hasGoldenTick = profile?.verification_type === 'premium';
+    const hasGoldenTick = profile?.verification_type === 'goldTick' || profile?.verification_type === 'premium';
 
     const handlePostUpdate = (updatedPost: PostWithProfile) => {
         setLocalPosts(prevPosts =>
@@ -241,9 +241,9 @@ export default function ProfileTabsUI({ profile, posts, musicPosts, isRtl }: {
 
                     setIsPurchasing(true)
                     try {
-                        const planData = plan === 'monthly' 
-                            ? { price: 2000, name: 'ماهانه' }
-                            : { price: 899000, name: 'سالانه' }
+            const planData = plan === 'monthly'
+                ? { price: 99000, name: 'ماهانه' }
+                : { price: 899000, name: 'سالانه' }
 
                         // ذخیره plan در localStorage برای استفاده در callback
                         localStorage.setItem('payment_plan', plan)

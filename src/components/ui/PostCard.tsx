@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Heart, MessageSquare, Share2, Check, Smartphone, Globe } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { supabase, Post, Profile, Like, Comment } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { usePostStats } from '@/hooks/usePostStats';
@@ -26,6 +27,7 @@ interface PostCardProps {
 
 export function PostCard({ post, onUpdate, onPostDeleted, showComments = false, className = '' }: PostCardProps) {
     const { user, profile } = useAuth();
+    const router = useRouter();
     const [isLiked, setIsLiked] = useState(post.is_liked || false);
     const [showCommentSheet, setShowCommentSheet] = useState(false);
     const [isLikeLoading, setIsLikeLoading] = useState(false);
@@ -184,30 +186,37 @@ export function PostCard({ post, onUpdate, onPostDeleted, showComments = false, 
             <div className={`bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-800 p-6 ${className}`}>
                 {/* User Info */}
                 <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => {
+                            if (p?.username) {
+                                router.push(`/profile/${p.username}`);
+                            }
+                        }}
+                        className="flex items-center gap-3 hover:opacity-80 transition-opacity flex-1 text-right"
+                    >
                         {p?.avatar_url ? (
                             <img
                                 src={p.avatar_url}
                                 alt="avatar"
-                                className="w-12 h-12 rounded-full object-cover border border-zinc-200 dark:border-zinc-700"
+                                className="w-12 h-12 rounded-full object-cover border border-zinc-200 dark:border-zinc-700 cursor-pointer"
                             />
                         ) : (
-                            <div className="w-12 h-12 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center text-xl font-bold text-gray-600 dark:text-gray-400">
+                            <div className="w-12 h-12 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center text-xl font-bold text-gray-600 dark:text-gray-400 cursor-pointer">
                                 {p?.full_name?.charAt(0) || p?.username?.charAt(0) || '👤'}
                             </div>
                         )}
-                        <div>
+                        <div className="flex-1">
                             <div className="flex items-center gap-2">
-                                <h3 className="font-semibold text-gray-900 dark:text-white">
+                                <h3 className="font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                                     {p?.full_name || p?.username}
                                 </h3>
                                 {hasGoldenTick && <GoldenTickBadge size="sm" />}
                             </div>
                             <p className="text-sm text-gray-500 dark:text-gray-400">
-                                @{p?.username} • {formatTimeAgo(post.created_at)}
+                                <span className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">@{p?.username}</span> • {formatTimeAgo(post.created_at)}
                             </p>
                         </div>
-                    </div>
+                    </button>
                     {user && (
                         <PostMenu
                             post={post}

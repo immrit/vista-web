@@ -55,7 +55,7 @@ const goldTickPlans = [
     {
         id: 'gold-monthly',
         name: 'تیک طلایی - ماهانه',
-        price: '2,000',
+        price: '99,000',
         originalPrice: '149,000',
         currency: 'تومان',
         period: 'ماهانه',
@@ -68,7 +68,7 @@ const goldTickPlans = [
             'ویژگی‌های پیشرفته'
         ],
         popular: false,
-        discount: '33%'
+        discount: '34%'
     },
     {
         id: 'gold-yearly',

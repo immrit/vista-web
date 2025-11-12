@@ -16,8 +16,8 @@ const plans = [
     {
         id: 'monthly',
         name: 'اشتراک ماهانه',
-        price: 2000,
-        priceFormatted: '2,000',
+        price: 99000,
+        priceFormatted: '99,000',
         originalPrice: 149000,
         originalPriceFormatted: '149,000',
         currency: 'تومان',
@@ -31,7 +31,7 @@ const plans = [
             'ویژگی‌های پیشرفته'
         ],
         popular: false,
-        discount: '33%'
+        discount: '34%'
     },
     {
         id: 'yearly',

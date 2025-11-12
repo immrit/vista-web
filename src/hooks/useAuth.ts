@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase, Profile } from '@/lib/supabase'
 import { formatError } from '@/lib/utils/error'
@@ -9,6 +9,7 @@ export function useAuth() {
     const [user, setUser] = useState<User | null>(null)
     const [profile, setProfile] = useState<Profile | null>(null)
     const [loading, setLoading] = useState(true)
+    const [refreshing, setRefreshing] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [isHydrated, setIsHydrated] = useState(false)
 
@@ -17,22 +18,39 @@ export function useAuth() {
         setIsHydrated(true)
     }, [])
 
+    const fetchProfile = useCallback(async (userId: string) => {
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', userId)
+                .single()
+
+            if (error) {
+                const message = formatError(error)
+                setError(message || 'پروفایل یافت نشد.')
+                return
+            }
+
+            setProfile(data)
+        } catch (err) {
+            const message = formatError(err)
+            setError(message)
+        }
+    }, [])
+
     useEffect(() => {
         if (!isHydrated) return
 
-        console.log('=== USE AUTH DEBUG ===')
-        console.log('Initializing useAuth...')
-
         let mounted = true
 
-        // Get initial session
+        // 🔥 بهینه‌سازی: سریع‌تر session را بگیر و loading را false کن
         const getInitialSession = async () => {
             try {
-                console.log('Getting initial session...')
+                // سریع session را بگیر
                 const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
                 if (sessionError) {
-                    console.error('Session error:', sessionError)
                     if (mounted) {
                         setError(sessionError.message)
                         setLoading(false)
@@ -40,21 +58,19 @@ export function useAuth() {
                     return
                 }
 
-                console.log('Session:', session)
-
                 if (mounted) {
                     setUser(session?.user ?? null)
+                    // 🔥 سریع loading را false کن - profile بعداً لود میشه
+                    setLoading(false)
 
                     if (session?.user) {
-                        console.log('User found, fetching profile...')
-                        await fetchProfile(session.user.id)
-                    } else {
-                        console.log('No user found')
-                        setLoading(false)
+                        // Profile را در background لود کن
+                        fetchProfile(session.user.id).catch(err => {
+                            console.error('Error fetching profile in background:', err)
+                        })
                     }
                 }
             } catch (err) {
-                console.error('Error in getInitialSession:', err)
                 if (mounted) {
                     setError(err instanceof Error ? err.message : 'Unknown error')
                     setLoading(false)
@@ -67,19 +83,17 @@ export function useAuth() {
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, session) => {
-                console.log('Auth state changed:', event, session)
-
                 if (!mounted) return
 
                 setUser(session?.user ?? null)
 
                 if (session?.user) {
-                    console.log('User authenticated, fetching profile...')
-                    await fetchProfile(session.user.id)
+                    // Profile را در background لود کن
+                    fetchProfile(session.user.id).catch(err => {
+                        console.error('Error fetching profile:', err)
+                    })
                 } else {
-                    console.log('User signed out, clearing profile')
                     setProfile(null)
-                    setLoading(false)
                 }
 
                 setError(null)
@@ -87,40 +101,10 @@ export function useAuth() {
         )
 
         return () => {
-            console.log('Cleaning up useAuth subscription')
             mounted = false
             subscription.unsubscribe()
         }
-    }, [isHydrated])
-
-    const fetchProfile = async (userId: string) => {
-        try {
-            console.log('Fetching profile for user:', userId)
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', userId)
-                .single()
-
-            if (error) {
-                const message = formatError(error)
-
-                console.error('Error fetching profile:', message, error)
-                setError(message || 'پروفایل یافت نشد.')
-                setLoading(false)
-                return
-            }
-
-            console.log('Profile fetched:', data)
-            setProfile(data)
-            setLoading(false)
-        } catch (err) {
-            const message = formatError(err)
-            console.error('Failed to fetch profile:', message, err)
-            setError(message)
-            setLoading(false)
-        }
-    }
+    }, [isHydrated, fetchProfile])
 
     const signIn = async (email: string, password: string) => {
         try {
@@ -326,40 +310,40 @@ export function useAuth() {
         }
     }
 
-    // Return loading state during hydration
-    if (!isHydrated) {
-        const refreshProfile = async () => {
-            if (user) {
-                await fetchProfile(user.id)
+    const refreshProfile = useCallback(async () => {
+        if (!user?.id) return
+
+        setRefreshing(true)
+        try {
+            console.log('🔄 Refreshing profile for user:', user.id)
+            
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', user.id)
+                .single()
+
+            if (error) {
+                console.error('❌ Error refreshing profile:', error)
+                throw error
             }
-        }
 
-        return {
-            user: null,
-            profile: null,
-            loading: true,
-            error: null,
-            signIn,
-            signUp,
-            signOut,
-            updateProfile,
-            fetchProfile,
-            refreshProfile,
-            sendDeleteCode,
-            verifyDeleteCode,
+            console.log('✅ Profile refreshed:', data)
+            setProfile(data)
+            return data
+        } catch (error) {
+            console.error('Error refreshing profile:', error)
+            throw error
+        } finally {
+            setRefreshing(false)
         }
-    }
-
-    const refreshProfile = async () => {
-        if (user) {
-            await fetchProfile(user.id)
-        }
-    }
+    }, [user?.id])
 
     return {
         user,
         profile,
         loading,
+        refreshing,
         error,
         signIn,
         signUp,

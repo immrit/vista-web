@@ -237,39 +237,3 @@ export type Role = 'admin' | 'moderator' | 'normal' | 'premium'
 export type VerificationType = 'none' | 'verified' | 'premium' // شما باید انواع verification خودتون رو تعریف کنید
 export type LastSeenStatus = 'public' | 'private'
 
-// Helper Functions برای کار با Profile
-export const profileHelpers = {
-    // چک کردن آنلاین بودن کاربر
-    isOnline: (profile: Profile): boolean => {
-        if (!profile.is_online) return false
-        if (!profile.last_online) return false
-
-        const lastOnline = new Date(profile.last_online)
-        const now = new Date()
-        const diffMinutes = (now.getTime() - lastOnline.getTime()) / (1000 * 60)
-
-        return diffMinutes <= 5 // اگه کمتر از 5 دقیقه پیش آنلاین بوده
-    },
-
-    // فرمت کردن تعداد فالوورها
-    formatFollowersCount: (count: number | null): string => {
-        if (!count) return '0'
-        if (count < 1000) return count.toString()
-        if (count < 1000000) return `${(count / 1000).toFixed(1)}K`
-        return `${(count / 1000000).toFixed(1)}M`
-    },
-
-    // چک کردن verification
-    isVerified: (profile: Profile): boolean => {
-        return profile.is_verified === true && profile.verification_type !== 'none'
-    },
-
-    // گرفتن رنگ badge verification
-    getVerificationColor: (verificationType: string | null): string => {
-        switch (verificationType) {
-            case 'verified': return 'text-blue-500'
-            case 'premium': return 'text-yellow-500'
-            default: return 'text-gray-400'
-        }
-    }
-}

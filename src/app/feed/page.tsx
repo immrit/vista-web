@@ -34,7 +34,6 @@ export default function FeedPage() {
     const { user, profile, loading } = useAuth()
     const router = useRouter()
     const [suggested, setSuggested] = useState<Profile[]>([])
-    const [authChecked, setAuthChecked] = useState(false)
     const lang = 'fa'
     const isRtl = lang === 'fa'
     const loadStartTime = useRef<number>(Date.now())
@@ -64,28 +63,23 @@ export default function FeedPage() {
         }
     }, [isLoading, data])
 
-    // بررسی authentication با منطق بهتر
+    // بررسی authentication - فقط اگر واقعاً user نداریم redirect کن
     useEffect(() => {
-        if (!loading && !user && authChecked) {
-            router.replace('/auth')
+        // فقط بعد از اینکه مطمئن شدیم auth check شده و user نداریم
+        if (!loading && !user) {
+            const timeout = setTimeout(() => {
+                router.replace('/auth')
+            }, 500) // 500ms delay برای جلوگیری از redirect سریع
+            return () => clearTimeout(timeout)
         }
-    }, [user, loading, router, authChecked, profile])
-
-    // تنظیم authChecked بعد از 1 ثانیه
-    useEffect(() => {
-        const authTimeout = setTimeout(() => {
-            setAuthChecked(true)
-        }, 1000)
-
-        return () => clearTimeout(authTimeout)
-    }, [])
+    }, [user, loading, router])
 
     // بارگذاری کاربران پیشنهادی
     useEffect(() => {
-        if (authChecked && user) {
+        if (user) {
             fetchSuggested()
         }
-    }, [authChecked, user])
+    }, [user])
 
     const fetchSuggested = async () => {
         try {
@@ -175,45 +169,13 @@ export default function FeedPage() {
         )
     }
 
-    // اگر هنوز authChecked نشده، loading نشان بده
-    if (!authChecked) {
-        return (
-            <div className="min-h-screen flex items-center justify-center dark:bg-zinc-950 bg-gray-50">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                    <p className="text-gray-600 dark:text-gray-400">در حال بررسی احراز هویت...</p>
-                </div>
-            </div>
-        )
-    }
-
-    // اگر authentication check تمام شد و کاربر لاگین نکرده، loading نشان بده تا redirect شود
-    if (authChecked && !user) {
-        return (
-            <div className="min-h-screen flex items-center justify-center dark:bg-zinc-950 bg-gray-50">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                    <p className="text-gray-600 dark:text-gray-400">در حال هدایت به صفحه ورود...</p>
-                </div>
-            </div>
-        )
-    }
-
-    // اگر کاربر لاگین کرده ولی profile ندارد، loading نشان بده
-    if (user && !profile) {
-        return (
-            <div className="min-h-screen flex items-center justify-center dark:bg-zinc-950 bg-gray-50">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                    <p className="text-gray-600 dark:text-gray-400">در حال بارگذاری پروفایل...</p>
-                </div>
-            </div>
-        )
-    }
+    // 🔥 Optimistic rendering: محتوا را نشان بده حتی اگر profile هنوز لود نشده
+    // فقط اگر واقعاً user نداریم، redirect کن
 
     return (
         <div className={`min-h-screen dark:bg-zinc-950 bg-gray-50 flex flex-col lg:flex-row relative`} dir={isRtl ? 'rtl' : 'ltr'}>
             {/* Navigation: Always render for bottom nav on mobile, sidebar on desktop */}
+            {/* 🔥 Optimistic: profile ممکنه null باشه، مشکلی نیست */}
             <Navigation lang={lang} user={profile || undefined} />
             {/* TopBar (Mobile only) */}
             <div className="lg:hidden fixed top-0 left-0 right-0 z-40 h-16 flex items-center justify-center border-b border-zinc-800 dark:bg-zinc-950 bg-white shadow-sm">
@@ -398,3 +360,4 @@ export default function FeedPage() {
         </div>
     )
 }
+

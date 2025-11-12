@@ -39,10 +39,10 @@ export function CommentSheet({ isOpen, onClose, post, onUpdate }: CommentSheetPr
                 .from('comments')
                 .select(`
                     *,
-                    profiles (*)
+                    profiles!comments_user_id_fkey (*)
                 `)
                 .eq('post_id', post.id)
-                .is('parent_id', null)
+                .is('parent_comment_id', null)
                 .order('created_at', { ascending: false });
 
             if (commentsError) throw commentsError;
@@ -54,9 +54,9 @@ export function CommentSheet({ isOpen, onClose, post, onUpdate }: CommentSheetPr
                         .from('comments')
                         .select(`
                             *,
-                            profiles (*)
+                            profiles!comments_user_id_fkey (*)
                         `)
-                        .eq('parent_id', comment.id)
+                        .eq('parent_comment_id', comment.id)
                         .order('created_at', { ascending: true });
 
                     if (repliesError) throw repliesError;
@@ -70,7 +70,13 @@ export function CommentSheet({ isOpen, onClose, post, onUpdate }: CommentSheetPr
 
             setComments(commentsWithReplies);
         } catch (error) {
-            console.error('Error loading comments:', error);
+            const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+            const errorDetails = error instanceof Error ? { 
+                message: error.message, 
+                name: error.name,
+                stack: error.stack 
+            } : error;
+            console.error('Error loading comments:', errorMessage, errorDetails);
         } finally {
             setIsLoading(false);
         }
@@ -96,7 +102,7 @@ export function CommentSheet({ isOpen, onClose, post, onUpdate }: CommentSheetPr
                 })
                 .select(`
                     *,
-                    profiles (*)
+                    profiles!comments_user_id_fkey (*)
                 `)
                 .single();
 
@@ -111,7 +117,8 @@ export function CommentSheet({ isOpen, onClose, post, onUpdate }: CommentSheetPr
                 onUpdate(updatedPost);
             }
         } catch (error) {
-            console.error('Error adding comment:', error);
+            const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+            console.error('Error adding comment:', errorMessage, error);
         } finally {
             setIsSubmitting(false);
         }
@@ -128,11 +135,11 @@ export function CommentSheet({ isOpen, onClose, post, onUpdate }: CommentSheetPr
                     content: replyText.trim(),
                     post_id: post.id,
                     user_id: user.id,
-                    parent_id: parentCommentId,
+                    parent_comment_id: parentCommentId,
                 })
                 .select(`
                     *,
-                    profiles (*)
+                    profiles!comments_user_id_fkey (*)
                 `)
                 .single();
 
@@ -158,7 +165,8 @@ export function CommentSheet({ isOpen, onClose, post, onUpdate }: CommentSheetPr
                 onUpdate(updatedPost);
             }
         } catch (error) {
-            console.error('Error adding reply:', error);
+            const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+            console.error('Error adding reply:', errorMessage, error);
         } finally {
             setIsSubmitting(false);
         }

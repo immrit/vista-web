@@ -4,18 +4,57 @@ import { useState } from 'react'
 import { Crown, Sparkles, Star, Zap, Shield } from 'lucide-react'
 import { Button } from './Button'
 import GoldenTickModal from './GoldenTickModal'
+import { useAuth } from '@/hooks/useAuth'
 
 interface GoldenTickPromoProps {
     className?: string
 }
 
 export default function GoldenTickPromo({ className = '' }: GoldenTickPromoProps) {
+    const { profile } = useAuth()
     const [showModal, setShowModal] = useState(false)
 
+    // 🔥 اگه پرمیوم هست، نشون نده
+    if (profile?.verification_type === 'goldTick') {
+        return null
+    }
+
     const handlePurchase = async (plan: string) => {
-        console.log('Purchasing Golden Tick plan:', plan)
-        // TODO: Implement purchase logic
-        setShowModal(false)
+        if (!profile) return
+
+        try {
+            const planData = plan === 'monthly' 
+                ? { price: 99000, name: 'ماهانه' }
+                : { price: 899000, name: 'سالانه' }
+
+            // ذخیره plan در localStorage برای استفاده در callback
+            localStorage.setItem('payment_plan', plan)
+
+            // Create payment request
+            const response = await fetch('/api/payment/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    userId: profile.id,
+                    plan,
+                    amount: planData.price
+                }),
+            })
+
+            const data = await response.json()
+
+            if (response.ok && data.success && data.paymentUrl) {
+                // Redirect to payment URL
+                window.location.href = data.paymentUrl
+            } else {
+                alert(data.error || 'خطا در ایجاد درخواست پرداخت')
+            }
+        } catch (error) {
+            console.error('Error creating payment:', error)
+            alert('خطا در ایجاد درخواست پرداخت')
+        }
     }
 
     return (

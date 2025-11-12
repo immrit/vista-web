@@ -76,8 +76,8 @@ export default function SettingsDrawer({ isOpen, onClose, onLogout }: SettingsDr
 
         setIsPurchasing(true)
         try {
-            const planData = plan === 'monthly' 
-                ? { price: 2000, name: 'ماهانه' }
+            const planData = plan === 'monthly'
+                ? { price: 99000, name: 'ماهانه' }
                 : { price: 899000, name: 'سالانه' }
 
             // ذخیره plan در localStorage برای استفاده در callback

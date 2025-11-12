@@ -9,6 +9,7 @@ import { VerificationModal } from '@/components/ui/VerificationModal';
 import GoldenTickModal from '@/components/ui/GoldenTickModal';
 import { SubscriptionBadge } from '@/components/ui/SubscriptionBadge';
 import { RenewalPrompt } from '@/components/ui/RenewalPrompt';
+import { SubscriptionStatus } from '@/components/ui/SubscriptionStatus';
 import { useSubscription } from '@/hooks/useSubscription';
 import {
     Trash2,
@@ -162,9 +163,9 @@ export default function SettingsPage() {
             setError(null);
             setSuccess(null);
             
-            const planData = plan === 'monthly' 
-                ? { price: 2000, name: 'ماهانه' }
-                : { price: 899000, name: 'سالانه' }
+                const planData = plan === 'monthly'
+                    ? { price: 99000, name: 'ماهانه' }
+                    : { price: 899000, name: 'سالانه' }
 
             // ذخیره plan در localStorage برای استفاده در callback
             localStorage.setItem('payment_plan', plan)
@@ -251,25 +252,66 @@ export default function SettingsPage() {
             {/* Renewal Prompt - نمایش در صورت انقضای نزدیک یا منقضی شده */}
             <RenewalPrompt />
             
-            {/* Subscription Badge - نمایش وضعیت اشتراک فعال */}
-            {hasGoldenTick && <SubscriptionBadge />}
-            
-            {/* Golden Tick Section */}
-            <div
-                className="flex items-center justify-between p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-xl border border-amber-200 dark:border-amber-800 cursor-pointer hover:from-amber-100 hover:to-orange-100 dark:hover:from-amber-800/30 dark:hover:to-orange-800/30 transition-all"
-                onClick={() => setCurrentSection('golden-tick')}
-            >
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full flex items-center justify-center">
-                        <Crown className="w-5 h-5 text-white" />
+            {/* اگر کاربر اشتراک دارد، کارت وضعیت اشتراک را نشان بده (به جای بخش خرید) */}
+            {subscription.isActive ? (
+                <div className="bg-white dark:bg-zinc-800 rounded-lg p-4 border border-amber-200 dark:border-amber-800">
+                    <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                            <Crown className="w-5 h-5 text-amber-500" />
+                            <span className="font-semibold text-gray-900 dark:text-white">تیک طلایی فعال</span>
+                        </div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                            {subscription.plan === 'monthly' ? 'ماهانه' : 'سالانه'}
+                        </span>
                     </div>
-                    <div>
-                        <h3 className="font-semibold text-gray-900 dark:text-white">تیک طلایی ویستا</h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">عضویت ویژه و امکانات خاص</p>
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">زمان باقیمانده:</span>
+                            <span className="text-sm font-semibold text-amber-600 dark:text-amber-400">
+                                {subscription.daysRemaining} روز
+                            </span>
+                        </div>
+                        {subscription.expiresAt && (
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-gray-600 dark:text-gray-400">تاریخ انقضا:</span>
+                                <span className="text-sm text-gray-900 dark:text-white">
+                                    {subscription.expiresAt.toLocaleDateString('fa-IR', {
+                                        year: 'numeric',
+                                        month: 'long',
+                                        day: 'numeric',
+                                    })}
+                                </span>
+                            </div>
+                        )}
+                        {subscription.isExpiringSoon && (
+                            <Button
+                                onClick={() => setShowGoldenTickModal(true)}
+                                className="w-full mt-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold"
+                            >
+                                <Crown className="w-4 h-4 mr-2" />
+                                تمدید اشتراک
+                            </Button>
+                        )}
                     </div>
                 </div>
-                <ChevronRight className="w-5 h-5 text-gray-400" />
-            </div>
+            ) : (
+                /* اگر اشتراک ندارد، بخش خرید را نشان بده */
+                <div
+                    className="flex items-center justify-between p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-xl border border-amber-200 dark:border-amber-800 cursor-pointer hover:from-amber-100 hover:to-orange-100 dark:hover:from-amber-800/30 dark:hover:to-orange-800/30 transition-all"
+                    onClick={() => setCurrentSection('golden-tick')}
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full flex items-center justify-center">
+                            <Crown className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                            <h3 className="font-semibold text-gray-900 dark:text-white">تیک طلایی ویستا</h3>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">عضویت ویژه و امکانات خاص</p>
+                        </div>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                </div>
+            )}
 
             {/* Profile Settings */}
             <div
