@@ -1,5 +1,6 @@
 "use client";
-import { Profile, Post } from '@/lib/supabase';
+import { Profile } from '@/lib/supabase';
+import { PostWithProfile } from '@/lib/types';
 import { Music, MessageSquare, Heart, Settings } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
@@ -10,10 +11,6 @@ import GoldenTickPromo from '@/components/ui/GoldenTickPromo';
 import GoldenTickBadge from '@/components/ui/GoldenTickBadge';
 import SettingsDrawer from '@/components/ui/SettingsDrawer';
 import GoldenTickModal from '@/components/ui/GoldenTickModal';
-
-interface PostWithProfile extends Post {
-    profiles?: Profile;
-}
 
 export default function ProfileTabsUI({ profile, posts, musicPosts, isRtl }: {
     profile: Profile;

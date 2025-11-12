@@ -87,18 +87,20 @@ export async function POST(request: NextRequest) {
         // Get user profile for name and language preference
         const { data: userProfile, error: profileError } = await supabase
             .from('profiles')
-            .select('full_name, username, language')
+            .select('full_name, username')
             .eq('id', userId)
             .single()
 
         if (profileError) {
             console.error('Error fetching user profile:', profileError)
+            // Continue with default values if profile fetch fails
         }
 
         // Determine language (default to Persian)
-        const userLanguage = userProfile?.language || 'fa'
-        const isRTL = userLanguage === 'fa'
-        const isEnglish = userLanguage === 'en'
+        // Note: language column doesn't exist in profiles table, defaulting to 'fa'
+        const userLanguage = 'fa'
+        const isRTL = true // Always RTL for Persian
+        const isEnglish = false
 
         // Get user's display name
         const displayName = userProfile?.full_name || userProfile?.username || userEmail.split('@')[0]
@@ -551,8 +553,25 @@ export async function POST(request: NextRequest) {
 
         // Send email
         console.log('Sending email to:', userEmail)
-        const info = await transporter.sendMail(mailOptions)
-        console.log('Email sent successfully:', info.messageId)
+        try {
+            const info = await transporter.sendMail(mailOptions)
+            console.log('Email sent successfully:', info.messageId)
+            console.log('Email response:', info.response)
+        } catch (emailError) {
+            console.error('Error sending email:', emailError)
+            // Still return success for code generation, but log the email error
+            // The code is already stored, so the user can still use it
+            return NextResponse.json(
+                {
+                    message: 'Verification code generated successfully, but email sending failed',
+                    error: 'Email delivery failed',
+                    details: emailError instanceof Error ? emailError.message : String(emailError),
+                    email: userEmail,
+                    expiresIn: '10 minutes'
+                },
+                { status: 500 }
+            )
+        }
 
         return NextResponse.json(
             {

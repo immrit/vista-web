@@ -14,6 +14,21 @@ interface UseRealtimeMessagesOptions {
   onMessageDelete?: (messageId: string) => void;
 }
 
+interface MessageRow {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  content: string;
+  attachment_url?: string | null;
+  attachment_type?: 'image' | 'video' | 'audio' | 'file' | string | null;
+  reply_to_message_id?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+  is_delivered?: boolean;
+  is_read?: boolean;
+  reactions?: any[];
+}
+
 export function useRealtimeMessages({
   conversationId,
   userId,
@@ -111,22 +126,23 @@ export function useRealtimeMessages({
           table: 'messages',
           filter: `conversation_id=eq.${conversationId}`,
         },
-        (payload: RealtimePostgresChangesPayload<Record<string, any>>) => {
+        (payload: RealtimePostgresChangesPayload<MessageRow>) => {
+          const row = payload.new as MessageRow;
           const newMessage: Message = {
-            id: payload.new.id,
-            conversationId: payload.new.conversation_id,
-            senderId: payload.new.sender_id,
-            content: payload.new.content,
-            attachmentUrl: payload.new.attachment_url,
-            attachmentType: payload.new.attachment_type,
-            replyToId: payload.new.reply_to_message_id,
-            createdAt: payload.new.created_at,
-            updatedAt: payload.new.updated_at,
-            isDelivered: payload.new.is_delivered ?? false,
-            isRead: payload.new.is_read ?? false,
+            id: row.id,
+            conversationId: row.conversation_id,
+            senderId: row.sender_id,
+            content: row.content,
+            attachmentUrl: row.attachment_url,
+            attachmentType: (row.attachment_type as 'image' | 'video' | 'audio' | 'file' | null) ?? null,
+            replyToId: row.reply_to_message_id ?? null,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at ?? null,
+            isDelivered: row.is_delivered ?? false,
+            isRead: row.is_read ?? false,
             isSent: true,
-            isMe: payload.new.sender_id === userId,
-            reactions: payload.new.reactions ?? [],
+            isMe: row.sender_id === userId,
+            reactions: row.reactions ?? [],
           };
 
           setMessages(prev => [...prev, newMessage]); // Add to end (newest at bottom)
@@ -141,22 +157,23 @@ export function useRealtimeMessages({
           table: 'messages',
           filter: `conversation_id=eq.${conversationId}`,
         },
-        (payload: RealtimePostgresChangesPayload<Record<string, any>>) => {
+        (payload: RealtimePostgresChangesPayload<MessageRow>) => {
+          const row = payload.new as MessageRow;
           const updatedMessage: Message = {
-            id: payload.new.id,
-            conversationId: payload.new.conversation_id,
-            senderId: payload.new.sender_id,
-            content: payload.new.content,
-            attachmentUrl: payload.new.attachment_url,
-            attachmentType: payload.new.attachment_type,
-            replyToId: payload.new.reply_to_message_id,
-            createdAt: payload.new.created_at,
-            updatedAt: payload.new.updated_at,
-            isDelivered: payload.new.is_delivered ?? false,
-            isRead: payload.new.is_read ?? false,
+            id: row.id,
+            conversationId: row.conversation_id,
+            senderId: row.sender_id,
+            content: row.content,
+            attachmentUrl: row.attachment_url,
+            attachmentType: (row.attachment_type as 'image' | 'video' | 'audio' | 'file' | null) ?? null,
+            replyToId: row.reply_to_message_id ?? null,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at ?? null,
+            isDelivered: row.is_delivered ?? false,
+            isRead: row.is_read ?? false,
             isSent: true,
-            isMe: payload.new.sender_id === userId,
-            reactions: payload.new.reactions ?? [],
+            isMe: row.sender_id === userId,
+            reactions: row.reactions ?? [],
           };
 
           setMessages(prev => prev.map(msg => (msg.id === updatedMessage.id ? updatedMessage : msg)));

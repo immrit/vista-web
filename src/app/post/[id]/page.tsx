@@ -2,15 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { supabase, Post, Profile } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
+import { PostWithProfile } from '@/lib/types';
 import { PostService } from '@/lib/postService';
 import { useAuth } from '@/hooks/useAuth';
 import { PostCard } from '@/components/ui/PostCard';
 import { ArrowLeft, Share2, Copy, Check, Smartphone, Globe, Users, ArrowRight } from 'lucide-react';
-
-interface PostWithProfile extends Post {
-    profiles?: Profile;
-}
 
 export default function PostDetailPage() {
     const params = useParams();

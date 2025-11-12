@@ -1,10 +1,10 @@
 import withPWA from 'next-pwa';
+import type { NextConfig } from 'next';
 
-const nextConfig = {
-  experimental: {
-    // Enable new features for Node.js 22
-    serverComponentsExternalPackages: [],
-  },
+const nextConfig: NextConfig = {
+  // External packages for server components (moved from experimental)
+  // Exclude jsdom and parse5 from server bundle to avoid ESM/CommonJS conflicts
+  serverExternalPackages: ['jsdom', 'parse5', 'isomorphic-dompurify'],
   images: {
     remotePatterns: [
       {
@@ -26,9 +26,21 @@ const nextConfig = {
     ignoreBuildErrors: false,
   },
   // Optimize for production
-  swcMinify: true,
+  // swcMinify is enabled by default in Next.js 15, no need to specify
   compress: true,
   poweredByHeader: false,
+  // Webpack config to handle jsdom/parse5 ESM issues
+  webpack: (config: any, { isServer }: { isServer: boolean }) => {
+    if (isServer) {
+      // Exclude jsdom and parse5 from server bundle
+      config.externals = config.externals || [];
+      config.externals.push({
+        'jsdom': 'commonjs jsdom',
+        'parse5': 'commonjs parse5',
+      });
+    }
+    return config;
+  },
 };
 
 // PWA Configuration
@@ -74,4 +86,4 @@ const pwaConfig = withPWA({
   ]
 });
 
-export default pwaConfig(nextConfig);
+export default pwaConfig(nextConfig as any);

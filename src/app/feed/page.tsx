@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/Button'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { Profile } from '@/lib/supabase'
+import { PostWithProfile } from '@/lib/types'
 import { Navigation } from '@/components/ui/Navigation'
 import { PostCard } from '@/components/ui/PostCard'
 import { Bell } from 'lucide-react'
@@ -14,21 +15,6 @@ import { PostErrorBoundary } from '@/components/ErrorBoundary'
 import { postPreloader } from '@/lib/preloader/PostPreloader'
 import { performanceMonitor } from '@/lib/analytics/PerformanceMonitor'
 import { usePresence } from '@/hooks/usePresence'
-
-interface PostWithProfile {
-  id: string;
-  content?: string | null;
-  image_url?: string | null;
-  video_url?: string | null;
-  music_url?: string | null;
-  created_at: string;
-  user_id: string;
-  status: string;
-  likes_count?: number;
-  comments_count?: number;
-  is_liked?: boolean;
-  profiles?: Profile;
-}
 
 export default function FeedPage() {
     const { user, profile, loading } = useAuth()
@@ -146,9 +132,9 @@ export default function FeedPage() {
 
     // Merge all posts from pages
     const allPosts = data?.pages.flatMap(page => page.posts) || []
-    const displayPosts = applyOptimisticUpdates(allPosts as PostWithProfile[])
+    const displayPosts = applyOptimisticUpdates(allPosts)
 
-    const handlePostUpdate = (updatedPost: PostWithProfile) => {
+    const handlePostUpdate = (updatedPost: PostWithProfile): void => {
         // React Query will handle this automatically through cache invalidation
         refetch()
     }

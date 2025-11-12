@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Heart, MessageSquare, Share2, Check, Smartphone, Globe } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { supabase, Post, Profile, Like, Comment } from '@/lib/supabase';
+import { supabase, Profile, Like, Comment } from '@/lib/supabase';
+import { PostWithProfile } from '@/lib/types';
 import { useAuth } from '@/hooks/useAuth';
 import { usePostStats } from '@/hooks/usePostStats';
 import { CommentSheet } from './CommentSheet';
@@ -12,10 +13,6 @@ import { SignUpPrompt } from './SignUpPrompt';
 import GoldenTickBadge from './GoldenTickBadge';
 import { ProgressiveImage } from './ProgressiveImage';
 import { useOptimisticPost } from '@/hooks/useOptimisticPost';
-
-interface PostWithProfile extends Post {
-    profiles?: Profile;
-}
 
 interface PostCardProps {
     post: PostWithProfile;
@@ -28,7 +25,7 @@ interface PostCardProps {
 export function PostCard({ post, onUpdate, onPostDeleted, showComments = false, className = '' }: PostCardProps) {
     const { user, profile } = useAuth();
     const router = useRouter();
-    const [isLiked, setIsLiked] = useState(post.is_liked || false);
+    const [isLiked, setIsLiked] = useState(post.is_liked ?? false);
     const [showCommentSheet, setShowCommentSheet] = useState(false);
     const [isLikeLoading, setIsLikeLoading] = useState(false);
     const [copied, setCopied] = useState(false);

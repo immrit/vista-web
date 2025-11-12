@@ -13,7 +13,7 @@ const conversationsCache = new Map<string, { data: ConversationListItem[]; times
 const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
 
 // Function to invalidate cache for a user
-export const invalidateConversationsCache = (userId: string) => {
+const invalidateConversationsCache = (userId: string) => {
     conversationsCache.delete(`conversations:${userId}`);
 };
 

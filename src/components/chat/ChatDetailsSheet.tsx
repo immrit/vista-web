@@ -247,7 +247,7 @@ export function ChatDetailsSheet({
                                         <div
                                             key={index}
                                             className="aspect-square bg-gray-100 dark:bg-zinc-800 rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition"
-                                            onClick={() => window.open(item.url, '_blank')}
+                                            onClick={() => item.url && window.open(item.url, '_blank')}
                                         >
                                             {item.type === 'image' ? (
                                                 <img src={item.url} alt="Media" className="w-full h-full object-cover" />

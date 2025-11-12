@@ -11,6 +11,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "build-check": "npm run type-check && npm run lint && npm run build",
     "generate:keys": "node ./scripts/generate-keys.js",
     "test": "jest",
     "test:security": "jest tests/security --runInBand",

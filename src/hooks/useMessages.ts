@@ -182,12 +182,16 @@ export function useMessages({ conversationId, currentUserId }: UseMessagesOption
                                         
                                         // Show browser notification if page is hidden
                                         if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
-                                            new Notification('پیام جدید', {
+                                            const notificationOptions: NotificationOptions & { vibrate?: number[] } = {
                                                 body: newMessage.content.substring(0, 100),
                                                 icon: '/favicon.ico',
                                                 tag: newMessage.id,
-                                                vibrate: [200, 100, 200],
-                                            });
+                                            };
+                                            // vibrate is supported in some browsers but not in TypeScript types
+                                            if ('vibrate' in Notification.prototype) {
+                                                notificationOptions.vibrate = [200, 100, 200];
+                                            }
+                                            new Notification('پیام جدید', notificationOptions);
                                         }
                                     }
                                     return [...prev, newMessage];
@@ -231,13 +235,13 @@ export function useMessages({ conversationId, currentUserId }: UseMessagesOption
                 // Upload file logic here
                 // For now, just use the first file
                 const file = files[0];
-                attachmentType = file.type.startsWith('image/')
+                attachmentType = (file.type.startsWith('image/')
                     ? 'image'
                     : file.type.startsWith('video/')
                       ? 'video'
                       : file.type.startsWith('audio/')
                         ? 'audio'
-                        : 'file';
+                        : 'file') as 'image' | 'video' | 'audio' | 'file' | null;
             }
 
             // Create optimistic message

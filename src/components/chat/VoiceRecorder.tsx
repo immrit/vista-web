@@ -19,7 +19,7 @@ export function VoiceRecorder({ isOpen, onClose, onRecordComplete }: VoiceRecord
 
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const chunksRef = useRef<Blob[]>([]);
-    const timerRef = useRef<NodeJS.Timeout>();
+    const timerRef = useRef<NodeJS.Timeout | null>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
     useEffect(() => {

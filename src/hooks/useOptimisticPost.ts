@@ -1,12 +1,8 @@
 import { useState, useCallback } from 'react';
-import { supabase, Post, Profile } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
+import { PostWithProfile } from '@/lib/types';
 import { useAuth } from './useAuth';
 import { useQueryClient } from '@tanstack/react-query';
-
-interface PostWithProfile extends Post {
-  profiles?: Profile;
-  is_liked?: boolean;
-}
 
 export function useOptimisticPost() {
   const { user } = useAuth();
@@ -16,8 +12,8 @@ export function useOptimisticPost() {
   const likePost = useCallback(async (postId: string, currentPost: PostWithProfile) => {
     if (!user) return;
 
-    const isLiked = currentPost.is_liked || false;
-    const currentCount = currentPost.likes_count || 0;
+    const isLiked = currentPost.is_liked ?? false;
+    const currentCount = currentPost.likes_count ?? 0;
 
     // فوری UI رو آپدیت کن
     const newCount = currentCount + (isLiked ? -1 : 1);

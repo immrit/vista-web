@@ -2,18 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { X, Send, MessageSquare } from 'lucide-react';
-import { supabase, Post, Profile, Comment } from '@/lib/supabase';
+import { supabase, Profile } from '@/lib/supabase';
+import { PostWithProfile, CommentWithProfile } from '@/lib/types';
 import { useAuth } from '@/hooks/useAuth';
 import GoldenTickBadge from './GoldenTickBadge';
-
-interface CommentWithProfile extends Comment {
-    profiles?: Profile;
-    replies?: CommentWithProfile[];
-}
-
-interface PostWithProfile extends Post {
-    profiles?: Profile;
-}
 
 interface CommentSheetProps {
     isOpen: boolean;

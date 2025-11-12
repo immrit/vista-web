@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     const validated = MessageSchema.parse(body);
     const sanitizedContent = sanitizeText(validated.content);
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { data: conversation, error: conversationError } = await supabase
       .from('conversations')

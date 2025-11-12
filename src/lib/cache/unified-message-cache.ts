@@ -28,7 +28,7 @@ export class UnifiedMessageCacheService {
     }
 
     try {
-      const supabase = createClient();
+      const supabase = await createClient();
       const { data, error } = await supabase
         .from('messages')
         .select('*')

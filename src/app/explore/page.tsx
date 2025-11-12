@@ -2,15 +2,12 @@
 
 import { useAuth } from '@/hooks/useAuth'
 import { useEffect, useState } from 'react'
-import { supabase, Post, Profile } from '@/lib/supabase'
+import { supabase, Profile } from '@/lib/supabase'
+import { PostWithProfile } from '@/lib/types'
 import { Navigation } from '@/components/ui/Navigation'
 import { PostCard } from '@/components/ui/PostCard'
 import { Search, Hash, User, TrendingUp } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
-
-interface PostWithProfile extends Post {
-    profiles?: Profile;
-}
 
 export default function ExplorePage() {
     const { user, profile, loading } = useAuth()

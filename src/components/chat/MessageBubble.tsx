@@ -34,6 +34,25 @@ export function MessageBubble({
     const isOwn = message.isMe;
     const reactions = message.reactions || [];
 
+    // Transform reactions to the format expected by MessageReactions component
+    const transformedReactions = reactions.reduce(
+        (acc, reaction) => {
+            const existing = acc.find((r) => r.emoji === reaction.emoji);
+            if (existing) {
+                if (!existing.user_ids.includes(reaction.userId)) {
+                    existing.user_ids.push(reaction.userId);
+                }
+            } else {
+                acc.push({
+                    emoji: reaction.emoji,
+                    user_ids: [reaction.userId],
+                });
+            }
+            return acc;
+        },
+        [] as Array<{ emoji: string; user_ids: string[] }>
+    );
+
     const handleEdit = async () => {
         if (editContent.trim() && editContent !== message.content) {
             onEdit?.(message.id);
@@ -124,7 +143,7 @@ export function MessageBubble({
                                         src={message.attachmentUrl}
                                         alt="Media"
                                         className="max-w-full h-auto cursor-pointer hover:opacity-90 transition rounded-lg"
-                                        onClick={() => window.open(message.attachmentUrl, '_blank')}
+                                        onClick={() => message.attachmentUrl && window.open(message.attachmentUrl, '_blank')}
                                     />
                                 ) : message.attachmentType === 'video' ? (
                                     <video src={message.attachmentUrl} controls className="max-w-full h-auto rounded-lg" />
@@ -150,7 +169,7 @@ export function MessageBubble({
                         <div className="flex items-center justify-between gap-3 mt-1">
                             {/* Reactions */}
                             <MessageReactions
-                                reactions={reactions}
+                                reactions={transformedReactions}
                                 messageId={message.id}
                                 conversationId={conversationId}
                                 currentUserId={currentUserId}

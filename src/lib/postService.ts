@@ -1,8 +1,5 @@
-import { supabase, Post, Profile } from './supabase';
-
-interface PostWithProfile extends Post {
-    profiles?: Profile;
-}
+import { supabase } from './supabase';
+import { PostWithProfile } from './types';
 
 export class PostService {
     static async checkPublishedPosts(): Promise<void> {

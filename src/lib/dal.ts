@@ -6,8 +6,8 @@ import { createServerClient } from '@supabase/ssr';
 
 import { env } from '@/lib/env';
 
-function getSupabaseServerClient() {
-  const cookieStore = cookies();
+async function getSupabaseServerClient() {
+  const cookieStore = await cookies();
 
   return createServerClient(
     env.NEXT_PUBLIC_SUPABASE_URL,
@@ -33,7 +33,7 @@ function getSupabaseServerClient() {
 
 export const getCurrentUser = cache(async () => {
   try {
-    const supabase = getSupabaseServerClient();
+    const supabase = await getSupabaseServerClient();
     const {
       data: { user },
       error,
@@ -76,7 +76,7 @@ export const getUserProfile = cache(async (userId: string) => {
     throw new Error('Unauthorized');
   }
 
-  const supabase = getSupabaseServerClient();
+  const supabase = await getSupabaseServerClient();
 
   const { data, error } = await supabase
     .from('profiles')
@@ -101,7 +101,7 @@ export const getUserPosts = cache(
 
     const { limit = 20, offset = 0 } = options || {};
 
-    const supabase = getSupabaseServerClient();
+    const supabase = await getSupabaseServerClient();
 
     const { data, error } = await supabase
       .from('posts')

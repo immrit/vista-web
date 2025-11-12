@@ -16,7 +16,7 @@ export function useTypingIndicator({
   onTypingChange,
 }: UseTypingIndicatorOptions) {
   const supabase = createClient();
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const channel = supabase

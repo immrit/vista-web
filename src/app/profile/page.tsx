@@ -1,22 +1,27 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function ProfileRoot() {
     const { user, profile, loading } = useAuth();
     const router = useRouter();
+    const [isHydrated, setIsHydrated] = useState(false);
 
     useEffect(() => {
-        if (!loading) {
+        setIsHydrated(true);
+    }, []);
+
+    useEffect(() => {
+        if (isHydrated && !loading) {
             if (profile?.username) {
                 router.replace(`/profile/${profile.username}`);
             }
         }
-    }, [profile, loading, router]);
+    }, [isHydrated, profile, loading, router]);
 
-    if (loading) {
+    if (!isHydrated || loading) {
         return (
             <div className="min-h-screen flex items-center justify-center text-lg text-gray-500 dark:text-gray-300">
                 در حال بارگذاری...

@@ -23,7 +23,7 @@ export class UnifiedConversationCacheService {
     }
 
     try {
-      const supabase = createClient();
+      const supabase = await createClient();
       const { data, error } = await supabase
         .from('conversations')
         .select(

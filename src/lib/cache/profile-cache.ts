@@ -34,7 +34,7 @@ export class ProfileCacheService {
     }
 
     try {
-      const supabase = createClient();
+      const supabase = await createClient();
       const { data, error } = await supabase
         .from('profiles')
         .select(`
@@ -79,7 +79,7 @@ export class ProfileCacheService {
     try {
       await this.getProfile(userId);
 
-      const supabase = createClient();
+      const supabase = await createClient();
       const { data: posts } = await supabase
         .from('posts')
         .select('*')

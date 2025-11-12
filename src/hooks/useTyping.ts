@@ -2,16 +2,11 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import type { TypingUser } from '@/lib/types';
 
 interface UseTypingOptions {
     conversationId: string;
     currentUserId: string;
-}
-
-interface TypingUser {
-    id: string;
-    name: string;
-    avatar?: string;
 }
 
 export function useTyping({ conversationId, currentUserId }: UseTypingOptions) {

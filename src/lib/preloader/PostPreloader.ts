@@ -1,11 +1,12 @@
 import { supabase, Post } from '@/lib/supabase';
+import { PostWithProfile } from '@/lib/types';
 
 export class PostPreloader {
   private preloadQueue: Set<string> = new Set();
   private preloadedImages: Set<string> = new Set();
 
   // وقتی کاربر روی یه پست hover کرد، بعدی رو preload کن
-  preloadNext(currentIndex: number, posts: Post[]) {
+  preloadNext(currentIndex: number, posts: (Post | PostWithProfile)[]) {
     const nextPost = posts[currentIndex + 1];
 
     if (!nextPost || this.preloadQueue.has(nextPost.id)) {
@@ -59,7 +60,7 @@ export class PostPreloader {
   }
 
   // Preload چند پست بعدی
-  preloadBatch(posts: Post[], startIndex: number, count: number = 3) {
+  preloadBatch(posts: (Post | PostWithProfile)[], startIndex: number, count: number = 3) {
     for (let i = 0; i < count; i++) {
       const index = startIndex + i;
       if (index < posts.length) {
@@ -75,5 +76,6 @@ export class PostPreloader {
 }
 
 export const postPreloader = new PostPreloader();
+
 
 

@@ -1,10 +1,36 @@
-import DOMPurify from 'isomorphic-dompurify';
-
-export function sanitizeHtml(dirty: string): string {
+// Use dynamic import for DOMPurify to avoid ESM/CommonJS conflicts in server-side
+// This prevents Next.js from trying to bundle jsdom/parse5 during build
+export async function sanitizeHtml(dirty: string): Promise<string> {
+  // Only use DOMPurify in client-side or when needed
+  if (typeof window === 'undefined') {
+    // Server-side: use simple regex-based sanitization
+    return dirty
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/<[^>]+>/g, '')
+      .trim();
+  }
+  
+  // Dynamic import only in client-side to avoid build-time issues
+  const DOMPurify = (await import('isomorphic-dompurify')).default;
   return DOMPurify.sanitize(dirty, {
     ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a', 'p', 'br'],
     ALLOWED_ATTR: ['href', 'target', 'rel'],
   });
+}
+
+// Synchronous version for client-side only (if needed)
+export function sanitizeHtmlSync(dirty: string): string {
+  if (typeof window === 'undefined') {
+    // Server-side: use simple regex-based sanitization
+    return dirty
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/<[^>]+>/g, '')
+      .trim();
+  }
+  
+  // This will only work in client-side and may cause issues in build
+  // Use sanitizeHtml (async) instead
+  return dirty.replace(/<[^>]+>/g, '').trim();
 }
 
 export function sanitizeText(input: string): string {
@@ -53,5 +79,6 @@ export function validateFileUpload(
 
   return { valid: true };
 }
+
 
 

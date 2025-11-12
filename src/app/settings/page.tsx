@@ -107,7 +107,59 @@ export default function SettingsPage() {
         }
     }, [profile]);
 
-    if (loading) {
+    // Wait for hydration before checking auth
+    const [isHydrated, setIsHydrated] = useState(false);
+    
+    useEffect(() => {
+        setIsHydrated(true);
+    }, []);
+
+    // Track if we've checked auth to prevent multiple redirects
+    const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
+    
+    // Redirect to auth if not authenticated
+    // Wait for profile to load before redirecting
+    useEffect(() => {
+        if (!isHydrated || loading) return;
+        
+        let timeoutId: NodeJS.Timeout | null = null;
+        
+        // If user doesn't exist, redirect immediately
+        if (!user) {
+            if (!hasCheckedAuth) {
+                setHasCheckedAuth(true);
+                router.push('/auth');
+            }
+            return;
+        }
+        
+        // If both user and profile are available, mark as checked
+        if (user && profile) {
+            setHasCheckedAuth(true);
+            return;
+        }
+        
+        // If user exists but profile doesn't, wait for profile to load (max 5 seconds)
+        // Don't redirect if we've already checked and user exists
+        if (user && !profile && !hasCheckedAuth) {
+            timeoutId = setTimeout(() => {
+                // Only redirect if profile still doesn't exist after timeout
+                if (!profile) {
+                    setHasCheckedAuth(true);
+                    // Don't redirect if user exists - profile might be loading
+                    // Just mark as checked to prevent further checks
+                }
+            }, 5000);
+        }
+        
+        return () => {
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+        };
+    }, [isHydrated, loading, user, profile, router, hasCheckedAuth]);
+
+    if (!isHydrated || loading) {
         return (
             <div className="min-h-screen flex items-center justify-center text-lg text-gray-500 dark:text-gray-300">
                 در حال بارگذاری...
@@ -115,9 +167,19 @@ export default function SettingsPage() {
         );
     }
 
-    if (!user || !profile) {
-        router.push('/auth');
+    // Only redirect if user doesn't exist
+    // If user exists but profile is still loading, show loading state
+    if (!user) {
         return null;
+    }
+
+    // If user exists but profile is still loading, show loading state
+    if (user && !profile) {
+        return (
+            <div className="min-h-screen flex items-center justify-center text-lg text-gray-500 dark:text-gray-300">
+                در حال بارگذاری پروفایل...
+            </div>
+        );
     }
 
     const handleProfileSave = async () => {
@@ -501,9 +563,9 @@ export default function SettingsPage() {
                                 onClick={() => {
                                     setIsEditingProfile(false);
                                     setProfileForm({
-                                        full_name: profile.full_name || '',
-                                        username: profile.username || '',
-                                        bio: profile.bio || '',
+                                        full_name: profile?.full_name || '',
+                                        username: profile?.username || '',
+                                        bio: profile?.bio || '',
                                     });
                                 }}
                                 variant="outline"

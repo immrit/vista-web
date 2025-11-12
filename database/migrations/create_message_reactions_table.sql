@@ -54,3 +54,4 @@ CREATE POLICY "Users can delete their own reactions"
 GRANT SELECT, INSERT, DELETE ON message_reactions TO authenticated;
 
 
+

@@ -1,9 +1,6 @@
 import { postCache } from '@/lib/cache/PostCache';
-import { supabase, Post, Profile } from '@/lib/supabase';
-
-interface PostWithProfile extends Post {
-  profiles?: Profile;
-}
+import { supabase } from '@/lib/supabase';
+import { PostWithProfile } from '@/lib/types';
 
 export function useCachedPosts() {
   const fetchPosts = async (page: number, pageSize: number = 10): Promise<PostWithProfile[]> => {
@@ -35,5 +32,6 @@ export function useCachedPosts() {
 
   return { fetchPosts, invalidatePost, invalidateAllPosts };
 }
+
 
 

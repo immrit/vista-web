@@ -1,11 +1,7 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { supabase, Post, Profile } from '@/lib/supabase';
 import { postCache } from '@/lib/cache/PostCache';
 import { createClient } from '@/lib/supabase/client';
-
-interface PostWithProfile extends Post {
-  profiles?: Profile;
-}
+import { PostWithProfile } from '@/lib/types';
 
 interface PostsResponse {
   posts: PostWithProfile[];

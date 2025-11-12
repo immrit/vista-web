@@ -1,9 +1,6 @@
-import { supabase, Post, Profile } from '@/lib/supabase';
+import { supabase, Profile } from '@/lib/supabase';
+import { PostWithProfile } from '@/lib/types';
 import ProfileTabsUI from './ProfileTabsUI';
-
-interface PostWithProfile extends Post {
-    profiles?: Profile;
-}
 
 export default async function ProfileByUsernamePage({ params }: { params: Promise<{ username: string }> }) {
     const { username } = await params;

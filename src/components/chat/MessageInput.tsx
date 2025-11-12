@@ -29,7 +29,7 @@ export function MessageInput({
     const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const typingTimeoutRef = useRef<NodeJS.Timeout>();
+    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Auto-resize textarea
     useEffect(() => {

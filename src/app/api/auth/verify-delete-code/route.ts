@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        const cookieStore = cookies()
+        const cookieStore = await cookies()
         console.log('Cookies found:', cookieStore.getAll().length)
 
         const supabase = createServerClient(
