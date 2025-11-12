@@ -16,8 +16,8 @@ const plans = [
     {
         id: 'monthly',
         name: 'اشتراک ماهانه',
-        price: 99000,
-        priceFormatted: '99,000',
+        price: 2000,
+        priceFormatted: '2,000',
         originalPrice: 149000,
         originalPriceFormatted: '149,000',
         currency: 'تومان',
@@ -55,9 +55,9 @@ const plans = [
     }
 ]
 
-export default function GoldenTickModal({ 
-    isOpen, 
-    onClose, 
+export default function GoldenTickModal({
+    isOpen,
+    onClose,
     onPurchase,
     isLoading = false
 }: GoldenTickModalProps) {
@@ -104,11 +104,10 @@ export default function GoldenTickModal({
                         {plans.map((plan) => (
                             <div
                                 key={plan.id}
-                                className={`relative p-6 rounded-xl border-2 transition-all duration-300 cursor-pointer ${
-                                    selectedPlan === plan.id
-                                        ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20'
-                                        : 'border-zinc-200 dark:border-zinc-700 hover:border-amber-300'
-                                }`}
+                                className={`relative p-6 rounded-xl border-2 transition-all duration-300 cursor-pointer ${selectedPlan === plan.id
+                                    ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20'
+                                    : 'border-zinc-200 dark:border-zinc-700 hover:border-amber-300'
+                                    }`}
                                 onClick={() => !isLoading && setSelectedPlan(plan.id)}
                             >
                                 {plan.popular && (

@@ -46,3 +46,4 @@ export function logSecurityEvent(event: string, details: Record<string, unknown>
   }
 }
 
+

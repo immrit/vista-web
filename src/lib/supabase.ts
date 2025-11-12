@@ -64,6 +64,9 @@ export type Database = {
                     account_type: string | null
                     last_seen_status: string | null
                     is_online: boolean | null
+                    subscription_plan: string | null
+                    subscription_started_at: string | null
+                    subscription_expires_at: string | null
                 }
                 Insert: {
                     id: string

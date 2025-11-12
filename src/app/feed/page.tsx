@@ -3,47 +3,70 @@
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/Button'
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { supabase, Post, Profile } from '@/lib/supabase'
-import { formatError } from '@/lib/utils/error'
+import { Profile } from '@/lib/supabase'
 import { Navigation } from '@/components/ui/Navigation'
 import { PostCard } from '@/components/ui/PostCard'
 import { Bell } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { useInfinitePosts } from '@/hooks/useInfinitePosts'
+import { useOptimisticPost } from '@/hooks/useOptimisticPost'
+import { PostErrorBoundary } from '@/components/ErrorBoundary'
+import { postPreloader } from '@/lib/preloader/PostPreloader'
+import { performanceMonitor } from '@/lib/analytics/PerformanceMonitor'
+import { usePresence } from '@/hooks/usePresence'
 
-interface PostWithProfile extends Post {
-    profiles?: Profile;
+interface PostWithProfile {
+  id: string;
+  content?: string | null;
+  image_url?: string | null;
+  video_url?: string | null;
+  music_url?: string | null;
+  created_at: string;
+  user_id: string;
+  status: string;
+  likes_count?: number;
+  comments_count?: number;
+  is_liked?: boolean;
+  profiles?: Profile;
 }
 
 export default function FeedPage() {
     const { user, profile, loading } = useAuth()
     const router = useRouter()
-    const [posts, setPosts] = useState<PostWithProfile[]>([])
-    const [loadingPosts, setLoadingPosts] = useState(false)
-    const [loadingMore, setLoadingMore] = useState(false)
-    const [hasMore, setHasMore] = useState(true)
-    const [page, setPage] = useState(0)
     const [suggested, setSuggested] = useState<Profile[]>([])
     const [authChecked, setAuthChecked] = useState(false)
-    const [postsError, setPostsError] = useState<'timeout' | 'error' | null>(null)
-    const [loadMoreError, setLoadMoreError] = useState<'timeout' | 'error' | null>(null)
     const lang = 'fa'
     const isRtl = lang === 'fa'
-    const POSTS_PER_PAGE = 10
-    const FETCH_TIMEOUT_MS = 15000
-    const activeFetchIdRef = useRef(0)
+    const loadStartTime = useRef<number>(Date.now())
+    const { isUserOnline } = usePresence()
+
+    // استفاده از React Query برای infinite scroll
+    const {
+        data,
+        fetchNextPage,
+        hasNextPage,
+        isFetchingNextPage,
+        isLoading,
+        error,
+        refetch,
+    } = useInfinitePosts()
+
+    // استفاده از Optimistic Updates
+    const { applyOptimisticUpdates } = useOptimisticPost()
+
+    // Track performance
+    useEffect(() => {
+        if (!isLoading && data) {
+            const loadTime = Date.now() - loadStartTime.current
+            performanceMonitor.trackFeedLoad(loadTime, {
+                postsCount: data.pages.reduce((acc, page) => acc + page.posts.length, 0),
+            })
+        }
+    }, [isLoading, data])
 
     // بررسی authentication با منطق بهتر
     useEffect(() => {
-        console.log('=== FEED AUTH DEBUG ===')
-        console.log('Loading:', loading)
-        console.log('User:', user)
-        console.log('Profile:', profile)
-        console.log('AuthChecked:', authChecked)
-        console.log('=== END DEBUG ===')
-
-        // اگر loading تمام شد و کاربر لاگین نکرده، به auth redirect کن
         if (!loading && !user && authChecked) {
-            console.log('User not authenticated, redirecting to /auth')
             router.replace('/auth')
         }
     }, [user, loading, router, authChecked, profile])
@@ -51,19 +74,11 @@ export default function FeedPage() {
     // تنظیم authChecked بعد از 1 ثانیه
     useEffect(() => {
         const authTimeout = setTimeout(() => {
-            console.log('Setting authChecked to true')
             setAuthChecked(true)
-        }, 1000) // 1 ثانیه صبر کن
+        }, 1000)
 
         return () => clearTimeout(authTimeout)
     }, [])
-
-    // بارگذاری پست‌های اولیه
-    useEffect(() => {
-        if (authChecked && user) {
-            fetchPosts(0, true)
-        }
-    }, [authChecked, user])
 
     // بارگذاری کاربران پیشنهادی
     useEffect(() => {
@@ -72,114 +87,11 @@ export default function FeedPage() {
         }
     }, [authChecked, user])
 
-    const fetchPosts = async (pageNumber: number, isInitial: boolean = false) => {
-        const fetchId = activeFetchIdRef.current + 1
-        activeFetchIdRef.current = fetchId
-
-        if (isInitial) {
-            setLoadingPosts(true)
-            setPage(0)
-            setPostsError(null)
-            setLoadMoreError(null)
-        } else {
-            setLoadingMore(true)
-            setLoadMoreError(null)
-        }
-
-        let timeoutId: ReturnType<typeof setTimeout> | undefined
-
-        try {
-            console.log(`Fetching posts for page ${pageNumber}...`)
-
-            const fetchPromise = supabase
-                .from('posts')
-                .select('*, profiles:profiles!posts_user_id_fkey(*)')
-                .eq('status', 'published')
-                .order('created_at', { ascending: false })
-                .range(pageNumber * POSTS_PER_PAGE, (pageNumber * POSTS_PER_PAGE) + POSTS_PER_PAGE - 1)
-
-            const timeoutPromise = new Promise<any>((resolve) => {
-                timeoutId = setTimeout(() => {
-                    resolve({
-                        data: null,
-                        error: {
-                            message: 'Request timed out',
-                            code: 'FETCH_TIMEOUT'
-                        },
-                        status: 408,
-                        statusText: 'Request Timeout',
-                        count: null
-                    })
-                }, FETCH_TIMEOUT_MS)
-            })
-
-            const response = await Promise.race([fetchPromise, timeoutPromise])
-
-            if (activeFetchIdRef.current !== fetchId) {
-                return
-            }
-
-            const { data, error } = response
-
-            if (!error && data) {
-                console.log(`Fetched ${data.length} posts for page ${pageNumber}`)
-
-                if (isInitial) {
-                    setPosts(data as PostWithProfile[])
-                } else {
-                    setPosts(prev => [...prev, ...(data as PostWithProfile[])])
-                }
-
-                // بررسی اینکه آیا پست‌های بیشتری وجود دارد
-                setHasMore(data.length === POSTS_PER_PAGE)
-                setPage(pageNumber)
-            } else if (error?.code === 'FETCH_TIMEOUT') {
-                console.warn('Fetch posts timed out')
-                if (isInitial) {
-                    setPostsError('timeout')
-                } else {
-                    setLoadMoreError('timeout')
-                }
-            } else {
-                const message = formatError(error)
-                console.error('Error fetching posts:', message, error)
-                if (isInitial) {
-                    setPostsError('error')
-                } else {
-                    setLoadMoreError('error')
-                }
-            }
-        } catch (err) {
-            const message = formatError(err)
-            console.error('Failed to fetch posts:', message, err)
-            if (activeFetchIdRef.current !== fetchId) {
-                return
-            }
-            if (isInitial) {
-                setPostsError('error')
-            } else {
-                setLoadMoreError('error')
-            }
-        } finally {
-            if (timeoutId) {
-                clearTimeout(timeoutId)
-            }
-            if (activeFetchIdRef.current === fetchId) {
-                setLoadingPosts(false)
-                setLoadingMore(false)
-            }
-        }
-    }
-
-    const loadMorePosts = useCallback(async () => {
-        if (!loadingMore && hasMore) {
-            console.log('Loading more posts...')
-            await fetchPosts(page + 1)
-        }
-    }, [loadingMore, hasMore, page])
-
     const fetchSuggested = async () => {
         try {
+            const { createClient } = await import('@/lib/supabase/client')
+            const supabase = createClient()
+            
             const { data: top } = await supabase
                 .from('profiles')
                 .select('*')
@@ -203,51 +115,52 @@ export default function FeedPage() {
         }
     }
 
-    const handlePostUpdate = (updatedPost: PostWithProfile) => {
-        setPosts(prevPosts =>
-            prevPosts.map(post =>
-                post.id === updatedPost.id ? updatedPost : post
-            )
-        );
-    };
-
-    const handlePostDeleted = () => {
-        // Refresh posts after deletion
-        fetchPosts(0, true)
-    };
-
     // Intersection Observer برای lazy loading
+    const loadMoreRef = useRef<HTMLDivElement>(null)
+
     useEffect(() => {
         const observer = new IntersectionObserver(
             (entries) => {
                 entries.forEach((entry) => {
-                    if (entry.isIntersecting && hasMore && !loadingMore) {
-                        loadMorePosts()
+                    if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
+                        fetchNextPage()
                     }
                 })
             },
             {
-                rootMargin: '100px', // شروع بارگذاری 100px قبل از رسیدن به انتها
+                rootMargin: '100px',
                 threshold: 0.1
             }
         )
 
-        // پیدا کردن عنصر trigger
-        const trigger = document.getElementById('load-more-trigger')
-        if (trigger) {
-            observer.observe(trigger)
+        if (loadMoreRef.current) {
+            observer.observe(loadMoreRef.current)
         }
 
         return () => {
-            if (trigger) {
-                observer.unobserve(trigger)
+            if (loadMoreRef.current) {
+                observer.unobserve(loadMoreRef.current)
             }
         }
-    }, [hasMore, loadingMore, page, loadMorePosts])
+    }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
-    // Refresh posts when user scrolls to top
-    const handleRefresh = () => {
-        fetchPosts(0, true)
+    // Preload next posts on hover
+    const handlePostHover = useCallback((index: number) => {
+        const allPosts = data?.pages.flatMap(page => page.posts) || []
+        postPreloader.preloadNext(index, allPosts)
+    }, [data])
+
+    // Merge all posts from pages
+    const allPosts = data?.pages.flatMap(page => page.posts) || []
+    const displayPosts = applyOptimisticUpdates(allPosts as PostWithProfile[])
+
+    const handlePostUpdate = (updatedPost: PostWithProfile) => {
+        // React Query will handle this automatically through cache invalidation
+        refetch()
+    }
+
+    const handlePostDeleted = () => {
+        refetch()
     }
 
     // اگر هنوز loading است، loading screen نشان بده
@@ -332,7 +245,7 @@ export default function FeedPage() {
                                         <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-sm group-hover:scale-105 transition-transform duration-200">
                                             {user.full_name?.charAt(0) || user.username?.charAt(0) || '👤'}
                                         </div>
-                                        {user.is_online && (
+                                        {isUserOnline(user.id) && (
                                             <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white dark:border-zinc-900 rounded-full"></div>
                                         )}
                                     </div>
@@ -386,66 +299,59 @@ export default function FeedPage() {
             <div className={`flex-1 ${isRtl ? 'order-2' : 'order-2'} lg:ml-0`}>
                 <div className="lg:pt-0 pt-16">
                     <div className="max-w-2xl mx-auto p-4">
-                        {loadingPosts ? (
+                        {isLoading ? (
                             <div className="flex items-center justify-center py-8">
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                             </div>
-                        ) : postsError && posts.length === 0 ? (
-                            <div className="text-center py-10">
-                                <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v4m0 4h.01M4.93 4.93l14.14 14.14M12 2a10 10 0 1010 10A10 10 0 0012 2z" />
-                                    </svg>
-                                </div>
-                                <p className="text-gray-700 dark:text-gray-300 mb-3">
-                                    {postsError === 'timeout'
-                                        ? 'بارگذاری پست‌ها بیش از حد طول کشید.'
-                                        : 'در بارگذاری پست‌ها خطایی رخ داد.'}
-                                </p>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">
-                                    لطفاً اتصال اینترنت خود را بررسی کرده و دوباره تلاش کنید.
-                                </p>
-                                <Button
-                                    onClick={() => fetchPosts(0, true)}
-                                    className="mt-5 px-5"
-                                >
-                                    تلاش مجدد
-                                </Button>
-                            </div>
-                        ) : posts.length > 0 ? (
-                            <div className="space-y-4">
-                                {postsError && (
-                                    <div className="rounded-lg border border-amber-200 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-200">
-                                        <p className="mb-2">
-                                            {postsError === 'timeout'
-                                                ? 'آخرین تلاش برای به‌روزرسانی فید با پایان زمان مواجه شد.'
-                                                : 'در به‌روزرسانی فید مشکلی پیش آمد.'}
+                        ) : error ? (
+                            <PostErrorBoundary
+                                onRetry={() => refetch()}
+                                fallback={
+                                    <div className="text-center py-10">
+                                        <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                                            <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v4m0 4h.01M4.93 4.93l14.14 14.14M12 2a10 10 0 1010 10A10 10 0 0012 2z" />
+                                            </svg>
+                                        </div>
+                                        <p className="text-gray-700 dark:text-gray-300 mb-3">
+                                            در بارگذاری پست‌ها خطایی رخ داد.
+                                        </p>
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                                            لطفاً اتصال اینترنت خود را بررسی کرده و دوباره تلاش کنید.
                                         </p>
                                         <Button
-                                            variant="secondary"
-                                            size="sm"
-                                            onClick={() => fetchPosts(0, true)}
-                                            className="text-sm"
+                                            onClick={() => refetch()}
+                                            className="mt-5 px-5"
                                         >
                                             تلاش مجدد
                                         </Button>
                                     </div>
-                                )}
-                                {posts.map((post) => (
-                                    <PostCard
-                                        key={post.id}
-                                        post={post}
-                                        onUpdate={handlePostUpdate}
-                                        onPostDeleted={handlePostDeleted}
-                                        showComments={user && profile ? true : false}
-                                    />
+                                }
+                            >
+                                <div>Error loading posts</div>
+                            </PostErrorBoundary>
+                        ) : displayPosts.length > 0 ? (
+                            <div className="space-y-4">
+                                {displayPosts.map((post, index) => (
+                                    <PostErrorBoundary key={post.id}>
+                                        <div
+                                            onMouseEnter={() => handlePostHover(index)}
+                                        >
+                                            <PostCard
+                                                post={post}
+                                                onUpdate={handlePostUpdate}
+                                                onPostDeleted={handlePostDeleted}
+                                                showComments={user && profile ? true : false}
+                                            />
+                                        </div>
+                                    </PostErrorBoundary>
                                 ))}
 
                                 {/* Load More Trigger */}
-                                <div id="load-more-trigger" className="h-4"></div>
+                                <div ref={loadMoreRef} className="h-4"></div>
 
                                 {/* Loading More Indicator */}
-                                {loadingMore && (
+                                {isFetchingNextPage && (
                                     <div className="flex items-center justify-center py-6">
                                         <div className="flex items-center gap-3">
                                             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
@@ -454,21 +360,8 @@ export default function FeedPage() {
                                     </div>
                                 )}
 
-                                {loadMoreError && (
-                                    <div className="flex flex-col items-center justify-center py-6 text-sm text-gray-600 dark:text-gray-300">
-                                        <p className="mb-3">
-                                            {loadMoreError === 'timeout'
-                                                ? 'دریافت پست‌های بیشتر به زمان بیشتری نیاز داشت.'
-                                                : 'در دریافت پست‌های بیشتر مشکلی رخ داد.'}
-                                        </p>
-                                        <Button size="sm" onClick={() => loadMorePosts()}>
-                                            تلاش مجدد
-                                        </Button>
-                                    </div>
-                                )}
-
                                 {/* No More Posts */}
-                                {!hasMore && posts.length > 0 && (
+                                {!hasNextPage && displayPosts.length > 0 && (
                                     <div className="text-center py-8">
                                         <div className="w-16 h-16 bg-gray-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4">
                                             <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -490,7 +383,7 @@ export default function FeedPage() {
                                 <p className="text-gray-600 dark:text-gray-400 mb-2">هیچ پستی یافت نشد</p>
                                 <p className="text-gray-500 dark:text-gray-500 text-sm">اولین نفری باشید که پست می‌گذارد!</p>
                                 <button
-                                    onClick={handleRefresh}
+                                    onClick={() => refetch()}
                                     className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
                                 >
                                     تلاش مجدد

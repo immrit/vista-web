@@ -77,8 +77,11 @@ export default function SettingsDrawer({ isOpen, onClose, onLogout }: SettingsDr
         setIsPurchasing(true)
         try {
             const planData = plan === 'monthly' 
-                ? { price: 99000, name: 'ماهانه' }
+                ? { price: 2000, name: 'ماهانه' }
                 : { price: 899000, name: 'سالانه' }
+
+            // ذخیره plan در localStorage برای استفاده در callback
+            localStorage.setItem('payment_plan', plan)
 
             // Create payment request
             const response = await fetch('/api/payment/create', {
@@ -95,9 +98,9 @@ export default function SettingsDrawer({ isOpen, onClose, onLogout }: SettingsDr
 
             const data = await response.json()
 
-            if (response.ok && data.success) {
+            if (response.ok && data.success && data.paymentUrl) {
                 // Redirect to payment URL
-                window.location.href = `${data.paymentUrl}&plan=${plan}`
+                window.location.href = data.paymentUrl
             } else {
                 alert(data.error || 'خطا در ایجاد درخواست پرداخت')
                 setIsPurchasing(false)

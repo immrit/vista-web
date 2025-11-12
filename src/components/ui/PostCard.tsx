@@ -9,6 +9,8 @@ import { CommentSheet } from './CommentSheet';
 import { PostMenu } from './PostMenu';
 import { SignUpPrompt } from './SignUpPrompt';
 import GoldenTickBadge from './GoldenTickBadge';
+import { ProgressiveImage } from './ProgressiveImage';
+import { useOptimisticPost } from '@/hooks/useOptimisticPost';
 
 interface PostWithProfile extends Post {
     profiles?: Profile;
@@ -24,7 +26,7 @@ interface PostCardProps {
 
 export function PostCard({ post, onUpdate, onPostDeleted, showComments = false, className = '' }: PostCardProps) {
     const { user, profile } = useAuth();
-    const [isLiked, setIsLiked] = useState(false);
+    const [isLiked, setIsLiked] = useState(post.is_liked || false);
     const [showCommentSheet, setShowCommentSheet] = useState(false);
     const [isLikeLoading, setIsLikeLoading] = useState(false);
     const [copied, setCopied] = useState(false);
@@ -32,11 +34,12 @@ export function PostCard({ post, onUpdate, onPostDeleted, showComments = false, 
     const [isMobile, setIsMobile] = useState(false);
     const [showSignUpPrompt, setShowSignUpPrompt] = useState(false);
     const [signUpAction, setSignUpAction] = useState<'like' | 'comment' | 'general'>('general');
+    const { likePost } = useOptimisticPost();
 
     const { likesCount, commentsCount, refreshStats } = usePostStats({
         postId: post.id,
-        initialLikesCount: 0, // Start with 0, will be loaded from database
-        initialCommentsCount: 0 // Start with 0, will be loaded from database
+        initialLikesCount: post.likes_count || 0,
+        initialCommentsCount: post.comments_count || 0
     });
 
     const p = post.profiles;
@@ -85,40 +88,21 @@ export function PostCard({ post, onUpdate, onPostDeleted, showComments = false, 
         }
 
         setIsLikeLoading(true);
-        try {
-            if (isLiked) {
-                // Unlike
-                const { error } = await supabase
-                    .from('likes')
-                    .delete()
-                    .eq('post_id', post.id)
-                    .eq('user_id', user.id);
+        
+        // استفاده از Optimistic Update
+        await likePost(post.id, {
+            ...post,
+            is_liked: isLiked,
+            likes_count: likesCount,
+        });
 
-                if (!error) {
-                    setIsLiked(false);
-                    // Refresh stats from database
-                    await refreshStats();
-                }
-            } else {
-                // Like
-                const { error } = await supabase
-                    .from('likes')
-                    .insert({
-                        post_id: post.id,
-                        user_id: user.id,
-                    });
-
-                if (!error) {
-                    setIsLiked(true);
-                    // Refresh stats from database
-                    await refreshStats();
-                }
-            }
-        } catch (error) {
-            console.error('Error toggling like:', error);
-        } finally {
-            setIsLikeLoading(false);
-        }
+        // Update local state
+        setIsLiked(!isLiked);
+        
+        // Refresh stats from database
+        await refreshStats();
+        
+        setIsLikeLoading(false);
     };
 
     const handleCommentClick = () => {
@@ -243,11 +227,10 @@ export function PostCard({ post, onUpdate, onPostDeleted, showComments = false, 
                 {/* Post Media */}
                 {post.image_url && (
                     <div className="mb-4 overflow-auto">
-                        <img
+                        <ProgressiveImage
                             src={post.image_url}
                             alt="post"
                             className="rounded-xl border border-zinc-200 dark:border-zinc-700"
-                            style={{ maxWidth: '100%', height: 'auto', display: 'block' }}
                         />
                     </div>
                 )}

@@ -146,30 +146,32 @@ export function MessageBubble({
                             </div>
                         )}
 
-                        {/* Message Info */}
-                        <div
-                            className={cn(
-                                'flex items-center gap-1 mt-1 text-xs',
-                                isOwn ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'
-                            )}
-                        >
-                            <span>{formatMessageTime(message.createdAt)}</span>
-                            {message.updatedAt && message.updatedAt !== message.createdAt && (
-                                <span>(ویرایش شده)</span>
-                            )}
-                            {isOwn && statusIcon}
+                        {/* Message Info with Reactions */}
+                        <div className="flex items-center justify-between gap-3 mt-1">
+                            {/* Reactions */}
+                            <MessageReactions
+                                reactions={reactions}
+                                messageId={message.id}
+                                conversationId={conversationId}
+                                currentUserId={currentUserId}
+                                isOwnMessage={isOwn}
+                            />
+
+                            {/* Time and Status */}
+                            <div
+                                className={cn(
+                                    'flex items-center gap-1 text-xs',
+                                    isOwn ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'
+                                )}
+                            >
+                                <span>{formatMessageTime(message.createdAt)}</span>
+                                {message.updatedAt && message.updatedAt !== message.createdAt && (
+                                    <span>(ویرایش شده)</span>
+                                )}
+                                {isOwn && statusIcon}
+                            </div>
                         </div>
                     </>
-                )}
-
-                {/* Reactions */}
-                {reactions.length > 0 && (
-                    <MessageReactions
-                        reactions={reactions}
-                        messageId={message.id}
-                        conversationId={conversationId}
-                        currentUserId={currentUserId}
-                    />
                 )}
 
                 {/* Context Menu Button */}

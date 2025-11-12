@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Message } from '@/lib/models/message';
-import { playMessageNotificationSound, shouldPlayNotificationSound } from '@/lib/utils/sound';
+import { soundManager } from '@/lib/audio/NotificationSounds';
 
 interface UseMessagesOptions {
     conversationId: string;
@@ -171,10 +171,24 @@ export function useMessages({ conversationId, currentUserId }: UseMessagesOption
                                 const exists = prev.some(msg => msg.id === newMessage.id);
                                 if (!exists) {
                                     // Play notification sound for new incoming message
-                                    // Play sound if enabled and not initial load
-                                    // (Like WhatsApp, we play sound even if page is in focus)
-                                    if (shouldPlayNotificationSound() && !isInitialLoadRef.current) {
-                                        playMessageNotificationSound();
+                                    // Play sound if not muted and not initial load
+                                    if (!isInitialLoadRef.current) {
+                                        soundManager.playReceived();
+                                        
+                                        // Haptic feedback (mobile only)
+                                        if (navigator.vibrate) {
+                                            navigator.vibrate([50, 100, 50]);
+                                        }
+                                        
+                                        // Show browser notification if page is hidden
+                                        if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+                                            new Notification('پیام جدید', {
+                                                body: newMessage.content.substring(0, 100),
+                                                icon: '/favicon.ico',
+                                                tag: newMessage.id,
+                                                vibrate: [200, 100, 200],
+                                            });
+                                        }
                                     }
                                     return [...prev, newMessage];
                                 }
@@ -276,6 +290,9 @@ export function useMessages({ conversationId, currentUserId }: UseMessagesOption
                             : msg
                     )
                 );
+                
+                // Play sent confirmation sound
+                soundManager.playSent();
 
                 // Update conversation last_message
                 await supabase

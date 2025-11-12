@@ -7,6 +7,7 @@ import { MessageBubble } from './MessageBubble';
 import { MessageInput } from './MessageInput';
 import { TypingIndicator } from './TypingIndicator';
 import { ChatDetailsSheet } from './ChatDetailsSheet';
+import { SoundToggle } from './SoundToggle';
 import { useMessages } from '@/hooks/useMessages';
 import { useTyping } from '@/hooks/useTyping';
 import { Message } from '@/lib/models/message';
@@ -201,6 +202,7 @@ export function ChatWindow({
 
                 {/* Action Buttons */}
                 <div className="flex items-center gap-1">
+                    <SoundToggle />
                     <button
                         onClick={() => {
                             // TODO: Implement voice call

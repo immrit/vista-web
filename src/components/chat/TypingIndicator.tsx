@@ -21,3 +21,4 @@ export function TypingIndicator({ isTyping = false, className }: TypingIndicator
     );
 }
 
+

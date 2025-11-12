@@ -102,3 +102,4 @@ export function useTyping({ conversationId, currentUserId }: UseTypingOptions) {
     };
 }
 
+

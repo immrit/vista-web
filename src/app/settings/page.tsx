@@ -7,6 +7,9 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { VerificationModal } from '@/components/ui/VerificationModal';
 import GoldenTickModal from '@/components/ui/GoldenTickModal';
+import { SubscriptionBadge } from '@/components/ui/SubscriptionBadge';
+import { RenewalPrompt } from '@/components/ui/RenewalPrompt';
+import { useSubscription } from '@/hooks/useSubscription';
 import {
     Trash2,
     Save,
@@ -39,6 +42,7 @@ type SettingsSection = 'main' | 'profile' | 'notifications' | 'privacy' | 'appea
 export default function SettingsPage() {
     const { user, profile, loading, updateProfile, sendDeleteCode, verifyDeleteCode } = useAuth();
     const router = useRouter();
+    const subscription = useSubscription();
 
     const [currentSection, setCurrentSection] = useState<SettingsSection>('main');
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -159,8 +163,11 @@ export default function SettingsPage() {
             setSuccess(null);
             
             const planData = plan === 'monthly' 
-                ? { price: 99000, name: 'ماهانه' }
+                ? { price: 2000, name: 'ماهانه' }
                 : { price: 899000, name: 'سالانه' }
+
+            // ذخیره plan در localStorage برای استفاده در callback
+            localStorage.setItem('payment_plan', plan)
 
             // Create payment request
             const response = await fetch('/api/payment/create', {
@@ -177,9 +184,9 @@ export default function SettingsPage() {
 
             const data = await response.json()
 
-            if (response.ok && data.success) {
+            if (response.ok && data.success && data.paymentUrl) {
                 // Redirect to payment URL
-                window.location.href = `${data.paymentUrl}&plan=${plan}`
+                window.location.href = data.paymentUrl
             } else {
                 setError(data.error || 'خطا در ایجاد درخواست پرداخت')
                 setIsPurchasing(false)
@@ -241,6 +248,12 @@ export default function SettingsPage() {
 
     const renderMainSettings = () => (
         <div className="space-y-2">
+            {/* Renewal Prompt - نمایش در صورت انقضای نزدیک یا منقضی شده */}
+            <RenewalPrompt />
+            
+            {/* Subscription Badge - نمایش وضعیت اشتراک فعال */}
+            {hasGoldenTick && <SubscriptionBadge />}
+            
             {/* Golden Tick Section */}
             <div
                 className="flex items-center justify-between p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-xl border border-amber-200 dark:border-amber-800 cursor-pointer hover:from-amber-100 hover:to-orange-100 dark:hover:from-amber-800/30 dark:hover:to-orange-800/30 transition-all"
@@ -791,14 +804,56 @@ export default function SettingsPage() {
                     </div>
                 </div>
 
-                <Button
-                    onClick={() => setShowGoldenTickModal(true)}
-                    className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold"
-                    disabled={hasGoldenTick}
-                >
-                    <Crown className="w-4 h-4 mr-2" />
-                    {hasGoldenTick ? 'تیک طلایی فعال است' : 'خرید تیک طلایی'}
-                </Button>
+                {subscription.isActive ? (
+                    <div className="bg-white dark:bg-zinc-800 rounded-lg p-4 border border-amber-200 dark:border-amber-800">
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                                <Crown className="w-5 h-5 text-amber-500" />
+                                <span className="font-semibold text-gray-900 dark:text-white">تیک طلایی فعال</span>
+                            </div>
+                            <span className="text-sm text-gray-600 dark:text-gray-400">
+                                {subscription.plan === 'monthly' ? 'ماهانه' : 'سالانه'}
+                            </span>
+                        </div>
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-gray-600 dark:text-gray-400">زمان باقیمانده:</span>
+                                <span className="text-sm font-semibold text-amber-600 dark:text-amber-400">
+                                    {subscription.daysRemaining} روز
+                                </span>
+                            </div>
+                            {subscription.expiresAt && (
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm text-gray-600 dark:text-gray-400">تاریخ انقضا:</span>
+                                    <span className="text-sm text-gray-900 dark:text-white">
+                                        {subscription.expiresAt.toLocaleDateString('fa-IR', {
+                                            year: 'numeric',
+                                            month: 'long',
+                                            day: 'numeric',
+                                        })}
+                                    </span>
+                                </div>
+                            )}
+                            {subscription.isExpiringSoon && (
+                                <Button
+                                    onClick={() => setShowGoldenTickModal(true)}
+                                    className="w-full mt-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold"
+                                >
+                                    <Crown className="w-4 h-4 mr-2" />
+                                    تمدید اشتراک
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                ) : (
+                    <Button
+                        onClick={() => setShowGoldenTickModal(true)}
+                        className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold"
+                    >
+                        <Crown className="w-4 h-4 mr-2" />
+                        خرید تیک طلایی
+                    </Button>
+                )}
             </div>
         </div>
     );

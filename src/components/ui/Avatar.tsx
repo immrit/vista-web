@@ -41,3 +41,4 @@ export function Avatar({ src, alt, size = 'md', className }: AvatarProps) {
     );
 }
 
+

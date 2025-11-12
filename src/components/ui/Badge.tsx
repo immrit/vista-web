@@ -25,3 +25,4 @@ export function Badge({ count, max = 99, className }: BadgeProps) {
     );
 }
 
+
