@@ -214,15 +214,15 @@ export default function PostDetailPage() {
         <div className="min-h-screen bg-gray-50 dark:bg-zinc-950">
             {/* Header */}
             <div className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-10">
-                <div className="flex items-center justify-between p-4">
+                <div className="flex items-center justify-between p-3 md:p-4">
                     <button
                         onClick={() => router.back()}
-                        className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition"
+                        className="flex items-center gap-1 md:gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition"
                     >
                         <ArrowLeft className="w-5 h-5" />
-                        <span>بازگشت</span>
+                        <span className="hidden sm:inline">بازگشت</span>
                     </button>
-                    <h1 className="text-lg font-semibold text-gray-900 dark:text-white">پست</h1>
+                    <h1 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white">پست</h1>
                     <div className="relative">
                         <button
                             onClick={() => setShowShareOptions(!showShareOptions)}
@@ -263,7 +263,7 @@ export default function PostDetailPage() {
             </div>
 
             {/* Main Content */}
-            <div className="max-w-2xl mx-auto p-4">
+            <div className="max-w-2xl mx-auto p-4 pb-24 md:pb-4">
                 {post && (
                     <PostCard
                         post={post}
@@ -276,20 +276,20 @@ export default function PostDetailPage() {
 
             {/* Sign Up Banner for Non-Authenticated Users */}
             {(!user || !profile) && (
-                <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 shadow-lg z-50">
-                    <div className="max-w-2xl mx-auto flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-white/20 rounded-full">
+                <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 shadow-lg z-50 md:pb-4">
+                    <div className="max-w-2xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 md:gap-0">
+                        <div className="flex items-center gap-3 flex-1">
+                            <div className="p-2 bg-white/20 rounded-full flex-shrink-0">
                                 <Users className="w-5 h-5" />
                             </div>
-                            <div>
-                                <h3 className="font-semibold text-lg">خودت رو به دوستانت در ویستا معرفی کن!</h3>
-                                <p className="text-blue-100 text-sm">به جامعه ما بپیوند و محتوای بیشتری ببین</p>
+                            <div className="flex-1 min-w-0">
+                                <h3 className="font-semibold text-base md:text-lg">خودت رو به دوستانت در ویستا معرفی کن!</h3>
+                                <p className="text-blue-100 text-xs md:text-sm">به جامعه ما بپیوند و محتوای بیشتری ببین</p>
                             </div>
                         </div>
                         <button
                             onClick={handleSignUp}
-                            className="flex items-center gap-2 bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors"
+                            className="flex items-center gap-2 bg-white text-blue-600 px-4 md:px-6 py-2 md:py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors w-full md:w-auto justify-center"
                         >
                             <span>ورود</span>
                             <ArrowRight className="w-4 h-4" />

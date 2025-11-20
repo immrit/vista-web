@@ -4,7 +4,6 @@ import { usePathname } from "next/navigation";
 import NavigationWrapper from "./NavigationWrapper";
 import { Navigation } from "@/components/ui/Navigation";
 import { useAuth } from "@/hooks/useAuth";
-import EnamadBadge from "@/components/ui/EnamadBadge";
 
 export default function LayoutWithSidebar({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
@@ -39,7 +38,6 @@ export default function LayoutWithSidebar({ children }: { children: React.ReactN
                     {children}
                 </div>
             </main>
-            <EnamadBadge />
         </div>
     );
 } 

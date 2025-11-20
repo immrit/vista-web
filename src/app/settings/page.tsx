@@ -11,6 +11,7 @@ import { SubscriptionBadge } from '@/components/ui/SubscriptionBadge';
 import { RenewalPrompt } from '@/components/ui/RenewalPrompt';
 import { SubscriptionStatus } from '@/components/ui/SubscriptionStatus';
 import { useSubscription } from '@/hooks/useSubscription';
+import EnamadBadge from '@/components/ui/EnamadBadge';
 import {
     Trash2,
     Save,
@@ -475,6 +476,11 @@ export default function SettingsPage() {
                     </div>
                 </div>
                 <ChevronRight className="w-5 h-5 text-red-400" />
+            </div>
+
+            {/* Enamad Badge */}
+            <div className="mt-6 flex justify-center">
+                <EnamadBadge />
             </div>
         </div>
     );
