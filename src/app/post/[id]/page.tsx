@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
 import { PostWithProfile } from '@/lib/types';
 import { PostService } from '@/lib/postService';
 import { useAuth } from '@/hooks/useAuth';

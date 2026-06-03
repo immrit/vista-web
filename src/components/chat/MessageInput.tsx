@@ -44,7 +44,7 @@ export function MessageInput({
     useEffect(() => {
         if (content.trim() && !isTyping) {
             setIsTyping(true);
-            // TODO: Send typing indicator to Supabase
+            // TODO: Send typing indicator to backend realtime channel
         }
 
         if (typingTimeoutRef.current) {
@@ -205,4 +205,3 @@ export function MessageInput({
         </div>
     );
 }
-

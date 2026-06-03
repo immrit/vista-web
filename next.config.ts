@@ -1,7 +1,20 @@
 import withPWA from 'next-pwa';
 import type { NextConfig } from 'next';
+import path from 'path';
+
+const securityHeaders = [
+  { key: 'X-Frame-Options',              value: 'SAMEORIGIN' },
+  { key: 'X-Content-Type-Options',       value: 'nosniff' },
+  { key: 'X-XSS-Protection',             value: '1; mode=block' },
+  { key: 'Referrer-Policy',              value: 'strict-origin-when-cross-origin' },
+  { key: 'Permissions-Policy',           value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()' },
+  { key: 'Cross-Origin-Opener-Policy',   value: 'same-origin-allow-popups' },
+  { key: 'Cross-Origin-Resource-Policy', value: 'same-site' },
+  { key: 'Strict-Transport-Security',    value: 'max-age=63072000; includeSubDomains; preload' },
+];
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
   // External packages for server components (moved from experimental)
   // Exclude jsdom and parse5 from server bundle to avoid ESM/CommonJS conflicts
   serverExternalPackages: ['jsdom', 'parse5', 'isomorphic-dompurify'],
@@ -29,7 +42,7 @@ const nextConfig: NextConfig = {
   // swcMinify is enabled by default in Next.js 15, no need to specify
   compress: true,
   poweredByHeader: false,
-  // Webpack config to handle jsdom/parse5 ESM issues
+  // Webpack config to handle jsdom/parse5 ESM issues and uuid
   webpack: (config: any, { isServer }: { isServer: boolean }) => {
     if (isServer) {
       // Exclude jsdom and parse5 from server bundle
@@ -38,8 +51,30 @@ const nextConfig: NextConfig = {
         'jsdom': 'commonjs jsdom',
         'parse5': 'commonjs parse5',
       });
+    } else {
+      // For client-side packages that expect Node built-ins
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        'crypto': false,
+        'stream': false,
+        'buffer': false,
+      };
+      
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        'uuid': path.resolve(__dirname, 'node_modules/uuid/dist/index.js'),
+        'uuid/dist/esm-browser/index.js': path.resolve(__dirname, 'node_modules/uuid/dist/index.js'),
+      };
     }
     return config;
+  },
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: securityHeaders,
+      },
+    ];
   },
 };
 
@@ -62,10 +97,10 @@ const pwaConfig = withPWA({
       }
     },
     {
-      urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+      urlPattern: /^https:\/\/(api\.coffevista\.ir|localhost).*/i,
       handler: 'NetworkFirst',
       options: {
-        cacheName: 'supabase-api',
+        cacheName: 'api-cache',
         expiration: {
           maxEntries: 100,
           maxAgeSeconds: 24 * 60 * 60

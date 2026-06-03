@@ -1,231 +1,139 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { apiClient } from './apiClient';
 
-// Arvan Cloud Storage Configuration
-const s3Client = new S3Client({
-    region: 'ir-thr-at1',
-    credentials: {
-        accessKeyId: '4f4716fb-fa84-4ae7-9c8b-34d2a0896cdf',
-        secretAccessKey: 'a6b4db27b4c54bfa46cbc4fd8a4ba2079e2da0cd2800acdc80dd758f8b2c1ec5',
-    },
-    endpoint: 'https://coffevista.s3.ir-thr-at1.arvanstorage.ir',
-    forcePathStyle: true,
-});
+type UploadKind = 'image' | 'video' | 'music' | 'avatar';
 
-const BUCKET_NAME = 'coffevista';
-const CDN_BASE_URL = 'https://storage.389346.ir.cdn.ir';
+interface PresignResponse {
+  url: string;
+  method: string;
+  headers?: Record<string, string>;
+  object_key: string;
+  object_url: string;
+}
+
+const uploadRules: Record<UploadKind, { prefix: string; maxSize: number; mimeTypes: string[]; error: string }> = {
+  image: {
+    prefix: 'posts',
+    maxSize: 10 * 1024 * 1024,
+    mimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'],
+    error: 'فقط فایل‌های تصویری (jpg, jpeg, png, gif, webp) پشتیبانی می‌شوند',
+  },
+  video: {
+    prefix: 'videos',
+    maxSize: 50 * 1024 * 1024,
+    mimeTypes: ['video/mp4', 'video/quicktime', 'video/x-matroska'],
+    error: 'فقط فایل‌های ویدیویی (mp4, mov, mkv) پشتیبانی می‌شوند',
+  },
+  music: {
+    prefix: 'music',
+    maxSize: 10 * 1024 * 1024,
+    mimeTypes: ['audio/mpeg', 'audio/mp4', 'audio/m4a'],
+    error: 'فقط فایل‌های صوتی (mp3, m4a) پشتیبانی می‌شوند',
+  },
+  avatar: {
+    prefix: 'avatars',
+    maxSize: 5 * 1024 * 1024,
+    mimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'],
+    error: 'فقط فایل‌های تصویری (jpg, jpeg, png, gif, webp) پشتیبانی می‌شوند',
+  },
+};
+
+function sanitizeExtension(file: File) {
+  const fromName = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return fromName || UploadService.getFileExtension(file.type);
+}
+
+function objectKeyFor(kind: UploadKind, file: File, userId: string) {
+  const rule = uploadRules[kind];
+  const extension = sanitizeExtension(file);
+  const unique = `${Date.now()}-${crypto.randomUUID?.() || Math.random().toString(36).slice(2)}`;
+  return `${rule.prefix}/${userId}/${unique}.${extension}`;
+}
+
+async function uploadWithBackend(file: File, userId: string, kind: UploadKind) {
+  const rule = uploadRules[kind];
+  if (!rule.mimeTypes.includes(file.type)) {
+    throw new Error(rule.error);
+  }
+  if (file.size > rule.maxSize) {
+    throw new Error(`حجم فایل باید کمتر از ${Math.round(rule.maxSize / 1024 / 1024)} مگابایت باشد`);
+  }
+
+  const presign = await apiClient.post<PresignResponse>('/v1/uploads/presign', {
+    object_key: objectKeyFor(kind, file, userId),
+    content_type: file.type,
+  });
+
+  const uploadResponse = await fetch(presign.url, {
+    method: presign.method || 'PUT',
+    headers: presign.headers || { 'Content-Type': file.type },
+    body: file,
+  });
+
+  if (!uploadResponse.ok) {
+    throw new Error('آپلود فایل با شکست مواجه شد');
+  }
+
+  return presign.object_url;
+}
+
+function objectKeyFromUrl(fileUrl: string) {
+  try {
+    const path = new URL(fileUrl).pathname.replace(/^\/+/, '');
+    const roots = ['avatars/', 'posts/', 'stories/', 'chat/', 'music/', 'videos/'];
+    for (const root of roots) {
+      const index = path.indexOf(root);
+      if (index >= 0) return path.slice(index);
+    }
+  } catch {
+    return '';
+  }
+  return '';
+}
 
 export class UploadService {
-    // Upload image file
-    static async uploadImage(file: File, userId: string): Promise<string> {
-        try {
-            // Validate file type
-            if (!this.isValidImageFormat(file.type)) {
-                throw new Error('فقط فایل‌های تصویری (jpg, jpeg, png, gif) پشتیبانی می‌شوند');
-            }
+  static uploadImage(file: File, userId: string) {
+    return uploadWithBackend(file, userId, 'image');
+  }
 
-            // Validate file size (max 10MB)
-            if (file.size > 10 * 1024 * 1024) {
-                throw new Error('حجم فایل تصویر باید کمتر از ۱۰ مگابایت باشد');
-            }
+  static uploadVideo(file: File, userId: string) {
+    return uploadWithBackend(file, userId, 'video');
+  }
 
-            // Generate unique filename
-            const timestamp = Date.now();
-            const extension = file.name.split('.').pop();
-            const fileName = `posts/${userId}_${timestamp}.${extension}`;
+  static uploadMusic(file: File, userId: string) {
+    return uploadWithBackend(file, userId, 'music');
+  }
 
-            // Convert File to ArrayBuffer for AWS S3
-            const arrayBuffer = await file.arrayBuffer();
-            const uint8Array = new Uint8Array(arrayBuffer);
+  static uploadAvatar(file: File, userId: string) {
+    return uploadWithBackend(file, userId, 'avatar');
+  }
 
-            // Upload to Arvan Cloud
-            await s3Client.send(new PutObjectCommand({
-                Bucket: BUCKET_NAME,
-                Key: fileName,
-                Body: uint8Array,
-                ContentType: file.type,
-                ACL: 'public-read',
-            }));
+  static async deleteFile(fileUrl: string): Promise<boolean> {
+    const objectKey = objectKeyFromUrl(fileUrl);
+    if (!objectKey) return false;
 
-            const uploadedUrl = `${CDN_BASE_URL}/${BUCKET_NAME}/${fileName}`;
-            console.log('تصویر با موفقیت آپلود شد:', uploadedUrl);
-
-            return uploadedUrl;
-        } catch (error) {
-            console.error('خطا در آپلود تصویر:', error);
-            throw new Error('آپلود تصویر با شکست مواجه شد');
-        }
+    try {
+      await apiClient.post('/v1/uploads/delete', { object_key: objectKey });
+      return true;
+    } catch (error) {
+      console.error('خطا در حذف فایل:', error);
+      return false;
     }
+  }
 
-    // Upload video file
-    static async uploadVideo(file: File, userId: string): Promise<string> {
-        try {
-            // Validate file type
-            if (!this.isValidVideoFormat(file.type)) {
-                throw new Error('فقط فایل‌های ویدیویی (mp4, mov, mkv) پشتیبانی می‌شوند');
-            }
-
-            // Validate file size (max 50MB)
-            if (file.size > 50 * 1024 * 1024) {
-                throw new Error('حجم فایل ویدیو باید کمتر از ۵۰ مگابایت باشد');
-            }
-
-            // Generate unique filename
-            const timestamp = Date.now();
-            const extension = file.name.split('.').pop();
-            const fileName = `videos/${userId}_${timestamp}.${extension}`;
-
-            // Convert File to ArrayBuffer for AWS S3
-            const arrayBuffer = await file.arrayBuffer();
-            const uint8Array = new Uint8Array(arrayBuffer);
-
-            // Upload to Arvan Cloud
-            await s3Client.send(new PutObjectCommand({
-                Bucket: BUCKET_NAME,
-                Key: fileName,
-                Body: uint8Array,
-                ContentType: file.type,
-                ACL: 'public-read',
-            }));
-
-            const uploadedUrl = `${CDN_BASE_URL}/${BUCKET_NAME}/${fileName}`;
-            console.log('ویدیو با موفقیت آپلود شد:', uploadedUrl);
-
-            return uploadedUrl;
-        } catch (error) {
-            console.error('خطا در آپلود ویدیو:', error);
-            throw new Error('آپلود ویدیو با شکست مواجه شد');
-        }
-    }
-
-    // Upload music file
-    static async uploadMusic(file: File, userId: string): Promise<string> {
-        try {
-            // Validate file type
-            if (!this.isValidAudioFormat(file.type)) {
-                throw new Error('فقط فایل‌های صوتی (mp3, m4a) پشتیبانی می‌شوند');
-            }
-
-            // Validate file size (max 10MB)
-            if (file.size > 10 * 1024 * 1024) {
-                throw new Error('حجم فایل موسیقی باید کمتر از ۱۰ مگابایت باشد');
-            }
-
-            // Generate unique filename
-            const timestamp = Date.now();
-            const extension = file.name.split('.').pop();
-            const fileName = `music/${userId}_${timestamp}.${extension}`;
-
-            // Convert File to ArrayBuffer for AWS S3
-            const arrayBuffer = await file.arrayBuffer();
-            const uint8Array = new Uint8Array(arrayBuffer);
-
-            // Upload to Arvan Cloud
-            await s3Client.send(new PutObjectCommand({
-                Bucket: BUCKET_NAME,
-                Key: fileName,
-                Body: uint8Array,
-                ContentType: file.type,
-                ACL: 'public-read',
-            }));
-
-            const uploadedUrl = `${CDN_BASE_URL}/${BUCKET_NAME}/${fileName}`;
-            console.log('موسیقی با موفقیت آپلود شد:', uploadedUrl);
-
-            return uploadedUrl;
-        } catch (error) {
-            console.error('خطا در آپلود موسیقی:', error);
-            throw new Error('آپلود موسیقی با شکست مواجه شد');
-        }
-    }
-
-    // Upload avatar file
-    static async uploadAvatar(file: File, userId: string): Promise<string> {
-        try {
-            // Validate file type
-            if (!this.isValidImageFormat(file.type)) {
-                throw new Error('فقط فایل‌های تصویری (jpg, jpeg, png, gif) پشتیبانی می‌شوند');
-            }
-
-            // Validate file size (max 5MB for avatars)
-            if (file.size > 5 * 1024 * 1024) {
-                throw new Error('حجم فایل آواتار باید کمتر از ۵ مگابایت باشد');
-            }
-
-            // Generate unique filename
-            const timestamp = Date.now();
-            const extension = file.name.split('.').pop();
-            const fileName = `avatars/${userId}_${timestamp}.${extension}`;
-
-            // Convert File to ArrayBuffer for AWS S3
-            const arrayBuffer = await file.arrayBuffer();
-            const uint8Array = new Uint8Array(arrayBuffer);
-
-            // Upload to Arvan Cloud
-            await s3Client.send(new PutObjectCommand({
-                Bucket: BUCKET_NAME,
-                Key: fileName,
-                Body: uint8Array,
-                ContentType: file.type,
-                ACL: 'public-read',
-            }));
-
-            const uploadedUrl = `${CDN_BASE_URL}/${BUCKET_NAME}/${fileName}`;
-            console.log('آواتار با موفقیت آپلود شد:', uploadedUrl);
-
-            return uploadedUrl;
-        } catch (error) {
-            console.error('خطا در آپلود آواتار:', error);
-            throw new Error('آپلود آواتار با شکست مواجه شد');
-        }
-    }
-
-    // Delete file from storage
-    static async deleteFile(fileUrl: string): Promise<boolean> {
-        try {
-            const url = new URL(fileUrl);
-            const key = url.pathname.split('/').slice(2).join('/'); // Remove /bucket-name/ from path
-
-            await s3Client.send(new DeleteObjectCommand({
-                Bucket: BUCKET_NAME,
-                Key: key,
-            }));
-
-            console.log('فایل با موفقیت حذف شد:', fileUrl);
-            return true;
-        } catch (error) {
-            console.error('خطا در حذف فایل:', error);
-            return false;
-        }
-    }
-
-    // Validation helpers
-    private static isValidImageFormat(mimeType: string): boolean {
-        return ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'].includes(mimeType);
-    }
-
-    private static isValidVideoFormat(mimeType: string): boolean {
-        return ['video/mp4', 'video/quicktime', 'video/x-matroska'].includes(mimeType);
-    }
-
-    private static isValidAudioFormat(mimeType: string): boolean {
-        return ['audio/mpeg', 'audio/mp4', 'audio/m4a'].includes(mimeType);
-    }
-
-    // Get file extension from mime type
-    static getFileExtension(mimeType: string): string {
-        const extensions: { [key: string]: string } = {
-            'image/jpeg': 'jpg',
-            'image/jpg': 'jpg',
-            'image/png': 'png',
-            'image/gif': 'gif',
-            'image/webp': 'webp',
-            'video/mp4': 'mp4',
-            'video/quicktime': 'mov',
-            'video/x-matroska': 'mkv',
-            'audio/mpeg': 'mp3',
-            'audio/mp4': 'm4a',
-            'audio/m4a': 'm4a',
-        };
-        return extensions[mimeType] || 'bin';
-    }
-} 
+  static getFileExtension(mimeType: string): string {
+    const extensions: Record<string, string> = {
+      'image/jpeg': 'jpg',
+      'image/jpg': 'jpg',
+      'image/png': 'png',
+      'image/gif': 'gif',
+      'image/webp': 'webp',
+      'video/mp4': 'mp4',
+      'video/quicktime': 'mov',
+      'video/x-matroska': 'mkv',
+      'audio/mpeg': 'mp3',
+      'audio/mp4': 'm4a',
+      'audio/m4a': 'm4a',
+    };
+    return extensions[mimeType] || 'bin';
+  }
+}

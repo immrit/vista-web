@@ -1,9 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
-
-import { createClient } from '@/lib/supabase/client';
+import { useCallback, useEffect, useState } from 'react';
+import { apiClient, getBackendWebSocketUrl } from '@/lib/apiClient';
 import type { Message } from '@/lib/models/message';
 
 interface UseRealtimeMessagesOptions {
@@ -14,19 +12,23 @@ interface UseRealtimeMessagesOptions {
   onMessageDelete?: (messageId: string) => void;
 }
 
-interface MessageRow {
-  id: string;
-  conversation_id: string;
-  sender_id: string;
-  content: string;
-  attachment_url?: string | null;
-  attachment_type?: 'image' | 'video' | 'audio' | 'file' | string | null;
-  reply_to_message_id?: string | null;
-  created_at: string;
-  updated_at?: string | null;
-  is_delivered?: boolean;
-  is_read?: boolean;
-  reactions?: any[];
+function normalizeMessage(row: any, userId: string): Message {
+  return {
+    id: row.id,
+    conversationId: row.conversation_id,
+    senderId: row.sender_id,
+    content: row.content || '',
+    attachmentUrl: row.attachment_url || row.media_url || null,
+    attachmentType: row.attachment_type || row.message_type || null,
+    replyToId: row.reply_to_message_id || null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at || row.edited_at || null,
+    isDelivered: row.is_delivered ?? false,
+    isRead: row.is_read ?? row.is_seen ?? false,
+    isSent: true,
+    isMe: row.sender_id === userId,
+    reactions: row.reactions ?? [],
+  };
 }
 
 export function useRealtimeMessages({
@@ -36,7 +38,6 @@ export function useRealtimeMessages({
   onMessageUpdate,
   onMessageDelete,
 }: UseRealtimeMessagesOptions) {
-  const supabase = createClient();
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -54,53 +55,15 @@ export function useRealtimeMessages({
     async function fetchMessages() {
       setIsLoading(true);
       try {
-        const { data, error } = await supabase
-          .from('messages')
-          .select('*')
-          .eq('conversation_id', conversationId)
-          .order('created_at', { ascending: false })
-          .limit(50);
-
-        if (error) {
-          throw error;
-        }
-
-        if (!isMounted) {
-          return;
-        }
-
-        const formatted: Message[] = (data ?? [])
-          .map(msg => ({
-            id: msg.id,
-            conversationId: msg.conversation_id,
-            senderId: msg.sender_id,
-            content: msg.content,
-            attachmentUrl: msg.attachment_url,
-            attachmentType: msg.attachment_type,
-            replyToId: msg.reply_to_message_id,
-            createdAt: msg.created_at,
-            updatedAt: msg.updated_at,
-            isDelivered: msg.is_delivered ?? false,
-            isRead: msg.is_read ?? false,
-            isSent: true,
-            isMe: msg.sender_id === userId,
-            reactions: msg.reactions ?? [],
-          }))
-          .reverse(); // Reverse to show oldest to newest
-
-        setMessages(formatted);
+        const response = await apiClient.get<{ messages?: any[] }>(
+          `/v1/chat/conversations/${conversationId}/messages?limit=50`,
+        );
+        if (!isMounted) return;
+        setMessages((response.messages || []).map(row => normalizeMessage(row, userId)).reverse());
       } catch (error) {
-        const message =
-          error instanceof Error
-            ? error.message
-            : typeof error === 'object' && error !== null
-              ? JSON.stringify(error)
-              : 'خطا در بارگذاری پیام‌ها';
-        console.error('Error fetching messages:', message, error);
+        console.error('Error fetching messages:', error);
       } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        if (isMounted) setIsLoading(false);
       }
     }
 
@@ -109,96 +72,45 @@ export function useRealtimeMessages({
     return () => {
       isMounted = false;
     };
-  }, [conversationId, supabase, userId]);
+  }, [conversationId, userId]);
 
   useEffect(() => {
-    if (!conversationId) {
-      return () => undefined;
-    }
+    if (!conversationId || !userId) return;
 
-    const channel = supabase
-      .channel(`messages:${conversationId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `conversation_id=eq.${conversationId}`,
-        },
-        (payload: RealtimePostgresChangesPayload<MessageRow>) => {
-          const row = payload.new as MessageRow;
-          const newMessage: Message = {
-            id: row.id,
-            conversationId: row.conversation_id,
-            senderId: row.sender_id,
-            content: row.content,
-            attachmentUrl: row.attachment_url,
-            attachmentType: (row.attachment_type as 'image' | 'video' | 'audio' | 'file' | null) ?? null,
-            replyToId: row.reply_to_message_id ?? null,
-            createdAt: row.created_at,
-            updatedAt: row.updated_at ?? null,
-            isDelivered: row.is_delivered ?? false,
-            isRead: row.is_read ?? false,
-            isSent: true,
-            isMe: row.sender_id === userId,
-            reactions: row.reactions ?? [],
-          };
+    const ws = new WebSocket(getBackendWebSocketUrl('/v1/chat/ws'));
 
-          setMessages(prev => [...prev, newMessage]); // Add to end (newest at bottom)
-          onNewMessage?.(newMessage);
-        },
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'messages',
-          filter: `conversation_id=eq.${conversationId}`,
-        },
-        (payload: RealtimePostgresChangesPayload<MessageRow>) => {
-          const row = payload.new as MessageRow;
-          const updatedMessage: Message = {
-            id: row.id,
-            conversationId: row.conversation_id,
-            senderId: row.sender_id,
-            content: row.content,
-            attachmentUrl: row.attachment_url,
-            attachmentType: (row.attachment_type as 'image' | 'video' | 'audio' | 'file' | null) ?? null,
-            replyToId: row.reply_to_message_id ?? null,
-            createdAt: row.created_at,
-            updatedAt: row.updated_at ?? null,
-            isDelivered: row.is_delivered ?? false,
-            isRead: row.is_read ?? false,
-            isSent: true,
-            isMe: row.sender_id === userId,
-            reactions: row.reactions ?? [],
-          };
+    ws.onmessage = event => {
+      try {
+        const envelope = JSON.parse(event.data);
+        const data = envelope.data || envelope;
 
-          setMessages(prev => prev.map(msg => (msg.id === updatedMessage.id ? updatedMessage : msg)));
-          onMessageUpdate?.(updatedMessage);
-        },
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'messages',
-          filter: `conversation_id=eq.${conversationId}`,
-        },
-        payload => {
-          setMessages(prev => prev.filter(msg => msg.id !== payload.old.id));
-          onMessageDelete?.(payload.old.id);
-        },
-      )
-      .subscribe();
+        if ((envelope.type === 'new_message' || envelope.type === 'message') && data.conversation_id === conversationId) {
+          const message = normalizeMessage(data, userId);
+          setMessages(prev => {
+            const filtered = prev.filter(item => item.id !== message.id);
+            return [...filtered, message];
+          });
+          onNewMessage?.(message);
+        }
 
-    return () => {
-      supabase.removeChannel(channel);
+        if (envelope.type === 'message_updated' && data.conversation_id === conversationId) {
+          const message = normalizeMessage(data, userId);
+          setMessages(prev => prev.map(item => item.id === message.id ? message : item));
+          onMessageUpdate?.(message);
+        }
+
+        if (envelope.type === 'message_deleted' && data.conversation_id === conversationId) {
+          const messageId = data.message_id || data.id;
+          setMessages(prev => prev.filter(item => item.id !== messageId));
+          onMessageDelete?.(messageId);
+        }
+      } catch (error) {
+        console.error('Failed to parse chat event:', error);
+      }
     };
-  }, [conversationId, supabase, userId, onMessageDelete, onMessageUpdate, onNewMessage]);
+
+    return () => ws.close();
+  }, [conversationId, onMessageDelete, onMessageUpdate, onNewMessage, userId]);
 
   const sendMessage = useCallback(
     async (
@@ -206,43 +118,14 @@ export function useRealtimeMessages({
       replyToId?: string | null,
       editingId?: string | null,
       attachmentUrl?: string,
-      attachmentType?: Message['attachmentType']
+      attachmentType?: Message['attachmentType'],
     ) => {
-      // If editing, update existing message
       if (editingId) {
-        try {
-          const { data, error } = await supabase
-            .from('messages')
-            .update({
-              content,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', editingId)
-            .select()
-            .single();
-
-          if (error) throw error;
-
-          setMessages(prev =>
-            prev.map(msg =>
-              msg.id === editingId
-                ? {
-                    ...msg,
-                    content: data.content,
-                    updatedAt: data.updated_at,
-                  }
-                : msg
-            )
-          );
-
-          return data;
-        } catch (error) {
-          console.error('Error updating message:', error);
-          throw error;
-        }
+        await apiClient.put(`/v1/chat/messages/${editingId}`, { content });
+        setMessages(prev => prev.map(msg => msg.id === editingId ? { ...msg, content, updatedAt: new Date().toISOString() } : msg));
+        return { id: editingId, content };
       }
 
-      // Otherwise, send new message
       const optimisticMessage: Message = {
         id: `temp_${Date.now()}`,
         conversationId,
@@ -260,56 +143,24 @@ export function useRealtimeMessages({
         reactions: [],
       };
 
-      setMessages(prev => [...prev, optimisticMessage]); // Add to end (newest at bottom)
+      setMessages(prev => [...prev, optimisticMessage]);
 
       try {
-        const { data, error } = await supabase
-          .from('messages')
-          .insert({
-            conversation_id: conversationId,
-            sender_id: userId,
-            content,
-            attachment_url: attachmentUrl,
-            attachment_type: attachmentType,
-            reply_to_message_id: replyToId || null,
-          })
-          .select()
-          .single();
-
-        if (error) {
-          throw error;
-        }
-
-        setMessages(prev =>
-          prev.map(msg =>
-            msg.id === optimisticMessage.id
-              ? {
-                  ...msg,
-                  id: data.id,
-                  createdAt: data.created_at,
-                  isSent: true,
-                }
-              : msg,
-          ),
-        );
-
+        const data = await apiClient.post<any>(`/v1/chat/conversations/${conversationId}/messages`, {
+          content,
+          media_url: attachmentUrl,
+          message_type: attachmentType,
+          reply_to_message_id: replyToId || undefined,
+        });
+        const saved = normalizeMessage(data, userId);
+        setMessages(prev => prev.map(msg => msg.id === optimisticMessage.id ? saved : msg));
         return data;
       } catch (error) {
-        console.error('Error sending message:', error);
-        setMessages(prev =>
-          prev.map(msg =>
-            msg.id === optimisticMessage.id
-              ? {
-                  ...msg,
-                  isSent: false,
-                }
-              : msg,
-          ),
-        );
+        setMessages(prev => prev.map(msg => msg.id === optimisticMessage.id ? { ...msg, isSent: false } : msg));
         throw error;
       }
     },
-    [conversationId, supabase, userId],
+    [conversationId, userId],
   );
 
   return {
@@ -318,4 +169,3 @@ export function useRealtimeMessages({
     sendMessage,
   };
 }
-

@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 
 interface AvatarProps {
     src?: string | null;
-    alt: string;
+    alt?: string | null;
     size?: 'sm' | 'md' | 'lg' | 'xl';
     className?: string;
 }
@@ -17,12 +17,19 @@ const sizeClasses = {
 };
 
 export function Avatar({ src, alt, size = 'md', className }: AvatarProps) {
-    const initials = alt
-        .split(' ')
-        .map(n => n[0])
-        .join('')
-        .toUpperCase()
-        .slice(0, 2);
+    const safeAlt = alt?.trim() ?? '';
+    const initials = safeAlt
+        ? safeAlt
+              .split(' ')
+              .filter(Boolean)
+              .map(n => n[0])
+              .join('')
+              .toUpperCase()
+              .slice(0, 2)
+        : '؟';
+
+    const imageSrc = src ?? undefined;
+    const imageAlt = safeAlt || 'کاربر';
 
     return (
         <div
@@ -32,14 +39,15 @@ export function Avatar({ src, alt, size = 'md', className }: AvatarProps) {
                 className
             )}
         >
-            {src ? (
-                <img src={src} alt={alt} className="w-full h-full object-cover" />
+            {imageSrc ? (
+                <img src={imageSrc} alt={imageAlt} className="w-full h-full object-cover" />
             ) : (
                 <span>{initials}</span>
             )}
         </div>
     );
 }
+
 
 
 

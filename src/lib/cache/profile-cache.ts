@@ -1,5 +1,5 @@
 import { cacheSystem } from '@/lib/cache/advanced-cache';
-import { createClient } from '@/lib/supabase/server';
+import { postApi, profileApi } from '@/lib/backendApi';
 
 export interface CachedProfile {
   id: string;
@@ -22,45 +22,22 @@ export class ProfileCacheService {
     if (!this.instance) {
       this.instance = new ProfileCacheService();
     }
-
     return this.instance;
   }
 
   async getProfile(userId: string): Promise<CachedProfile | null> {
     const cacheKey = `profile:${userId}`;
     const cached = await cacheSystem.get<CachedProfile>(cacheKey);
-    if (cached) {
-      return cached;
-    }
+    if (cached) return cached;
 
     try {
-      const supabase = await createClient();
-      const { data, error } = await supabase
-        .from('profiles')
-        .select(`
-          id,
-          username,
-          full_name,
-          avatar_url,
-          bio,
-          created_at,
-          followers_count,
-          following_count,
-          posts_count
-        `)
-        .eq('id', userId)
-        .single();
-
-      if (error || !data) {
-        return null;
-      }
-
+      const data = await profileApi.get(userId);
       const profile: CachedProfile = {
         id: data.id,
         username: data.username,
-        fullName: data.full_name,
-        avatarUrl: data.avatar_url,
-        bio: data.bio,
+        fullName: data.full_name || null,
+        avatarUrl: data.avatar_url || null,
+        bio: data.bio || null,
         followersCount: data.followers_count ?? 0,
         followingCount: data.following_count ?? 0,
         postsCount: data.posts_count ?? 0,
@@ -78,19 +55,8 @@ export class ProfileCacheService {
   async cacheProfileAndPosts(userId: string): Promise<void> {
     try {
       await this.getProfile(userId);
-
-      const supabase = await createClient();
-      const { data: posts } = await supabase
-        .from('posts')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      if (posts) {
-        const cacheKey = `user_posts:${userId}`;
-        await cacheSystem.set(cacheKey, posts, { ttl: 300 });
-      }
+      const posts = await postApi.byUser(userId, 10, 0);
+      await cacheSystem.set(`user_posts:${userId}`, posts.posts, { ttl: 300 });
     } catch (error) {
       console.error('Error caching profile and posts:', error);
     }
@@ -105,12 +71,9 @@ export class ProfileCacheService {
     const cacheKey = `profile:${userId}`;
     const cached = await cacheSystem.get<CachedProfile>(cacheKey);
     if (cached) {
-      const updated = { ...cached, ...updates };
-      await cacheSystem.set(cacheKey, updated, { ttl: 600 });
+      await cacheSystem.set(cacheKey, { ...cached, ...updates }, { ttl: 600 });
     }
   }
 }
 
 export const profileCache = ProfileCacheService.getInstance();
-
-

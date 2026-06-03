@@ -1,8 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
-
-import { createClient } from '@/lib/supabase/client';
+import { useCallback, useRef } from 'react';
+import { apiClient } from '@/lib/apiClient';
 
 interface UseTypingIndicatorOptions {
   conversationId: string;
@@ -10,28 +9,8 @@ interface UseTypingIndicatorOptions {
   onTypingChange?: (isTyping: boolean, userId: string) => void;
 }
 
-export function useTypingIndicator({
-  conversationId,
-  userId,
-  onTypingChange,
-}: UseTypingIndicatorOptions) {
-  const supabase = createClient();
+export function useTypingIndicator({ conversationId }: UseTypingIndicatorOptions) {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    const channel = supabase
-      .channel(`typing:${conversationId}`)
-      .on('broadcast', { event: 'typing' }, payload => {
-        if (payload.payload.userId !== userId) {
-          onTypingChange?.(payload.payload.isTyping, payload.payload.userId);
-        }
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [conversationId, onTypingChange, supabase, userId]);
 
   const setTyping = useCallback(
     (isTyping: boolean) => {
@@ -39,32 +18,18 @@ export function useTypingIndicator({
         clearTimeout(timeoutRef.current);
       }
 
-      supabase.channel(`typing:${conversationId}`).send({
-        type: 'broadcast',
-        event: 'typing',
-        payload: {
-          userId,
-          isTyping,
-        },
-      });
+      if (isTyping && conversationId) {
+        apiClient.post(`/v1/chat/conversations/${conversationId}/typing`).catch(error => {
+          console.debug('Failed to send typing indicator:', error);
+        });
 
-      if (isTyping) {
         timeoutRef.current = setTimeout(() => {
-          supabase.channel(`typing:${conversationId}`).send({
-            type: 'broadcast',
-            event: 'typing',
-            payload: {
-              userId,
-              isTyping: false,
-            },
-          });
+          timeoutRef.current = null;
         }, 3000);
       }
     },
-    [conversationId, supabase, userId],
+    [conversationId],
   );
 
   return { setTyping };
 }
-
-

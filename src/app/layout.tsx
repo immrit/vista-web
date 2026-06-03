@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import LayoutWithSidebar from "./LayoutWithSidebar";
 import { QueryProvider } from "@/components/providers/QueryProvider";
+import { GlobalMiniPlayer } from "@/components/ui/GlobalMiniPlayer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,14 +27,14 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  metadataBase: new URL('https://coffevista.ir'),
+  metadataBase: new URL('https://cafevista.ir'),
   alternates: {
     canonical: '/',
   },
   openGraph: {
     title: "Vista - پلتفرم اجتماعی",
     description: "پلتفرم اجتماعی Vista برای اشتراک‌گذاری محتوا",
-    url: 'https://coffevista.ir',
+    url: 'https://cafevista.ir',
     siteName: 'Vista',
     locale: 'fa_IR',
     type: 'website',
@@ -86,6 +87,7 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 dark:bg-zinc-950`}>
         <QueryProvider>
           <LayoutWithSidebar>{children}</LayoutWithSidebar>
+          <GlobalMiniPlayer />
         </QueryProvider>
       </body>
     </html>

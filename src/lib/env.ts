@@ -3,9 +3,7 @@ import 'server-only';
 import { z } from 'zod';
 
 const envSchema = z.object({
-  NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  NEXT_PUBLIC_API_URL: z.string().url().default('https://api.coffevista.ir'),
   JWT_SECRET: z.string().min(32),
   ENCRYPTION_KEY: z.string().length(32),
   CSRF_SECRET: z.string().min(32),
@@ -21,6 +19,8 @@ const envSchema = z.object({
   NEXT_PUBLIC_FIREBASE_APP_ID: z.string().optional(),
   NEXT_PUBLIC_SENTRY_DSN: z.string().optional(),
   ZIBAL_MERCHANT_ID: z.string().optional(),
+  NEXT_PUBLIC_APP_VERSION: z.string().default('1.0.0'),
+  CRON_SECRET: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

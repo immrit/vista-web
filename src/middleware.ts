@@ -1,64 +1,156 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const PROTECTED_METHODS = ['POST', 'PUT', 'DELETE', 'PATCH'];
-const PUBLIC_PATHS = ['/api/auth', '/auth'];
+// ─── Route classification ─────────────────────────────────────────────────────
+
+const PUBLIC_PATHS = [
+  '/auth',
+  '/api/auth/token',   // our HttpOnly cookie setter — must be public
+  '/api/auth',         // legacy public auth routes
+];
+
+const STATIC_PREFIXES = ['/_next', '/static', '/favicon', '/icons', '/images', '/public'];
+const API_AUTH_PREFIXES = ['/api/auth'];
+
+function isStaticAsset(pathname: string) {
+  return (
+    STATIC_PREFIXES.some((p) => pathname.startsWith(p)) ||
+    pathname.includes('.')
+  );
+}
+
+function isPublicPath(pathname: string) {
+  return PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+}
+
+// ─── Security Headers ─────────────────────────────────────────────────────────
+
+const SECURITY_HEADERS: Record<string, string> = {
+  // Prevent clickjacking
+  'X-Frame-Options': 'SAMEORIGIN',
+  // Stop MIME sniffing
+  'X-Content-Type-Options': 'nosniff',
+  // Force HTTPS for 1 year (preload)
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
+  // Minimal referrer info cross-origin
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  // Prevent XSS in older browsers
+  'X-XSS-Protection': '1; mode=block',
+  // Disable dangerous browser features
+  'Permissions-Policy':
+    'camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()',
+  // Prevent the browser window from being opened in a cross-origin context
+  'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
+  // Restrict embedded resources
+  'Cross-Origin-Resource-Policy': 'same-site',
+  // Content-Security-Policy — strict; adjust as needed for external CDNs
+  'Content-Security-Policy': [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",   // Next.js requires unsafe-inline/eval in dev
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' data: blob: https:",
+    "connect-src 'self' https://api.coffevista.ir wss://api.coffevista.ir",
+    "media-src 'self' https://storage.coffevista.ir blob:",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join('; '),
+  'Content-Language': 'fa',
+};
+
+function applySecurityHeaders(response: NextResponse) {
+  for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
+    response.headers.set(key, value);
+  }
+  return response;
+}
+
+// ─── CSRF protection ──────────────────────────────────────────────────────────
+
+const MUTATION_METHODS = new Set(['POST', 'PUT', 'DELETE', 'PATCH']);
+
+function csrfCheck(request: NextRequest): NextResponse | null {
+  if (!MUTATION_METHODS.has(request.method)) return null;
+
+  // Skip CSRF for paths that are explicitly public auth routes
+  if (API_AUTH_PREFIXES.some((p) => request.nextUrl.pathname.startsWith(p))) return null;
+
+  const origin  = request.headers.get('origin');
+  const referer = request.headers.get('referer');
+  const host    = request.headers.get('host');
+
+  if (!host) return null; // can't validate without host
+
+  if (origin) {
+    try {
+      const originHost = new URL(origin).host;
+      if (originHost !== host) {
+        return NextResponse.json({ error: 'CSRF: invalid origin' }, { status: 403 });
+      }
+    } catch {
+      return NextResponse.json({ error: 'CSRF: malformed origin' }, { status: 403 });
+    }
+  } else if (referer) {
+    try {
+      const refererHost = new URL(referer).host;
+      if (refererHost !== host) {
+        return NextResponse.json({ error: 'CSRF: invalid referer' }, { status: 403 });
+      }
+    } catch {
+      return NextResponse.json({ error: 'CSRF: malformed referer' }, { status: 403 });
+    }
+  } else {
+    // No Origin and no Referer — block by default for non-public mutations
+    return NextResponse.json({ error: 'CSRF: missing origin/referer' }, { status: 403 });
+  }
+
+  return null;
+}
+
+// ─── Auth guard ───────────────────────────────────────────────────────────────
+
+function requiresAuth(pathname: string): boolean {
+  // Don't guard static assets, public paths, or API routes (they self-authenticate)
+  if (isStaticAsset(pathname)) return false;
+  if (isPublicPath(pathname)) return false;
+  if (pathname.startsWith('/api/')) return false;
+  return true;
+}
+
+// ─── Middleware ───────────────────────────────────────────────────────────────
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  const response = NextResponse.next();
-  response.headers.set('Content-Language', 'fa');
-
-  const isStaticOrAsset =
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/static') ||
-    pathname.includes('.');
-
-  if (isStaticOrAsset) {
-    return response;
+  // Static assets — just pass through quickly
+  if (isStaticAsset(pathname)) {
+    return NextResponse.next();
   }
 
-  if (PROTECTED_METHODS.includes(request.method)) {
-    const skipProtection = PUBLIC_PATHS.some(path => pathname.startsWith(path));
+  // Redirect bare root → /feed
+  if (pathname === '/') {
+    const res = NextResponse.redirect(new URL('/feed', request.url));
+    return applySecurityHeaders(res);
+  }
 
-    if (!skipProtection) {
-      const origin = request.headers.get('origin');
-      const host = request.headers.get('host');
+  // CSRF check
+  const csrfError = csrfCheck(request);
+  if (csrfError) return csrfError;
 
-      if (origin && host) {
-        const originUrl = new URL(origin);
-        if (originUrl.host !== host) {
-          console.warn(`CSRF: Origin mismatch - Origin: ${origin}, Host: ${host}`);
-          return NextResponse.json({ error: 'Invalid origin' }, { status: 403 });
-        }
-      }
-
-      const referer = request.headers.get('referer');
-      if (!origin && referer && host) {
-        const refererUrl = new URL(referer);
-        if (refererUrl.host !== host) {
-          console.warn(`CSRF: Referer mismatch - Referer: ${referer}, Host: ${host}`);
-          return NextResponse.json({ error: 'Invalid referer' }, { status: 403 });
-        }
-      }
-
-      if (!origin && !referer) {
-        console.warn('CSRF: No Origin or Referer header present');
-        return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
-      }
+  // Auth guard: redirect unauthenticated users to /auth
+  if (requiresAuth(pathname)) {
+    const token = request.cookies.get('access_token')?.value;
+    if (!token) {
+      const loginUrl = new URL('/auth', request.url);
+      loginUrl.searchParams.set('next', pathname);
+      const res = NextResponse.redirect(loginUrl);
+      return applySecurityHeaders(res);
     }
   }
 
-  if (pathname === '/api') {
-    return response;
-  }
-
-  if (pathname === '/') {
-    return NextResponse.redirect(new URL('/feed', request.url));
-  }
-
-  return response;
+  const res = NextResponse.next();
+  return applySecurityHeaders(res);
 }
 
 export const config = {

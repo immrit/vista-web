@@ -9,6 +9,7 @@ import SearchDrawer from './SearchDrawer';
 interface NavigationProps {
     lang: 'fa' | 'en';
     user?: { full_name?: string | null; avatar_url?: string | null; username?: string | null };
+    showMobileNav?: boolean;
 }
 
 const menu = [
@@ -20,7 +21,7 @@ const menu = [
     { key: 'settings', label: { fa: 'تنظیمات', en: 'Settings' }, icon: Settings, href: '/settings' },
 ];
 
-export function Navigation({ lang, user }: NavigationProps) {
+export function Navigation({ lang, user, showMobileNav = true }: NavigationProps) {
     const isRtl = lang === 'fa';
     const [showDropdown, setShowDropdown] = useState(false);
     const [showSearchDrawer, setShowSearchDrawer] = useState(false);
@@ -162,59 +163,63 @@ export function Navigation({ lang, user }: NavigationProps) {
             </nav>
 
             {/* Bottom Navigation (Mobile) */}
-            <nav
-                className="md:hidden fixed bottom-0 left-0 right-0 bg-black dark:bg-zinc-950 border-t border-zinc-800 z-30 flex justify-between px-2 py-1"
-                dir={isRtl ? 'rtl' : 'ltr'}
-            >
-                {/* Home */}
-                <Link
-                    key={menu[0].key}
-                    href={menu[0].href}
-                    className="flex flex-col items-center justify-center flex-1 py-2 text-zinc-200 hover:text-blue-500 hover:bg-zinc-900 rounded-xl transition"
-                >
-                    <Home className="w-6 h-6 mb-1" />
-                    <span className="text-xs">{menu[0].label[lang]}</span>
-                </Link>
-                {/* Explore - Opens Search Drawer on Mobile */}
-                <button
-                    onClick={() => setShowSearchDrawer(true)}
-                    className="flex flex-col items-center justify-center flex-1 py-2 text-zinc-200 hover:text-blue-500 hover:bg-zinc-900 rounded-xl transition"
-                >
-                    <Search className="w-6 h-6 mb-1" />
-                    <span className="text-xs">{menu[1].label[lang]}</span>
-                </button>
-                {/* Plus (center) */}
-                <Link
-                    href="/post"
-                    className="flex flex-col items-center justify-center flex-1 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-full shadow-lg mx-2 -mt-6 w-16 h-16 border-4 border-black dark:border-zinc-950 transition"
-                >
-                    <Plus className="w-7 h-7" />
-                </Link>
-                {/* Messages */}
-                <Link
-                    key={menu[3].key}
-                    href={menu[3].href}
-                    className="flex flex-col items-center justify-center flex-1 py-2 text-zinc-200 hover:text-blue-500 hover:bg-zinc-900 rounded-xl transition"
-                >
-                    <Mail className="w-6 h-6 mb-1" />
-                    <span className="text-xs">{menu[3].label[lang]}</span>
-                </Link>
-                {/* Profile - Direct link */}
-                <Link
-                    key={menu[4].key}
-                    href={menu[4].href}
-                    className="flex flex-col items-center justify-center flex-1 py-2 text-zinc-200 hover:text-blue-500 hover:bg-zinc-900 rounded-xl transition"
-                >
-                    <User className="w-6 h-6 mb-1" />
-                    <span className="text-xs">{menu[4].label[lang]}</span>
-                </Link>
-            </nav>
+            {showMobileNav && (
+                <>
+                    <nav
+                        className="md:hidden fixed bottom-0 left-0 right-0 bg-black dark:bg-zinc-950 border-t border-zinc-800 z-30 flex justify-between px-2 py-1"
+                        dir={isRtl ? 'rtl' : 'ltr'}
+                    >
+                        {/* Home */}
+                        <Link
+                            key={menu[0].key}
+                            href={menu[0].href}
+                            className="flex flex-col items-center justify-center flex-1 py-2 text-zinc-200 hover:text-blue-500 hover:bg-zinc-900 rounded-xl transition"
+                        >
+                            <Home className="w-6 h-6 mb-1" />
+                            <span className="text-xs">{menu[0].label[lang]}</span>
+                        </Link>
+                        {/* Explore - Opens Search Drawer on Mobile */}
+                        <button
+                            onClick={() => setShowSearchDrawer(true)}
+                            className="flex flex-col items-center justify-center flex-1 py-2 text-zinc-200 hover:text-blue-500 hover:bg-zinc-900 rounded-xl transition"
+                        >
+                            <Search className="w-6 h-6 mb-1" />
+                            <span className="text-xs">{menu[1].label[lang]}</span>
+                        </button>
+                        {/* Plus (center) */}
+                        <Link
+                            href="/post"
+                            className="flex flex-col items-center justify-center flex-1 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-full shadow-lg mx-2 -mt-6 w-16 h-16 border-4 border-black dark:border-zinc-950 transition"
+                        >
+                            <Plus className="w-7 h-7" />
+                        </Link>
+                        {/* Messages */}
+                        <Link
+                            key={menu[3].key}
+                            href={menu[3].href}
+                            className="flex flex-col items-center justify-center flex-1 py-2 text-zinc-200 hover:text-blue-500 hover:bg-zinc-900 rounded-xl transition"
+                        >
+                            <Mail className="w-6 h-6 mb-1" />
+                            <span className="text-xs">{menu[3].label[lang]}</span>
+                        </Link>
+                        {/* Profile - Direct link */}
+                        <Link
+                            key={menu[4].key}
+                            href={menu[4].href}
+                            className="flex flex-col items-center justify-center flex-1 py-2 text-zinc-200 hover:text-blue-500 hover:bg-zinc-900 rounded-xl transition"
+                        >
+                            <User className="w-6 h-6 mb-1" />
+                            <span className="text-xs">{menu[4].label[lang]}</span>
+                        </Link>
+                    </nav>
 
-            {/* Search Drawer (Mobile) */}
-            <SearchDrawer
-                isOpen={showSearchDrawer}
-                onClose={() => setShowSearchDrawer(false)}
-            />
+                    {/* Search Drawer (Mobile) */}
+                    <SearchDrawer
+                        isOpen={showSearchDrawer}
+                        onClose={() => setShowSearchDrawer(false)}
+                    />
+                </>
+            )}
         </>
     );
 } 

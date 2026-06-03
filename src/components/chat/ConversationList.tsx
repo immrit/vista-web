@@ -55,7 +55,18 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
         <div className="flex flex-col h-full">
             {/* Header */}
             <div className="p-4 border-b border-zinc-200 dark:border-zinc-800">
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">پیام‌ها</h1>
+                <div className="flex items-center justify-between mb-4">
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">پیام‌ها</h1>
+                    <button
+                        onClick={() => window.location.href = '/messages/create'}
+                        className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-700 dark:text-gray-300 transition-colors"
+                        title="ساخت گروه یا گفتگوی جدید"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                    </button>
+                </div>
 
                 {/* Search */}
                 <div className="relative">
@@ -110,6 +121,9 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
         </div>
     );
 }
+
+
+
 
 
 

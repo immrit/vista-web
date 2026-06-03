@@ -3,8 +3,8 @@
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/Button'
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { Profile } from '@/lib/supabase'
-import { PostWithProfile } from '@/lib/types'
+import { PostWithProfile, Profile } from '@/lib/types'
+import { profileApi } from '@/lib/backendApi'
 import { Navigation } from '@/components/ui/Navigation'
 import { PostCard } from '@/components/ui/PostCard'
 import { Bell } from 'lucide-react'
@@ -69,29 +69,11 @@ export default function FeedPage() {
 
     const fetchSuggested = async () => {
         try {
-            const { createClient } = await import('@/lib/supabase/client')
-            const supabase = createClient()
-            
-            const { data: top } = await supabase
-                .from('profiles')
-                .select('*')
-                .order('followers_count', { ascending: false })
-                .limit(5)
-            const { data: random } = await supabase
-                .from('profiles')
-                .select('*')
-                .order('random()')
-                .limit(3)
-            let all: Profile[] = []
-            if (top) all = [...top]
-            if (random) {
-                random.forEach(r => {
-                    if (!all.find(u => u.id === r.id)) all.push(r)
-                })
-            }
-            setSuggested(all)
+            const results = await profileApi.search('', 8)
+            setSuggested(results.filter(item => item.id !== user?.id))
         } catch (err) {
             console.error('Failed to fetch suggested users:', err)
+            setSuggested([])
         }
     }
 
@@ -346,4 +328,3 @@ export default function FeedPage() {
         </div>
     )
 }
-

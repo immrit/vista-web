@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { X, Send, MessageSquare } from 'lucide-react';
-import { supabase, Profile } from '@/lib/supabase';
 import { PostWithProfile, CommentWithProfile } from '@/lib/types';
 import { useAuth } from '@/hooks/useAuth';
+import { commentApi } from '@/lib/backendApi';
 import GoldenTickBadge from './GoldenTickBadge';
 
 interface CommentSheetProps {
@@ -26,41 +26,7 @@ export function CommentSheet({ isOpen, onClose, post, onUpdate }: CommentSheetPr
     const loadComments = useCallback(async () => {
         setIsLoading(true);
         try {
-            // Load main comments
-            const { data: commentsData, error: commentsError } = await supabase
-                .from('comments')
-                .select(`
-                    *,
-                    profiles!comments_user_id_fkey (*)
-                `)
-                .eq('post_id', post.id)
-                .is('parent_comment_id', null)
-                .order('created_at', { ascending: false });
-
-            if (commentsError) throw commentsError;
-
-            // Load replies for each comment
-            const commentsWithReplies = await Promise.all(
-                (commentsData || []).map(async (comment) => {
-                    const { data: repliesData, error: repliesError } = await supabase
-                        .from('comments')
-                        .select(`
-                            *,
-                            profiles!comments_user_id_fkey (*)
-                        `)
-                        .eq('parent_comment_id', comment.id)
-                        .order('created_at', { ascending: true });
-
-                    if (repliesError) throw repliesError;
-
-                    return {
-                        ...comment,
-                        replies: repliesData || []
-                    };
-                })
-            );
-
-            setComments(commentsWithReplies);
+            setComments(await commentApi.list(post.id));
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
             const errorDetails = error instanceof Error ? { 
@@ -85,22 +51,8 @@ export function CommentSheet({ isOpen, onClose, post, onUpdate }: CommentSheetPr
 
         setIsSubmitting(true);
         try {
-            const { data, error } = await supabase
-                .from('comments')
-                .insert({
-                    content: newComment.trim(),
-                    post_id: post.id,
-                    user_id: user.id,
-                })
-                .select(`
-                    *,
-                    profiles!comments_user_id_fkey (*)
-                `)
-                .single();
-
-            if (error) throw error;
-
-            setComments(prev => [data, ...prev]);
+            const data = await commentApi.create(post.id, newComment.trim());
+            setComments(prev => [{ ...data, replies: [] }, ...prev]);
             setNewComment('');
 
             // Update post comment count
@@ -121,21 +73,7 @@ export function CommentSheet({ isOpen, onClose, post, onUpdate }: CommentSheetPr
 
         setIsSubmitting(true);
         try {
-            const { data, error } = await supabase
-                .from('comments')
-                .insert({
-                    content: replyText.trim(),
-                    post_id: post.id,
-                    user_id: user.id,
-                    parent_comment_id: parentCommentId,
-                })
-                .select(`
-                    *,
-                    profiles!comments_user_id_fkey (*)
-                `)
-                .single();
-
-            if (error) throw error;
+            const data = await commentApi.create(post.id, replyText.trim(), parentCommentId);
 
             // Add reply to the correct comment
             setComments(prev => prev.map(comment => {

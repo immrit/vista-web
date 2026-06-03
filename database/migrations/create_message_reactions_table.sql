@@ -57,3 +57,6 @@ GRANT SELECT, INSERT, DELETE ON message_reactions TO authenticated;
 
 
 
+
+
+

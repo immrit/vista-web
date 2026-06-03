@@ -1,69 +1,35 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useCallback, useEffect, useState } from 'react';
+import { apiClient } from '@/lib/apiClient';
 import { useAuth } from './useAuth';
 
 export function usePresence() {
   const { user } = useAuth();
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
-  const supabase = createClient();
 
   useEffect(() => {
     if (!user) return;
 
-    const channel = supabase.channel('online-users', {
-      config: {
-        presence: {
-          key: user.id,
-        },
-      },
-    });
-
-    // Track user presence
-    channel
-      .on('presence', { event: 'sync' }, () => {
-        const state = channel.presenceState();
-        const users = new Set<string>();
-        
-        Object.values(state).forEach((presences: any) => {
-          if (Array.isArray(presences)) {
-            presences.forEach((presence: any) => {
-              if (presence.user_id) {
-                users.add(presence.user_id);
-              }
-            });
-          }
-        });
-
-        setOnlineUsers(users);
-      })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await channel.track({
-            user_id: user.id,
-            online_at: new Date().toISOString(),
-          });
-        }
+    const touchPresence = () => {
+      apiClient.post('/v1/presence/update', { status: 'online' }).catch(error => {
+        console.debug('Failed to update presence:', error);
       });
+      setOnlineUsers(prev => new Set(prev).add(user.id));
+    };
 
-    // Heartbeat هر 30 ثانیه
-    const interval = setInterval(() => {
-      channel.track({
-        user_id: user.id,
-        online_at: new Date().toISOString(),
-      });
-    }, 30000);
+    touchPresence();
+    const interval = setInterval(touchPresence, 30000);
 
     return () => {
       clearInterval(interval);
-      channel.unsubscribe();
+      apiClient.post('/v1/presence/update', { status: 'offline' }).catch(() => undefined);
     };
-  }, [user, supabase]);
+  }, [user]);
 
-  const isUserOnline = (userId: string): boolean => {
+  const isUserOnline = useCallback((userId: string): boolean => {
     return onlineUsers.has(userId);
-  };
+  }, [onlineUsers]);
 
   return {
     onlineUsers,
@@ -71,8 +37,3 @@ export function usePresence() {
     onlineCount: onlineUsers.size,
   };
 }
-
-
-
-
-

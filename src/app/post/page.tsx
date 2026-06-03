@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/lib/supabase';
 import { UploadService } from '@/lib/uploadService';
+import { getPostCharacterLimit, postApi } from '@/lib/backendApi';
 import { FilePreview } from '@/components/ui/FilePreview';
 import { ArrowLeft, Send, Loader2, Image, Video, Music } from 'lucide-react';
 
@@ -34,6 +34,7 @@ export default function CreatePostPage() {
     const imageInputRef = useRef<HTMLInputElement>(null);
     const videoInputRef = useRef<HTMLInputElement>(null);
     const musicInputRef = useRef<HTMLInputElement>(null);
+    const maxPostLength = getPostCharacterLimit(profile);
 
     // Check authentication in useEffect to avoid setState during render
     useEffect(() => {
@@ -178,7 +179,11 @@ export default function CreatePostPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!content.trim() || !user || !profile) return;
+        if ((!content.trim() && localFiles.length === 0) || !user || !profile) return;
+        if (content.length > maxPostLength) {
+            alert(`Post text must be ${maxPostLength} characters or fewer.`);
+            return;
+        }
 
         setIsSubmitting(true);
 
@@ -187,22 +192,12 @@ export default function CreatePostPage() {
             const uploadedFiles = await uploadFiles();
 
             // Create post with uploaded file URLs
-            const { error } = await supabase
-                .from('posts')
-                .insert({
-                    content: content.trim(),
-                    user_id: user.id,
-                    status: 'published',
-                    image_url: uploadedFiles.image_url || null,
-                    video_url: uploadedFiles.video_url || null,
-                    music_url: uploadedFiles.music_url || null,
-                });
-
-            if (error) {
-                console.error('Error creating post:', error);
-                alert('خطا در ایجاد پست');
-                return;
-            }
+            await postApi.create({
+                content: content.trim() || undefined,
+                image_url: uploadedFiles.image_url,
+                video_url: uploadedFiles.video_url,
+                music_url: uploadedFiles.music_url,
+            });
 
             // Cleanup local files
             localFiles.forEach(file => {
@@ -271,7 +266,7 @@ export default function CreatePostPage() {
                             onChange={(e) => setContent(e.target.value)}
                             placeholder="چه چیزی در ذهنت می‌گذرد؟"
                             className="w-full h-32 resize-none border-none outline-none bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-lg"
-                            maxLength={500}
+                            maxLength={maxPostLength}
                         />
 
                         {/* File Upload Section */}
@@ -410,11 +405,11 @@ export default function CreatePostPage() {
 
                         <div className="flex items-center justify-between pt-4 border-t border-zinc-200 dark:border-zinc-700">
                             <span className="text-sm text-gray-500 dark:text-gray-400">
-                                {content.length}/500
+                                {content.length}/{maxPostLength}
                             </span>
                             <button
                                 type="submit"
-                                disabled={!content.trim() || isSubmitting}
+                                disabled={(!content.trim() && localFiles.length === 0) || content.length > maxPostLength || isSubmitting}
                                 className="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-full transition"
                             >
                                 {isSubmitting ? (

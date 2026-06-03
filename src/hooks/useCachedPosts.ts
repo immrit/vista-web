@@ -1,5 +1,5 @@
 import { postCache } from '@/lib/cache/PostCache';
-import { supabase } from '@/lib/supabase';
+import { postApi } from '@/lib/backendApi';
 import { PostWithProfile } from '@/lib/types';
 
 export function useCachedPosts() {
@@ -7,18 +7,8 @@ export function useCachedPosts() {
     const cacheKey = `posts:page:${page}:size:${pageSize}`;
     
     return postCache.get(cacheKey, async () => {
-      const { data, error } = await supabase
-        .from('posts')
-        .select('*, profiles:profiles!posts_user_id_fkey(*)')
-        .eq('status', 'published')
-        .order('created_at', { ascending: false })
-        .range(page * pageSize, (page + 1) * pageSize - 1);
-      
-      if (error) {
-        throw error;
-      }
-      
-      return (data || []) as PostWithProfile[];
+      const response = await postApi.feed(pageSize, page * pageSize);
+      return response.posts;
     });
   };
 
@@ -32,6 +22,5 @@ export function useCachedPosts() {
 
   return { fetchPosts, invalidatePost, invalidateAllPosts };
 }
-
 
 

@@ -1,70 +1,65 @@
 import 'server-only';
 
-import { cache } from 'react';
 import { cookies } from 'next/headers';
-import { createServerClient } from '@supabase/ssr';
-
+import { cache } from 'react';
 import { env } from '@/lib/env';
 
-async function getSupabaseServerClient() {
+// Server-side API fetch helper that automatically includes cookies
+const fetchApi = async <T>(path: string, options: RequestInit = {}): Promise<T> => {
   const cookieStore = await cookies();
+  const token = cookieStore.get('access_token')?.value;
 
-  return createServerClient(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            try {
-              cookieStore.set(name, value, options);
-            } catch (error) {
-              console.error('Failed to set cookie', name, error);
-            }
-          });
-        },
-      },
-    },
-  );
-}
+  const headers = new Headers(options.headers);
+  headers.set('Content-Type', 'application/json');
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
 
+  const url = `${env.NEXT_PUBLIC_API_URL || 'https://api.coffevista.ir'}${path}`;
+
+  const response = await fetch(url, {
+    ...options,
+    headers,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+  }
+
+  const text = await response.text();
+  if (!text) return {} as T;
+  return JSON.parse(text) as T;
+};
+
+// Get current authenticated user
 export const getCurrentUser = cache(async () => {
   try {
-    const supabase = await getSupabaseServerClient();
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser();
-
-    if (error || !user) {
-      return null;
-    }
-
-    return {
-      id: user.id,
-      email: user.email,
-      emailVerified: user.email_confirmed_at != null,
-      createdAt: user.created_at,
-    };
+    // /v1/auth/me returns the user profile from the custom backend
+    const user = await fetchApi<any>('/v1/auth/me');
+    return user;
   } catch (error) {
-    console.error('Error getting current user:', error);
     return null;
   }
 });
 
-export async function verifyAuth() {
+// Get current user's profile
+export const getCurrentProfile = cache(async () => {
+  return await getCurrentUser();
+});
+
+// Verify user is authenticated (throws if not)
+export const verifyAuth = cache(async () => {
   const user = await getCurrentUser();
 
   if (!user) {
-    throw new Error('Unauthorized');
+    throw new Error('کاربر احراز هویت نشده است.');
   }
 
   return user;
-}
+});
 
+// Legacy exports for backward compatibility
 export const getUserProfile = cache(async (userId: string) => {
   if (!userId) {
     throw new Error('Invalid user id');
@@ -76,19 +71,15 @@ export const getUserProfile = cache(async (userId: string) => {
     throw new Error('Unauthorized');
   }
 
-  const supabase = await getSupabaseServerClient();
-
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, username, full_name, avatar_url, bio, created_at')
-    .eq('id', userId)
-    .single();
-
-  if (error) {
+  try {
+    // Fetch profile from /v1/users/:id/profile or similar. 
+    // Wait, the router.go didn't show /v1/users/:id/profile in httpapi, but it might be in the profile module.
+    // For now, assume /v1/profile/:id
+    const profile = await fetchApi<any>(`/v1/profile/${userId}`);
+    return profile;
+  } catch (error) {
     throw new Error('Profile not found');
   }
-
-  return data;
 });
 
 export const getUserPosts = cache(
@@ -99,23 +90,36 @@ export const getUserPosts = cache(
       throw new Error('Unauthorized');
     }
 
-    const { limit = 20, offset = 0 } = options || {};
+    const limit = options?.limit || 20;
+    const offset = options?.offset || 0;
 
-    const supabase = await getSupabaseServerClient();
-
-    const { data, error } = await supabase
-      .from('posts')
-      .select('id, content, created_at, likes_count, comments_count')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
-
-    if (error) {
+    try {
+      const data = await fetchApi<any>(`/v1/users/${userId}/posts?limit=${limit}&offset=${offset}`);
+      return data.posts || [];
+    } catch (error) {
       throw new Error('Failed to fetch posts');
     }
-
-    return data;
   },
 );
 
+export const hasRole = cache(async (role: string) => {
+  const profile = await getCurrentProfile();
+  if (!profile) return false;
+  return profile.role === role;
+});
 
+export const isAdmin = cache(async () => {
+  return hasRole('admin');
+});
+
+export const hasPremiumAccess = cache(async () => {
+  const profile = await getCurrentProfile();
+  if (!profile) return false;
+  
+  // Custom backend logic for premium
+  if (profile.verification_type === 'premium' && profile.subscription_expires_at) {
+    const expiresAt = new Date(profile.subscription_expires_at);
+    return expiresAt > new Date();
+  }
+  return false;
+});

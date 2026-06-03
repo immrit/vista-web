@@ -1,6 +1,6 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { postCache } from '@/lib/cache/PostCache';
-import { createClient } from '@/lib/supabase/client';
+import { postApi } from '@/lib/backendApi';
 import { PostWithProfile } from '@/lib/types';
 
 interface PostsResponse {
@@ -16,22 +16,10 @@ export function useInfinitePosts() {
     queryFn: async ({ pageParam = 0 }) => {
       const page = pageParam as number;
       const cacheKey = `posts:page:${page}:size:${POSTS_PER_PAGE}`;
-      const clientSupabase = createClient();
 
-      // استفاده از cache
       const data = await postCache.get<PostWithProfile[]>(cacheKey, async () => {
-        const { data, error } = await clientSupabase
-          .from('posts')
-          .select('*, profiles:profiles!posts_user_id_fkey(*)')
-          .eq('status', 'published')
-          .order('created_at', { ascending: false })
-          .range(page * POSTS_PER_PAGE, (page + 1) * POSTS_PER_PAGE - 1);
-
-        if (error) {
-          throw error;
-        }
-
-        return (data || []) as PostWithProfile[];
+        const response = await postApi.feed(POSTS_PER_PAGE, page * POSTS_PER_PAGE);
+        return response.posts;
       });
 
       return {
@@ -45,4 +33,3 @@ export function useInfinitePosts() {
     gcTime: 10 * 60 * 1000, // 10 دقیقه
   });
 }
-

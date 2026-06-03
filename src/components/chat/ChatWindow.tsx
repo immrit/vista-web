@@ -7,13 +7,14 @@ import { MessageBubble } from './MessageBubble';
 import { MessageInput } from './MessageInput';
 import { TypingIndicator } from './TypingIndicator';
 import { ChatDetailsSheet } from './ChatDetailsSheet';
+import { GroupDetailsSheet } from './GroupDetailsSheet';
 import { SoundToggle } from './SoundToggle';
 import { useMessages } from '@/hooks/useMessages';
 import { useTyping } from '@/hooks/useTyping';
 import { Message } from '@/lib/models/message';
 import { formatMessageDate } from '@/lib/utils/formatTime';
 import { cn } from '@/lib/utils';
-import { createClient } from '@/lib/supabase/client';
+import { profileApi } from '@/lib/backendApi';
 
 interface ChatWindowProps {
     conversationId: string;
@@ -47,7 +48,6 @@ export function ChatWindow({
     });
     const { isTyping, typingUsers } = useTyping({ conversationId, currentUserId });
     const [fetchedProfile, setFetchedProfile] = useState<any>(null);
-    const supabase = createClient();
 
     // Fetch profile if not available from conversation
     useEffect(() => {
@@ -59,22 +59,14 @@ export function ChatWindow({
             if (otherParticipant?.profile) return; // Skip if we already have profile
             
             try {
-                const { data, error } = await supabase
-                    .from('profiles')
-                    .select('id, username, full_name, avatar_url, is_online, is_verified, verification_type, bio, last_seen')
-                    .eq('id', otherUserId)
-                    .single();
-
-                if (!error && data) {
-                    setFetchedProfile(data);
-                }
+                setFetchedProfile(await profileApi.get(otherUserId));
             } catch (error) {
                 console.error('Error fetching profile:', error);
             }
         };
 
         fetchProfile();
-    }, [otherUserId, conversation, currentUserId, supabase]);
+    }, [otherUserId, conversation, currentUserId]);
 
     // Auto-scroll to bottom on new messages
     useEffect(() => {
@@ -159,14 +151,14 @@ export function ChatWindow({
     }
 
     return (
-        <div className="flex flex-col h-full bg-white dark:bg-zinc-900 relative">
+        <div className="flex flex-col h-full w-full bg-white dark:bg-zinc-900 relative">
             {/* Header */}
-            <div className="flex items-center gap-3 p-4 border-b border-zinc-200 dark:border-zinc-800">
+            <div className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 border-b border-zinc-200 dark:border-zinc-800 flex-shrink-0">
                 {/* Back Button (Mobile) */}
                 {onBack && (
                     <button
                         onClick={onBack}
-                        className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-700 rounded-full transition"
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-700 rounded-full transition md:hidden"
                     >
                         <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                     </button>
@@ -192,22 +184,22 @@ export function ChatWindow({
                     onClick={() => setShowDetails(true)}
                     className="flex-1 text-right min-w-0 hover:bg-gray-50 dark:hover:bg-zinc-800/50 rounded-lg p-2 -mr-2 transition"
                 >
-                    <h2 className="text-base font-semibold text-gray-900 dark:text-white truncate">
+                    <h2 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white truncate">
                         {profile?.full_name || profile?.username || conversationName || 'کاربر ناشناس'}
                     </h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                    <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">
                         {profile?.is_online ? 'آنلاین' : `آخرین بازدید ${profile?.last_seen || 'نامشخص'}`}
                     </p>
                 </button>
 
                 {/* Action Buttons */}
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 flex-shrink-0">
                     <SoundToggle />
                     <button
                         onClick={() => {
                             // TODO: Implement voice call
                         }}
-                        className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-700 rounded-full transition"
+                        className="hidden sm:flex p-2 hover:bg-gray-100 dark:hover:bg-zinc-700 rounded-full transition"
                     >
                         <Phone className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                     </button>
@@ -215,7 +207,7 @@ export function ChatWindow({
                         onClick={() => {
                             // TODO: Implement video call
                         }}
-                        className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-700 rounded-full transition"
+                        className="hidden sm:flex p-2 hover:bg-gray-100 dark:hover:bg-zinc-700 rounded-full transition"
                     >
                         <Video className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                     </button>
@@ -229,23 +221,19 @@ export function ChatWindow({
             </div>
 
             {/* Messages Container */}
-            <div ref={containerRef} className="flex-1 overflow-y-auto p-4 space-y-3">
-                {isLoading ? (
-                    <div className="flex items-center justify-center h-full">
-                        <div className="text-sm text-gray-500 dark:text-gray-400">در حال بارگیری پیام‌ها...</div>
-                    </div>
-                ) : messages.length === 0 ? (
+            <div ref={containerRef} className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2 sm:space-y-3 min-h-0">
+                {messages.length === 0 ? (
                     <div className="flex items-center justify-center h-full">
                         <div className="text-center text-gray-500 dark:text-gray-400">
-                            <p className="text-lg font-medium mb-2">هنوز پیامی ارسال نشده</p>
-                            <p className="text-sm">شروع به گفتگو کنید!</p>
+                            <p className="text-base sm:text-lg font-medium mb-2">هنوز پیامی ارسال نشده</p>
+                            <p className="text-xs sm:text-sm">شروع به گفتگو کنید!</p>
                         </div>
                     </div>
                 ) : (
                     Object.entries(groupedMessages).map(([date, dateMessages]) => (
                         <div key={date}>
                             {/* Date Separator */}
-                            <div className="flex items-center justify-center my-4">
+                            <div className="flex items-center justify-center my-3 sm:my-4">
                                 <div className="px-3 py-1 bg-gray-100 dark:bg-zinc-800 rounded-full text-xs text-gray-600 dark:text-gray-400">
                                     {date}
                                 </div>
@@ -257,7 +245,7 @@ export function ChatWindow({
                                 const showAvatar = !prevMessage || prevMessage.senderId !== message.senderId;
 
                                 return (
-                                    <div key={message.id} className={cn('mb-2', showAvatar && 'mt-4')}>
+                                    <div key={message.id} className={cn('mb-2', showAvatar && 'mt-3 sm:mt-4')}>
                                         <MessageBubble
                                             message={message}
                                             replyToMessage={message.replyToId ? getReplyToMessage(message.replyToId) : null}
@@ -284,10 +272,10 @@ export function ChatWindow({
             {showScrollButton && (
                 <button
                     onClick={scrollToBottom}
-                    className="absolute bottom-24 left-1/2 -translate-x-1/2 p-3 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-full shadow-lg hover:shadow-xl transition"
+                    className="absolute bottom-20 sm:bottom-24 left-1/2 -translate-x-1/2 p-2 sm:p-3 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-full shadow-lg hover:shadow-xl transition"
                 >
                     <svg
-                        className="w-5 h-5 text-gray-600 dark:text-gray-400"
+                        className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-gray-400"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -303,30 +291,40 @@ export function ChatWindow({
             )}
 
             {/* Message Input */}
-            <MessageInput
-                conversationId={conversationId}
-                replyToMessageId={replyToMessageId}
-                editingMessageId={editingMessageId}
-                onSend={async (content, replyToId, editingId) => {
-                    if (editingId) {
-                        await handleEditComplete(editingId, content);
-                    } else {
-                        await sendMessage(content, undefined, replyToId || undefined);
-                    }
-                }}
-                onCancelReply={() => setReplyToMessageId(null)}
-                onCancelEdit={() => setEditingMessageId(null)}
-            />
+            <div className="flex-shrink-0">
+                <MessageInput
+                    conversationId={conversationId}
+                    replyToMessageId={replyToMessageId}
+                    editingMessageId={editingMessageId}
+                    onSend={async (content, replyToId, editingId) => {
+                        if (editingId) {
+                            await handleEditComplete(editingId, content);
+                        } else {
+                            await sendMessage(content, undefined, replyToId || undefined);
+                        }
+                    }}
+                    onCancelReply={() => setReplyToMessageId(null)}
+                    onCancelEdit={() => setEditingMessageId(null)}
+                />
+            </div>
 
-            {/* Chat Details Sheet */}
-            <ChatDetailsSheet
-                isOpen={showDetails}
-                onClose={() => setShowDetails(false)}
-                conversation={conversation}
-                profile={profile}
-                currentUserId={currentUserId}
-            />
+            {/* Details Sheet */}
+            {conversation?.conversation_type === 'group' ? (
+                <GroupDetailsSheet
+                    isOpen={showDetails}
+                    onClose={() => setShowDetails(false)}
+                    conversation={conversation}
+                    currentUserId={currentUserId}
+                />
+            ) : (
+                <ChatDetailsSheet
+                    isOpen={showDetails}
+                    onClose={() => setShowDetails(false)}
+                    conversation={conversation}
+                    profile={profile}
+                    currentUserId={currentUserId}
+                />
+            )}
         </div>
     );
 }
-

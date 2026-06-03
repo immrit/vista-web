@@ -61,6 +61,13 @@ export function formatMessageTime(dateString: string | null | undefined): string
 }
 
 /**
+ * Backwards-compatible alias used across UI components
+ */
+export function formatTime(dateString: string | null | undefined): string {
+    return formatMessageTime(dateString);
+}
+
+/**
  * Format date for message (e.g., "امروز", "دیروز", "15 دی")
  */
 export function formatMessageDate(dateString: string | null | undefined): string {
@@ -88,6 +95,7 @@ export function formatMessageDate(dateString: string | null | undefined): string
         day: 'numeric',
     });
 }
+
 
 
 

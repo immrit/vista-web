@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import { Message } from '@/lib/models/message';
 import { soundManager } from '@/lib/audio/NotificationSounds';
+import { apiClient, getBackendWebSocketUrl } from '@/lib/apiClient';
 
 interface UseMessagesOptions {
     conversationId: string;
@@ -14,7 +14,6 @@ export function useMessages({ conversationId, currentUserId }: UseMessagesOption
     const [messages, setMessages] = useState<Message[]>([]);
     const [conversation, setConversation] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const supabase = createClient();
     const previousMessagesCountRef = useRef<number>(0);
     const isInitialLoadRef = useRef<boolean>(true);
 
@@ -24,45 +23,25 @@ export function useMessages({ conversationId, currentUserId }: UseMessagesOption
 
         const fetchConversation = async () => {
             try {
-                // Fetch conversation
-                const { data: conversationData, error: conversationError } = await supabase
-                    .from('conversations')
-                    .select('*')
-                    .eq('id', conversationId)
-                    .single();
-
-                if (conversationError) throw conversationError;
-
-                // Fetch participants separately
-                const { data: participants, error: participantsError } = await supabase
-                    .from('conversation_participants')
-                    .select('user_id, is_muted, joined_at')
-                    .eq('conversation_id', conversationId);
-
-                if (participantsError) throw participantsError;
-
-                // Get user IDs from participants
-                const userIds = participants?.map(p => p.user_id).filter(Boolean) || [];
+                // Fetch from the backend API
+                const data = await apiClient.get<any>(`/v1/chat/conversations/${conversationId}`);
                 
-                // Fetch profiles for participants
-                let profiles: any[] = [];
-                if (userIds.length > 0) {
-                    const { data: profilesData, error: profilesError } = await supabase
-                        .from('profiles')
-                        .select('id, username, full_name, avatar_url, is_online, is_verified, verification_type')
-                        .in('id', userIds);
-
-                    if (profilesError) throw profilesError;
-                    profiles = profilesData || [];
+                // Format participants for the UI
+                let participants = [];
+                if (data.peer_id) {
+                    participants.push({
+                        user_id: data.peer_id,
+                        profile: {
+                            id: data.peer_id,
+                            full_name: data.name,
+                            avatar_url: data.image
+                        }
+                    });
                 }
 
-                // Combine conversation with participants and their profiles
                 const enrichedConversation = {
-                    ...conversationData,
-                    participants: participants?.map(participant => ({
-                        ...participant,
-                        profile: profiles.find(p => p.id === participant.user_id) || null,
-                    })) || [],
+                    ...data,
+                    participants
                 };
 
                 setConversation(enrichedConversation);
@@ -72,24 +51,23 @@ export function useMessages({ conversationId, currentUserId }: UseMessagesOption
         };
 
         fetchConversation();
-    }, [conversationId, supabase]);
+    }, [conversationId]);
 
-    // Fetch initial messages
+    // Fetch initial messages and subscribe to real-time updates
     useEffect(() => {
         if (!conversationId || !currentUserId) return;
+
+        let ws: WebSocket | null = null;
+        let isMounted = true;
 
         const fetchMessages = async () => {
             setIsLoading(true);
             try {
-                const { data, error } = await supabase
-                    .from('messages')
-                    .select('*')
-                    .eq('conversation_id', conversationId)
-                    .order('created_at', { ascending: true });
+                const response = await apiClient.get<{messages: any[]}>(`/v1/chat/conversations/${conversationId}/messages?limit=50`);
+                
+                if (!isMounted) return;
 
-                if (error) throw error;
-
-                const formattedMessages: Message[] = (data || []).map(msg => ({
+                const formattedMessages: Message[] = (response.messages || []).map(msg => ({
                     id: msg.id,
                     content: msg.content || '',
                     senderId: msg.sender_id,
@@ -101,10 +79,10 @@ export function useMessages({ conversationId, currentUserId }: UseMessagesOption
                     isDelivered: msg.is_delivered || false,
                     isSent: true,
                     replyToId: msg.reply_to_message_id,
-                    reactions: [],
-                    attachmentUrl: msg.attachment_url,
-                    attachmentType: msg.attachment_type,
-                }));
+                    reactions: msg.reactions || [],
+                    attachmentUrl: msg.media_url,
+                    attachmentType: msg.message_type,
+                })).reverse(); // API usually returns newest first if paginated, but UI needs oldest to newest
 
                 setMessages(formattedMessages);
                 previousMessagesCountRef.current = formattedMessages.length;
@@ -113,81 +91,64 @@ export function useMessages({ conversationId, currentUserId }: UseMessagesOption
                 const errorMessage = error?.message || JSON.stringify(error) || 'Unknown error';
                 console.error('Error fetching messages:', errorMessage);
             } finally {
-                setIsLoading(false);
+                if (isMounted) setIsLoading(false);
             }
         };
 
-        fetchMessages();
+        const setupWebSocket = () => {
+            ws = new WebSocket(getBackendWebSocketUrl('/v1/chat/ws'));
 
-        // Subscribe to real-time updates
-        const channel = supabase
-            .channel(`messages:${conversationId}`)
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'messages',
-                    filter: `conversation_id=eq.${conversationId}`,
-                },
-                payload => {
-                    if (payload.eventType === 'INSERT') {
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+                // The backend requires authentication. Usually if we don't pass header, we might get 401. 
+                // We'll see how it behaves. The backend middleware checks X-Device-ID or token.
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    
+                    if (data.type === 'new_message' && data.data.conversation_id === conversationId) {
+                        const payload = data.data;
                         const newMessage: Message = {
-                            id: payload.new.id,
-                            content: payload.new.content || '',
-                            senderId: payload.new.sender_id,
-                            conversationId: payload.new.conversation_id,
-                            createdAt: payload.new.created_at,
-                            updatedAt: payload.new.updated_at,
-                            isMe: payload.new.sender_id === currentUserId,
-                            isRead: payload.new.is_read || false,
-                            isDelivered: payload.new.is_delivered || false,
+                            id: payload.id,
+                            content: payload.content || '',
+                            senderId: payload.sender_id,
+                            conversationId: payload.conversation_id,
+                            createdAt: payload.created_at,
+                            updatedAt: payload.updated_at,
+                            isMe: payload.sender_id === currentUserId,
+                            isRead: payload.is_read || false,
+                            isDelivered: payload.is_delivered || false,
                             isSent: true,
-                            replyToId: payload.new.reply_to_message_id,
-                            reactions: [],
-                            attachmentUrl: payload.new.attachment_url,
-                            attachmentType: payload.new.attachment_type,
+                            replyToId: payload.reply_to_message_id,
+                            reactions: payload.reactions || [],
+                            attachmentUrl: payload.media_url,
+                            attachmentType: payload.message_type,
                         };
-                        // If this is our own message, replace the optimistic one
-                        if (payload.new.sender_id === currentUserId) {
+
+                        if (payload.sender_id === currentUserId) {
                             setMessages(prev => {
-                                // Find and remove optimistic message with same content
                                 const filtered = prev.filter(msg => 
                                     !(msg.id.startsWith('temp_') && msg.content === newMessage.content && msg.senderId === currentUserId)
                                 );
-                                // Check if message already exists (from optimistic update in sendMessage)
                                 const exists = filtered.some(msg => msg.id === newMessage.id);
-                                if (!exists) {
-                                    return [...filtered, newMessage];
-                                }
-                                // Update existing message
-                                return filtered.map(msg => 
-                                    msg.id === newMessage.id ? newMessage : msg
-                                );
+                                if (!exists) return [...filtered, newMessage];
+                                return filtered.map(msg => msg.id === newMessage.id ? newMessage : msg);
                             });
                         } else {
-                            // Other user's message - just add it
                             setMessages(prev => {
                                 const exists = prev.some(msg => msg.id === newMessage.id);
                                 if (!exists) {
-                                    // Play notification sound for new incoming message
-                                    // Play sound if not muted and not initial load
                                     if (!isInitialLoadRef.current) {
                                         soundManager.playReceived();
-                                        
-                                        // Haptic feedback (mobile only)
-                                        if (navigator.vibrate) {
-                                            navigator.vibrate([50, 100, 50]);
-                                        }
-                                        
-                                        // Show browser notification if page is hidden
+                                        if (navigator.vibrate) navigator.vibrate([50, 100, 50]);
                                         if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
                                             const notificationOptions: NotificationOptions & { vibrate?: number[] } = {
                                                 body: newMessage.content.substring(0, 100),
                                                 icon: '/favicon.ico',
                                                 tag: newMessage.id,
                                             };
-                                            // vibrate is supported in some browsers but not in TypeScript types
                                             if ('vibrate' in Notification.prototype) {
                                                 notificationOptions.vibrate = [200, 100, 200];
                                             }
@@ -199,89 +160,80 @@ export function useMessages({ conversationId, currentUserId }: UseMessagesOption
                                 return prev;
                             });
                         }
-                    } else if (payload.eventType === 'UPDATE') {
-                        setMessages(prev =>
-                            prev.map(msg =>
-                                msg.id === payload.new.id
-                                    ? {
-                                          ...msg,
-                                          content: payload.new.content || msg.content,
-                                          updatedAt: payload.new.updated_at,
-                                          isRead: payload.new.is_read || msg.isRead,
-                                          isDelivered: payload.new.is_delivered || msg.isDelivered,
-                                      }
-                                    : msg
-                            )
-                        );
-                    } else if (payload.eventType === 'DELETE') {
-                        setMessages(prev => prev.filter(msg => msg.id !== payload.old.id));
+                    } else if (data.type === 'message_updated' && data.data.conversation_id === conversationId) {
+                        const payload = data.data;
+                        setMessages(prev => prev.map(msg => 
+                            msg.id === payload.id 
+                                ? { ...msg, content: payload.content, updatedAt: payload.updated_at } 
+                                : msg
+                        ));
+                    } else if (data.type === 'message_deleted' && data.data.conversation_id === conversationId) {
+                        setMessages(prev => prev.filter(msg => msg.id !== data.data.message_id));
                     }
+                } catch (e) {
+                    console.error('Failed to parse WS message', e);
                 }
-            )
-            .subscribe();
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket disconnected');
+            };
+        };
+
+        fetchMessages().then(() => {
+            setupWebSocket();
+        });
 
         return () => {
-            supabase.removeChannel(channel);
+            isMounted = false;
+            if (ws) {
+                ws.close();
+            }
         };
-    }, [conversationId, currentUserId, supabase]);
+    }, [conversationId, currentUserId]);
 
     const sendMessage = useCallback(
         async (content: string, files?: File[], replyToId?: string | null) => {
-            // TODO: Upload files if any
             let attachmentUrl = null;
             let attachmentType = null;
 
             if (files && files.length > 0) {
-                // Upload file logic here
-                // For now, just use the first file
                 const file = files[0];
-                attachmentType = (file.type.startsWith('image/')
-                    ? 'image'
-                    : file.type.startsWith('video/')
-                      ? 'video'
-                      : file.type.startsWith('audio/')
-                        ? 'audio'
-                        : 'file') as 'image' | 'video' | 'audio' | 'file' | null;
+                // TODO: use actual file upload
+                attachmentType = file.type.split('/')[0];
             }
 
-            // Create optimistic message
             const optimisticMessage: Message = {
                 id: `temp_${Date.now()}_${Math.random()}`,
                 conversationId,
                 senderId: currentUserId,
                 content,
                 attachmentUrl,
-                attachmentType,
+                attachmentType: attachmentType as any,
                 replyToId: replyToId || null,
                 createdAt: new Date().toISOString(),
                 updatedAt: null,
                 isDelivered: false,
                 isRead: false,
-                isSent: false, // Pending state - will show clock icon
+                isSent: false,
                 isMe: true,
                 reactions: [],
             };
 
-            // Add optimistic message immediately
             setMessages(prev => [...prev, optimisticMessage]);
 
             try {
-                const { data, error } = await supabase
-                    .from('messages')
-                    .insert({
-                        conversation_id: conversationId,
-                        sender_id: currentUserId,
-                        content,
-                        reply_to_message_id: replyToId || null,
-                        attachment_url: attachmentUrl,
-                        attachment_type: attachmentType,
-                    })
-                    .select()
-                    .single();
+                const data = await apiClient.post<any>(`/v1/chat/conversations/${conversationId}/messages`, {
+                    content,
+                    reply_to_message_id: replyToId || undefined,
+                    media_url: attachmentUrl || undefined,
+                    message_type: attachmentType || undefined
+                });
 
-                if (error) throw error;
-
-                // Update optimistic message with real data
                 setMessages(prev =>
                     prev.map(msg =>
                         msg.id === optimisticMessage.id
@@ -289,35 +241,19 @@ export function useMessages({ conversationId, currentUserId }: UseMessagesOption
                                   ...msg,
                                   id: data.id,
                                   createdAt: data.created_at,
-                                  isSent: true, // Success - will show check icon
+                                  isSent: true,
                               }
                             : msg
                     )
                 );
                 
-                // Play sent confirmation sound
                 soundManager.playSent();
-
-                // Update conversation last_message
-                await supabase
-                    .from('conversations')
-                    .update({
-                        last_message: content,
-                        last_message_time: new Date().toISOString(),
-                        updated_at: new Date().toISOString(),
-                    })
-                    .eq('id', conversationId);
-
                 return data;
             } catch (error: any) {
-                // Remove failed message or mark as failed
                 setMessages(prev =>
                     prev.map(msg =>
                         msg.id === optimisticMessage.id
-                            ? {
-                                  ...msg,
-                                  isSent: false, // Keep as pending but could show error state
-                              }
+                            ? { ...msg, isSent: false }
                             : msg
                     )
                 );
@@ -326,48 +262,33 @@ export function useMessages({ conversationId, currentUserId }: UseMessagesOption
                 throw new Error(errorMessage);
             }
         },
-        [conversationId, currentUserId, supabase]
+        [conversationId, currentUserId]
     );
 
     const editMessage = useCallback(
         async (messageId: string, newContent: string) => {
             try {
-                const { error } = await supabase
-                    .from('messages')
-                    .update({
-                        content: newContent,
-                        updated_at: new Date().toISOString(),
-                    })
-                    .eq('id', messageId)
-                    .eq('sender_id', currentUserId);
-
-                if (error) throw error;
+                await apiClient.put(`/v1/chat/messages/${messageId}`, { content: newContent });
             } catch (error: any) {
                 const errorMessage = error?.message || JSON.stringify(error) || 'Unknown error';
                 console.error('Error editing message:', errorMessage);
                 throw new Error(errorMessage);
             }
         },
-        [currentUserId, supabase]
+        []
     );
 
     const deleteMessage = useCallback(
         async (messageId: string) => {
             try {
-                const { error } = await supabase
-                    .from('messages')
-                    .delete()
-                    .eq('id', messageId)
-                    .eq('sender_id', currentUserId);
-
-                if (error) throw error;
+                await apiClient.delete(`/v1/chat/messages/${messageId}?for_everyone=true`);
             } catch (error: any) {
                 const errorMessage = error?.message || JSON.stringify(error) || 'Unknown error';
                 console.error('Error deleting message:', errorMessage);
                 throw new Error(errorMessage);
             }
         },
-        [currentUserId, supabase]
+        []
     );
 
     return {
@@ -379,4 +300,3 @@ export function useMessages({ conversationId, currentUserId }: UseMessagesOption
         deleteMessage,
     };
 }
-

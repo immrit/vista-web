@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { X, Search, Image as ImageIcon, Video, Music, File, Bell, BellOff, UserX, Trash2, Share2, User } from 'lucide-react';
 import { Avatar } from '@/components/ui/Avatar';
 import { cn } from '@/lib/utils';
-import { createClient } from '@/lib/supabase/client';
+import { apiClient } from '@/lib/apiClient';
 
 interface ChatDetailsSheetProps {
     isOpen: boolean;
@@ -26,7 +26,6 @@ export function ChatDetailsSheet({
     const [sharedMedia, setSharedMedia] = useState<any[]>([]);
     const [sharedFiles, setSharedFiles] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
-    const supabase = createClient();
 
     // Fetch shared media/files
     useEffect(() => {
@@ -38,21 +37,17 @@ export function ChatDetailsSheet({
     const fetchSharedContent = async () => {
         setLoading(true);
         try {
-            const { data: messages } = await supabase
-                .from('messages')
-                .select('*')
-                .eq('conversation_id', conversation.id)
-                .not('attachment_url', 'is', null)
-                .order('created_at', { ascending: false })
-                .limit(50);
+            const response = await apiClient.get<{ messages?: any[] }>(
+                `/v1/chat/conversations/${conversation.id}/messages?limit=50`
+            );
 
             const media: any[] = [];
             const files: any[] = [];
 
-            messages?.forEach(msg => {
-                if (msg.attachment_url) {
-                    const url = msg.attachment_url;
-                    const type = msg.attachment_type;
+            response.messages?.forEach(msg => {
+                const url = msg.attachment_url || msg.media_url;
+                const type = msg.attachment_type || msg.message_type;
+                if (url) {
 
                     if (type === 'image' || type === 'video') {
                         media.push({
@@ -81,14 +76,7 @@ export function ChatDetailsSheet({
 
     const handleMuteToggle = async () => {
         try {
-            await supabase
-                .from('conversation_participants')
-                .update({
-                    is_muted: !isMuted,
-                })
-                .eq('conversation_id', conversation.id)
-                .eq('user_id', currentUserId);
-
+            await apiClient.post(`/v1/chat/conversations/${conversation.id}/mute`);
             setIsMuted(!isMuted);
         } catch (error) {
             console.error('Error toggling mute:', error);
@@ -99,7 +87,9 @@ export function ChatDetailsSheet({
         if (!confirm('آیا از مسدود کردن این کاربر اطمینان دارید؟')) return;
 
         try {
-            // TODO: Implement block user
+            await apiClient.post('/v1/me/block', {
+                target_user_id: profile?.id || profile?.user_id,
+            });
             alert('کاربر مسدود شد');
             onClose();
         } catch (error) {
@@ -111,7 +101,7 @@ export function ChatDetailsSheet({
         if (!confirm('آیا از حذف این گفتگو اطمینان دارید؟ تمام پیام‌ها حذف خواهند شد.')) return;
 
         try {
-            await supabase.from('conversations').delete().eq('id', conversation.id);
+            await apiClient.delete(`/v1/chat/conversations/${conversation.id}`);
             alert('گفتگو حذف شد');
             onClose();
         } catch (error) {
@@ -313,4 +303,3 @@ export function ChatDetailsSheet({
         </>
     );
 }
-

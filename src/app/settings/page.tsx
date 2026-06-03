@@ -12,6 +12,7 @@ import { RenewalPrompt } from '@/components/ui/RenewalPrompt';
 import { SubscriptionStatus } from '@/components/ui/SubscriptionStatus';
 import { useSubscription } from '@/hooks/useSubscription';
 import EnamadBadge from '@/components/ui/EnamadBadge';
+import ActiveSessionsPanel from '@/components/settings/ActiveSessionsPanel';
 import {
     Trash2,
     Save,
@@ -114,6 +115,16 @@ export default function SettingsPage() {
     useEffect(() => {
         setIsHydrated(true);
     }, []);
+
+    useEffect(() => {
+        if (!isHydrated || typeof window === 'undefined') return;
+
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('section') === 'profile' || params.get('profile') === 'setup') {
+            setCurrentSection('profile');
+            setIsEditingProfile(true);
+        }
+    }, [isHydrated]);
 
     // Track if we've checked auth to prevent multiple redirects
     const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
@@ -810,6 +821,11 @@ export default function SettingsPage() {
 
     const renderSecuritySettings = () => (
         <div className="space-y-6">
+            {/* Session Management */}
+            <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">
+                <ActiveSessionsPanel />
+            </div>
+
             <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">امنیت</h3>
 
@@ -1147,4 +1163,4 @@ export default function SettingsPage() {
             />
         </>
     );
-} 
+}

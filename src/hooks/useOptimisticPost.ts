@@ -1,8 +1,8 @@
-import { useState, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useCallback, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { postApi } from '@/lib/backendApi';
 import { PostWithProfile } from '@/lib/types';
 import { useAuth } from './useAuth';
-import { useQueryClient } from '@tanstack/react-query';
 
 export function useOptimisticPost() {
   const { user } = useAuth();
@@ -12,77 +12,51 @@ export function useOptimisticPost() {
   const likePost = useCallback(async (postId: string, currentPost: PostWithProfile) => {
     if (!user) return;
 
-    const isLiked = currentPost.is_liked ?? false;
+    const wasLiked = currentPost.is_liked ?? false;
     const currentCount = currentPost.likes_count ?? 0;
+    const fallback = {
+      count: Math.max(0, currentCount + (wasLiked ? -1 : 1)),
+      isLiked: !wasLiked,
+    };
 
-    // فوری UI رو آپدیت کن
-    const newCount = currentCount + (isLiked ? -1 : 1);
     setOptimisticLikes((prev) => {
       const next = new Map(prev);
-      next.set(postId, {
-        count: newCount,
-        isLiked: !isLiked,
-      });
+      next.set(postId, fallback);
       return next;
     });
 
     try {
-      if (isLiked) {
-        // Unlike
-        const { error } = await supabase
-          .from('likes')
-          .delete()
-          .eq('post_id', postId)
-          .eq('user_id', user.id);
-
-        if (error) throw error;
-      } else {
-        // Like
-        const { error } = await supabase
-          .from('likes')
-          .insert({
-            post_id: postId,
-            user_id: user.id,
-          });
-
-        if (error) throw error;
-      }
-
-      // موفق شد، optimistic رو پاک کن
+      const result = await postApi.toggleLike(postId, currentPost.user_id);
       setOptimisticLikes((prev) => {
         const next = new Map(prev);
-        next.delete(postId);
+        next.set(postId, {
+          count: result.like_count ?? fallback.count,
+          isLiked: result.is_liked ?? fallback.isLiked,
+        });
         return next;
       });
-
-      // Invalidate queries برای refresh
       queryClient.invalidateQueries({ queryKey: ['posts'] });
     } catch (error) {
       console.error('Error toggling like:', error);
-
-      // خطا خورد، برگردون عقب
       setOptimisticLikes((prev) => {
         const next = new Map(prev);
         next.delete(postId);
         return next;
       });
     }
-  }, [user, queryClient]);
+  }, [queryClient, user]);
 
-  // Merge کن optimistic با واقعی
   const applyOptimisticUpdates = useCallback((posts: PostWithProfile[]): PostWithProfile[] => {
     if (optimisticLikes.size === 0) return posts;
 
     return posts.map((post) => {
       const optimistic = optimisticLikes.get(post.id);
-      if (optimistic) {
-        return {
-          ...post,
-          likes_count: optimistic.count,
-          is_liked: optimistic.isLiked,
-        };
-      }
-      return post;
+      if (!optimistic) return post;
+      return {
+        ...post,
+        likes_count: optimistic.count,
+        is_liked: optimistic.isLiked,
+      };
     });
   }, [optimisticLikes]);
 

@@ -1,6 +1,5 @@
 "use client";
-import { Profile } from '@/lib/supabase';
-import { PostWithProfile } from '@/lib/types';
+import { PostWithProfile, Profile } from '@/lib/types';
 import { Music, MessageSquare, Heart, Settings } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';

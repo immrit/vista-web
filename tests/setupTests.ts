@@ -6,7 +6,7 @@ if (!globalThis.TextEncoder) {
 }
 
 if (!globalThis.TextDecoder) {
-  // @ts-expect-error - TextDecoder type mismatch between Node versions
+  // @ts-ignore - TextDecoder type mismatch between Node versions
   globalThis.TextDecoder = TextDecoder;
 }
 
@@ -14,4 +14,3 @@ if (!globalThis.fetch) {
   // @ts-expect-error - assign fetch polyfill
   globalThis.fetch = fetch;
 }
-

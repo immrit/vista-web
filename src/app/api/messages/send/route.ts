@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { verifyAuth } from '@/lib/dal';
-import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/dal';
 import { checkRateLimit, getClientIdentifier, messageRateLimit } from '@/lib/rate-limit';
 import { MessageSchema } from '@/lib/validation/schemas';
 import { sanitizeText } from '@/lib/validation/sanitize';
+import { env } from '@/lib/env';
+import { cookies } from 'next/headers';
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,61 +29,51 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const user = await verifyAuth();
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'کاربر احراز هویت نشده است.' }, { status: 401 });
+    }
+
     const body = await request.json();
     const validated = MessageSchema.parse(body);
     const sanitizedContent = sanitizeText(validated.content);
 
-    const supabase = await createClient();
+    // Call the custom backend to send message
+    const cookieStore = await cookies();
+    const token = cookieStore.get('access_token')?.value;
 
-    const { data: conversation, error: conversationError } = await supabase
-      .from('conversations')
-      .select('*')
-      .eq('id', validated.conversationId)
-      .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
-      .single();
+    const backendRes = await fetch(
+      `${env.NEXT_PUBLIC_API_URL || 'https://api.coffevista.ir'}/v1/chat/conversations/${validated.conversationId}/messages`,
+      {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : ''
+      },
+      body: JSON.stringify({
+        content: sanitizedContent,
+        media_url: validated.attachmentUrl,
+        message_type: validated.attachmentType,
+        reply_to_message_id: validated.replyToId,
+      })
+    });
 
-    if (conversationError || !conversation) {
+    if (!backendRes.ok) {
+      const errorData = await backendRes.json().catch(() => ({}));
       return NextResponse.json(
-        {
-          error: 'دسترسی به این گفتگو وجود ندارد',
-        },
-        { status: 403 },
+        { error: errorData.error || 'خطا در ارسال پیام' },
+        { status: backendRes.status }
       );
     }
 
-    const { data: message, error: messageError } = await supabase
-      .from('messages')
-      .insert({
-        conversation_id: validated.conversationId,
-        sender_id: user.id,
-        content: sanitizedContent,
-        attachment_url: validated.attachmentUrl,
-        attachment_type: validated.attachmentType,
-        reply_to_message_id: validated.replyToId,
-      })
-      .select()
-      .single();
-
-    if (messageError) {
-      throw messageError;
-    }
-
-    await supabase
-      .from('conversations')
-      .update({
-        last_message: sanitizedContent.substring(0, 100),
-        last_message_time: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', validated.conversationId);
+    const message = await backendRes.json();
 
     return NextResponse.json({
       success: true,
       message,
     });
   } catch (error: any) {
-    console.error('Error sending message:', error);
+    console.error('Send message error:', error);
 
     if (error.name === 'ZodError') {
       return NextResponse.json(
@@ -94,21 +85,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (error.message === 'Unauthorized') {
-      return NextResponse.json(
-        {
-          error: 'لطفاً وارد حساب کاربری خود شوید',
-        },
-        { status: 401 },
-      );
-    }
-
     return NextResponse.json(
       {
-        error: 'خطایی رخ داده است',
+        error: 'خطای سرور',
       },
       { status: 500 },
     );
   }
 }
-

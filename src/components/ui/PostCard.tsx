@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Heart, MessageSquare, Share2, Check, Smartphone, Globe } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { supabase, Profile, Like, Comment } from '@/lib/supabase';
 import { PostWithProfile } from '@/lib/types';
 import { useAuth } from '@/hooks/useAuth';
 import { usePostStats } from '@/hooks/usePostStats';
@@ -13,6 +12,7 @@ import { SignUpPrompt } from './SignUpPrompt';
 import GoldenTickBadge from './GoldenTickBadge';
 import { ProgressiveImage } from './ProgressiveImage';
 import { useOptimisticPost } from '@/hooks/useOptimisticPost';
+import { MusicPlayerCard } from './MusicPlayerCard';
 
 interface PostCardProps {
     post: PostWithProfile;
@@ -43,38 +43,16 @@ export function PostCard({ post, onUpdate, onPostDeleted, showComments = false, 
 
     const p = post.profiles;
 
-    // TODO: Replace with actual golden tick status from profile
-    const hasGoldenTick = false; // p?.has_golden_tick || false
+    const hasGoldenTick = p?.verification_type === 'goldTick' || p?.verification_type === 'gold';
 
     // Detect if user is on mobile
     useEffect(() => {
         setIsMobile(/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
     }, []);
 
-    const checkIfLiked = useCallback(async () => {
-        if (!user) return;
-
-        try {
-            const { data } = await supabase
-                .from('likes')
-                .select('id')
-                .eq('post_id', post.id)
-                .eq('user_id', user.id)
-                .single();
-
-            setIsLiked(!!data);
-        } catch (error) {
-            // If no like found, it's not liked
-            setIsLiked(false);
-        }
-    }, [user, post.id]);
-
-    // Check if current user has liked this post
     useEffect(() => {
-        if (user && post.id) {
-            checkIfLiked();
-        }
-    }, [user, post.id, checkIfLiked]);
+        setIsLiked(post.is_liked ?? false);
+    }, [post.id, post.is_liked]);
 
     const handleLike = async () => {
         if (!user || !profile || isLikeLoading) {
@@ -256,13 +234,13 @@ export function PostCard({ post, onUpdate, onPostDeleted, showComments = false, 
 
                 {post.music_url && (
                     <div className="mb-4">
-                        <audio
+                        <MusicPlayerCard
                             src={post.music_url}
-                            controls
-                            className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700"
-                        >
-                            مرورگر شما از پخش موسیقی پشتیبانی نمی‌کند.
-                        </audio>
+                            postId={post.id}
+                            title={post.content?.split('\n')[0]?.substring(0, 60) || undefined}
+                            coverUrl={post.profiles?.avatar_url || undefined}
+                            artist={post.profiles?.full_name || post.profiles?.username || undefined}
+                        />
                     </div>
                 )}
 
