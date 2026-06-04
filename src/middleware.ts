@@ -5,6 +5,7 @@ import type { NextRequest } from 'next/server';
 
 const PUBLIC_PATHS = [
   '/auth',
+  '/group',
   '/api/auth/token',   // our HttpOnly cookie setter — must be public
   '/api/auth',         // legacy public auth routes
 ];
@@ -141,7 +142,8 @@ export function middleware(request: NextRequest) {
   // Auth guard: redirect unauthenticated users to /auth
   if (requiresAuth(pathname)) {
     const token = request.cookies.get('access_token')?.value;
-    if (!token) {
+    const refreshToken = request.cookies.get('refresh_token')?.value;
+    if (!token && !refreshToken) {
       const loginUrl = new URL('/auth', request.url);
       loginUrl.searchParams.set('next', pathname);
       const res = NextResponse.redirect(loginUrl);

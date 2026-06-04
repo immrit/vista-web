@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { X, Search, Bell, BellOff, Trash2, Share2, Users, UserPlus, Copy, ShieldAlert, LogOut } from 'lucide-react';
 import { Avatar } from '@/components/ui/Avatar';
 import { cn } from '@/lib/utils';
-import { groupApi, GroupMember } from '@/lib/groupApi';
+import { groupApi, GroupConversation, GroupMember } from '@/lib/groupApi';
 
 interface GroupDetailsSheetProps {
     isOpen: boolean;
@@ -21,6 +21,7 @@ export function GroupDetailsSheet({
 }: GroupDetailsSheetProps) {
     const [isMuted, setIsMuted] = useState(false);
     const [members, setMembers] = useState<GroupMember[]>([]);
+    const [groupDetails, setGroupDetails] = useState<GroupConversation | null>(null);
     const [loadingMembers, setLoadingMembers] = useState(false);
     const [copied, setCopied] = useState(false);
 
@@ -33,7 +34,11 @@ export function GroupDetailsSheet({
     const fetchMembers = async () => {
         setLoadingMembers(true);
         try {
-            const data = await groupApi.listMembers(conversation.id);
+            const [details, data] = await Promise.all([
+                groupApi.getGroupInfo(conversation.id).catch(() => null),
+                groupApi.listMembers(conversation.id),
+            ]);
+            setGroupDetails(details);
             setMembers(data);
         } catch (error) {
             console.error('Error fetching group members:', error);
@@ -43,9 +48,10 @@ export function GroupDetailsSheet({
     };
 
     const handleCopyInviteLink = () => {
-        if (!conversation?.invite_code) return;
+        const group = groupDetails || conversation;
+        if (!group?.invite_code) return;
         
-        const publicLink = `${window.location.origin}/group/${encodeURIComponent(conversation.invite_code)}`;
+        const publicLink = `${window.location.origin}/group/${encodeURIComponent(group.invite_code)}`;
         navigator.clipboard.writeText(publicLink).then(() => {
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
@@ -80,7 +86,8 @@ export function GroupDetailsSheet({
 
     if (!isOpen) return null;
 
-    const isAdmin = conversation?.created_by === currentUserId;
+    const group = groupDetails || conversation;
+    const isAdmin = group?.created_by === currentUserId;
 
     return (
         <>
@@ -112,7 +119,7 @@ export function GroupDetailsSheet({
                     <div className="p-6 text-center border-b border-zinc-200 dark:border-zinc-800 relative">
                         <div className="relative inline-block mb-4">
                             <Avatar
-                                src={conversation?.image}
+                                src={group?.image}
                                 alt={conversation?.name || 'گروه'}
                                 size="xl"
                                 className="mx-auto"
@@ -127,7 +134,7 @@ export function GroupDetailsSheet({
                             {conversation?.max_members ? ` (از ${conversation.max_members})` : ''}
                         </p>
                         
-                        {conversation?.invite_code && (
+                        {group?.invite_code && (
                             <div className="mt-4 inline-flex items-center justify-center w-full">
                                 <button
                                     onClick={handleCopyInviteLink}

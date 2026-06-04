@@ -26,6 +26,11 @@ interface ChatWindowProps {
     onBack?: () => void;
 }
 
+function isGroupConversation(conversation: any, otherUserId?: string) {
+    const type = (conversation?.conversation_type || conversation?.type || '').toString().toLowerCase();
+    return type === 'group' || (!otherUserId && Boolean(conversation?.name));
+}
+
 export function ChatWindow({
     conversationId,
     currentUserId,
@@ -48,11 +53,12 @@ export function ChatWindow({
     });
     const { isTyping, typingUsers } = useTyping({ conversationId, currentUserId });
     const [fetchedProfile, setFetchedProfile] = useState<any>(null);
+    const isGroup = isGroupConversation(conversation, otherUserId);
 
     // Fetch profile if not available from conversation
     useEffect(() => {
         const fetchProfile = async () => {
-            if (!otherUserId) return; // Skip if no otherUserId
+            if (isGroup || !otherUserId) return; // Skip groups and missing peer ids
             
             // Check if profile is already in conversation
             const otherParticipant = conversation?.participants?.find((p: any) => p.profile?.id !== currentUserId);
@@ -66,7 +72,7 @@ export function ChatWindow({
         };
 
         fetchProfile();
-    }, [otherUserId, conversation, currentUserId]);
+    }, [isGroup, otherUserId, conversation, currentUserId]);
 
     // Auto-scroll to bottom on new messages
     useEffect(() => {
@@ -126,7 +132,7 @@ export function ChatWindow({
     let profile = otherParticipant?.profile || fetchedProfile;
     
     // Fallback: If profile is not loaded from conversation or fetch, create a basic profile object from props
-    if (!profile && conversationName) {
+    if (!isGroup && !profile && conversationName) {
         // Try to get user_id from participants first, then from prop
         const userId = conversation?.participants?.find((p: any) => p.user_id !== currentUserId)?.user_id || otherUserId;
         profile = {
@@ -170,11 +176,11 @@ export function ChatWindow({
                     className="relative flex-shrink-0 hover:opacity-80 transition"
                 >
                     <Avatar
-                        src={profile?.avatar_url || conversationAvatar}
-                        alt={profile?.full_name || profile?.username || conversationName}
+                        src={isGroup ? conversation?.image || conversationAvatar : profile?.avatar_url || conversationAvatar}
+                        alt={isGroup ? conversation?.name || conversationName : profile?.full_name || profile?.username || conversationName}
                         size="md"
                     />
-                    {profile?.is_online && (
+                    {!isGroup && profile?.is_online && (
                         <div className="absolute bottom-0 left-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-zinc-900 rounded-full" />
                     )}
                 </button>
@@ -309,7 +315,7 @@ export function ChatWindow({
             </div>
 
             {/* Details Sheet */}
-            {conversation?.conversation_type === 'group' ? (
+            {isGroup ? (
                 <GroupDetailsSheet
                     isOpen={showDetails}
                     onClose={() => setShowDetails(false)}

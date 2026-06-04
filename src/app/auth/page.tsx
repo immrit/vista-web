@@ -137,7 +137,7 @@ export default function AuthPage() {
         if (typeof window === "undefined") return
 
         const params = new URLSearchParams(window.location.search)
-        const next = params.get("redirect")
+        const next = params.get("redirect") || params.get("next")
         if (next?.startsWith("/") && !next.startsWith("//")) {
             setRedirectPath(next)
         }
