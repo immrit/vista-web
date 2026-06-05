@@ -1,4 +1,4 @@
-import { Home, Search, Bell, Mail, User, Plus, LogOut, Settings } from 'lucide-react';
+import { Home, Search, Bell, Mail, User, Plus, LogOut, Settings, Gamepad2 } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
@@ -19,6 +19,7 @@ const menu = [
     { key: 'messages', label: { fa: 'پیام‌ها', en: 'Messages' }, icon: Mail, href: '/messages' },
     { key: 'profile', label: { fa: 'پروفایل', en: 'Profile' }, icon: User, href: '/profile' },
     { key: 'settings', label: { fa: 'تنظیمات', en: 'Settings' }, icon: Settings, href: '/settings' },
+    { key: 'game', label: { fa: 'بازی', en: 'Game' }, icon: Gamepad2, href: '/game' },
 ];
 
 export function Navigation({ lang, user, showMobileNav = true }: NavigationProps) {
@@ -116,6 +117,15 @@ export function Navigation({ lang, user, showMobileNav = true }: NavigationProps
                     >
                         <Settings className="w-7 h-7 group-hover:text-blue-500 transition" />
                         <span className="hidden xl:inline">{menu[5].label[lang]}</span>
+                    </Link>
+                    {/* Game */}
+                    <Link
+                        key={menu[6].key}
+                        href={menu[6].href}
+                        className="flex items-center gap-4 rounded-2xl px-4 py-3 text-lg font-medium text-zinc-200 hover:bg-zinc-900 transition group"
+                    >
+                        <Gamepad2 className="w-7 h-7 group-hover:text-blue-500 transition" />
+                        <span className="hidden xl:inline">{menu[6].label[lang]}</span>
                     </Link>
                     {/* Post button */}
                     <Link
