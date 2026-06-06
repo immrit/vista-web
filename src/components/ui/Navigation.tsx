@@ -109,15 +109,6 @@ export function Navigation({ lang, user, showMobileNav = true }: NavigationProps
                         <User className="w-7 h-7 group-hover:text-blue-500 transition" />
                         <span className="hidden xl:inline">{menu[4].label[lang]}</span>
                     </Link>
-                    {/* Settings */}
-                    <Link
-                        key={menu[5].key}
-                        href={menu[5].href}
-                        className="flex items-center gap-4 rounded-2xl px-4 py-3 text-lg font-medium text-zinc-200 hover:bg-zinc-900 transition group"
-                    >
-                        <Settings className="w-7 h-7 group-hover:text-blue-500 transition" />
-                        <span className="hidden xl:inline">{menu[5].label[lang]}</span>
-                    </Link>
                     {/* Game */}
                     <Link
                         key={menu[6].key}
@@ -126,6 +117,15 @@ export function Navigation({ lang, user, showMobileNav = true }: NavigationProps
                     >
                         <Gamepad2 className="w-7 h-7 group-hover:text-blue-500 transition" />
                         <span className="hidden xl:inline">{menu[6].label[lang]}</span>
+                    </Link>
+                    {/* Settings */}
+                    <Link
+                        key={menu[5].key}
+                        href={menu[5].href}
+                        className="flex items-center gap-4 rounded-2xl px-4 py-3 text-lg font-medium text-zinc-200 hover:bg-zinc-900 transition group"
+                    >
+                        <Settings className="w-7 h-7 group-hover:text-blue-500 transition" />
+                        <span className="hidden xl:inline">{menu[5].label[lang]}</span>
                     </Link>
                     {/* Post button */}
                     <Link
