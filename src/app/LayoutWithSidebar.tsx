@@ -1,13 +1,14 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import NavigationWrapper from "./NavigationWrapper";
 import { useAuth } from "@/hooks/useAuth";
 import SessionInitializer from "@/components/SessionInitializer";
 
 export default function LayoutWithSidebar({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
-    const { profile, loading } = useAuth();
+    const router = useRouter();
+    const { user, loading } = useAuth();
     const [isHydrated, setIsHydrated] = useState(false);
 
     // Hydration safety
@@ -15,8 +16,14 @@ export default function LayoutWithSidebar({ children }: { children: React.ReactN
         setIsHydrated(true);
     }, []);
 
-    // Hide sidebar on /auth and /auth/*
-    const hideSidebar = pathname.startsWith("/auth");
+    useEffect(() => {
+        if (!isHydrated || loading || !user?.password_required) return;
+        if (pathname === "/set-password" || pathname.startsWith("/auth")) return;
+        router.replace("/set-password");
+    }, [isHydrated, loading, pathname, router, user?.password_required]);
+
+    // Hide sidebar on auth and mandatory password setup screens.
+    const hideSidebar = pathname.startsWith("/auth") || pathname === "/set-password";
 
     // Hide bottom navigation on /messages
     const hideBottomNav = pathname.startsWith("/messages");
@@ -38,4 +45,4 @@ export default function LayoutWithSidebar({ children }: { children: React.ReactN
             </main>
         </div>
     );
-} 
+}

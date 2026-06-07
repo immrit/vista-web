@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 
 interface AuthGuardProps {
@@ -17,6 +17,7 @@ export default function AuthGuard({
 }: AuthGuardProps) {
     const { user, loading, error } = useAuth()
     const router = useRouter()
+    const pathname = usePathname()
     const [isRedirecting, setIsRedirecting] = useState(false)
     const [isHydrated, setIsHydrated] = useState(false)
 
@@ -34,13 +35,16 @@ export default function AuthGuard({
                 console.log('AuthGuard: User not authenticated, redirecting to', redirectTo)
                 setIsRedirecting(true)
                 router.replace(redirectTo)
+            } else if (requireAuth && user?.password_required && pathname !== '/set-password') {
+                setIsRedirecting(true)
+                router.replace('/set-password')
             } else if (!requireAuth && user) {
                 console.log('AuthGuard: User already authenticated, redirecting to /feed')
                 setIsRedirecting(true)
                 router.replace('/feed')
             }
         }
-    }, [user, loading, router, requireAuth, redirectTo, isRedirecting, isHydrated])
+    }, [user, loading, router, requireAuth, redirectTo, isRedirecting, isHydrated, pathname])
 
     // Show loading during hydration
     if (!isHydrated) {
@@ -99,4 +103,4 @@ export default function AuthGuard({
 
     // در غیر این صورت، children را نشان بده
     return <>{children}</>
-} 
+}

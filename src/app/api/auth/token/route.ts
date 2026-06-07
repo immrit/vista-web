@@ -18,7 +18,7 @@ const COOKIE_OPTS = {
 };
 
 const ACCESS_MAX_AGE  = 60 * 60 * 24;        // 1 day
-const REFRESH_MAX_AGE = 60 * 60 * 24 * 30;   // 30 days
+const REFRESH_MAX_AGE = 60 * 60 * 24 * 3650; // long-lived until explicit logout/revocation
 
 export async function POST(req: NextRequest) {
   let body: { access_token?: string; refresh_token?: string };

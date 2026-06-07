@@ -1,13 +1,14 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { apiClient, clearAuthTokens, persistAuthTokens } from '@/lib/apiClient'
+import { ApiError, apiClient, clearAuthTokens, persistAuthTokens } from '@/lib/apiClient'
 import { profileApi } from '@/lib/backendApi'
 import { Profile } from '@/lib/types'
 
 const DEVICE_ID_KEY = 'vista_device_id'
 const TOKEN_EXPIRES_AT_KEY = 'token_expires_at'
 const USER_ID_KEY = 'user_id'
+const USER_CACHE_KEY = 'auth_user_cache'
 
 export interface User {
     id: string
@@ -18,6 +19,8 @@ export interface User {
     phone_number?: string | null
     account_status?: string | null
     profile_completed?: boolean
+    has_password?: boolean
+    password_required?: boolean
     phone_verified_at?: string | null
     email_verified_at?: string | null
     created_at?: string
@@ -72,14 +75,6 @@ export interface RegisterInput {
     marital_status?: string
 }
 
-function getStoredRefreshToken() {
-    if (typeof window === 'undefined') return null
-    // Refresh token is stored as HttpOnly cookie in production.
-    // In dev it may be readable; the server route handles setting it.
-    const cookieMatch = document.cookie.match(/(?:^|;\s*)refresh_token=([^;]+)/)
-    return cookieMatch ? decodeURIComponent(cookieMatch[1]) : null
-}
-
 function createDeviceId() {
     if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
         return crypto.randomUUID()
@@ -104,16 +99,17 @@ function authRequestOptions() {
     return deviceId ? { headers: { 'X-Device-ID': deviceId } } : undefined
 }
 
-function rememberAuthResponse(data: AuthResponse) {
+async function rememberAuthResponse(data: AuthResponse) {
     if (typeof window === 'undefined') return
     if (!data.session?.access_token) return
 
     // Store tokens securely via server-side HttpOnly cookie route
-    persistAuthTokens(data.session.access_token, data.session.refresh_token)
+    await persistAuthTokens(data.session.access_token, data.session.refresh_token)
 
     // Non-sensitive metadata only in sessionStorage (cleared on tab close)
     if (data.user?.id) {
         window.sessionStorage.setItem(USER_ID_KEY, data.user.id)
+        window.localStorage.setItem(USER_CACHE_KEY, JSON.stringify(data.user))
     }
     if (data.session.expires_at) {
         window.sessionStorage.setItem(TOKEN_EXPIRES_AT_KEY, data.session.expires_at)
@@ -133,18 +129,35 @@ function forgetAuthResponse() {
     window.localStorage.removeItem('refresh_token')
     window.localStorage.removeItem(USER_ID_KEY)
     window.localStorage.removeItem(TOKEN_EXPIRES_AT_KEY)
+    window.localStorage.removeItem(USER_CACHE_KEY)
+}
+
+function getCachedUser(): User | null {
+    if (typeof window === 'undefined') return null
+    try {
+        const raw = window.localStorage.getItem(USER_CACHE_KEY)
+        if (!raw) return null
+        const user = JSON.parse(raw) as User
+        return user?.id ? user : null
+    } catch {
+        return null
+    }
 }
 
 async function refreshStoredSession() {
-    const refreshToken = getStoredRefreshToken()
-    if (!refreshToken) return null
+    const response = await fetch('/api/auth/refresh', {
+        method: 'POST',
+        credentials: 'include',
+        ...(authRequestOptions() || {}),
+    })
 
-    const data = await apiClient.post<AuthResponse>(
-        '/v1/auth/refresh',
-        { refresh_token: refreshToken },
-        authRequestOptions()
-    )
-    rememberAuthResponse(data)
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new ApiError(errorData.message || errorData.error || `HTTP error! status: ${response.status}`, response.status)
+    }
+
+    const data = await response.json() as AuthResponse
+    await rememberAuthResponse(data)
     return data
 }
 
@@ -174,7 +187,7 @@ export function useAuth() {
     }, [])
 
     const applyAuthResponse = useCallback(async (data: AuthResponse) => {
-        rememberAuthResponse(data)
+        await rememberAuthResponse(data)
         setUser(data.user)
         setError(null)
 
@@ -192,10 +205,27 @@ export function useAuth() {
 
         const getInitialSession = async () => {
             try {
-                let me = await apiClient.get<User>('/v1/auth/me').catch(async () => {
-                    const refreshed = await refreshStoredSession().catch(() => null)
-                    return refreshed?.user || null
-                })
+                let me: User | null = null;
+                try {
+                    me = await apiClient.get<User>('/v1/auth/me');
+                } catch (err: any) {
+                    if (err.name === 'ApiError' && err.status === 401) {
+                        try {
+                            const refreshed = await refreshStoredSession();
+                            me = refreshed?.user || null;
+                        } catch (refreshErr: any) {
+                            if (refreshErr.name === 'ApiError' && refreshErr.status === 401) {
+                                forgetAuthResponse();
+                                me = null;
+                            } else {
+                                me = getCachedUser();
+                            }
+                        }
+                    } else {
+                        // Network error, Server Down, etc. Do not wipe tokens or force login.
+                        me = getCachedUser();
+                    }
+                }
 
                 if (!mounted) return
 
@@ -204,7 +234,6 @@ export function useAuth() {
                     setError(null)
                     fetchProfile(me.id).catch(err => console.error(err))
                 } else {
-                    forgetAuthResponse()
                     setUser(null)
                     setProfile(null)
                 }

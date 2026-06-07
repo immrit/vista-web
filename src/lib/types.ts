@@ -48,6 +48,8 @@ export interface User {
     phone_number?: string | null
     account_status?: string | null
     profile_completed?: boolean
+    has_password?: boolean
+    password_required?: boolean
     avatar_url?: string
     created_at: string
 }
