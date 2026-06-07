@@ -33,16 +33,15 @@ export default function GameHomePage() {
       alert('موجودی سکه شما کافی نیست! برای ورود به مسابقه حداقل ۵۰ سکه نیاز دارید.');
       return;
     }
-    setIsMatchmaking(true);
-    
     try {
-      const data = await apiClient.post<{ status: string; matchId: string | null }>('/v1/game/matchmake', {
+      setIsMatchmaking(true);
+      const data = await apiClient.post<{ matchId: string, status: string }>('/v1/game/matchmake', {
         name: profile.full_name || profile.username || 'بازیکن',
         avatarUrl: profile.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + profile.id,
       });
-      
-      if (data.matchId) {
-        // Match found immediately
+
+      if (data && data.status === 'match_found' && data.matchId) {
+        if (coins !== null) setCoins(coins - 50);
         router.push(`/game/play/${data.matchId}`);
       } else if (data.status === 'waiting') {
         // Start polling for active match

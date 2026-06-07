@@ -51,7 +51,7 @@ const SECURITY_HEADERS: Record<string, string> = {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: blob: https:",
-    "connect-src 'self' https://api.coffevista.ir wss://api.coffevista.ir",
+    "connect-src 'self' https://api.coffevista.ir wss://api.coffevista.ir http://localhost:8080 ws://localhost:8080 http://127.0.0.1:8080 ws://127.0.0.1:8080",
     "media-src 'self' https://storage.coffevista.ir blob:",
     "frame-ancestors 'none'",
     "base-uri 'self'",
