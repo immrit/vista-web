@@ -26,6 +26,11 @@ const nextConfig: NextConfig = {
         port: '8443',
         pathname: '/**',
       },
+      {
+        protocol: 'https' as const,
+        hostname: 'api.dicebear.com',
+        pathname: '/**',
+      },
     ],
   },
   eslint: {

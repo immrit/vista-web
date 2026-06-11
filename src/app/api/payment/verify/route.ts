@@ -1,18 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createZibalService } from '@/lib/zibal'
 import { env } from '@/lib/env'
+import { verifyAuth } from '@/lib/dal'
+import { cookies } from 'next/headers'
 
 export async function POST(request: NextRequest) {
   let trackId: number | null = null
   
   try {
+    try {
+      await verifyAuth();
+    } catch (authError) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json()
     trackId = body.trackId
-    const { userId, plan } = body
 
-    if (!trackId || !userId || !plan) {
+    if (!trackId) {
       return NextResponse.json(
-        { error: 'TrackId, User ID, and plan are required' },
+        { error: 'TrackId is required' },
         { status: 400 }
       )
     }
@@ -29,7 +36,7 @@ export async function POST(request: NextRequest) {
             success: true,
             message: 'پرداخت قبلاً تایید شده بود',
             subscription: {
-              plan,
+              plan: 'unknown',
             },
           },
           { status: 200 }
@@ -37,6 +44,9 @@ export async function POST(request: NextRequest) {
       }
       throw zibalError
     }
+
+    const orderIdParts = verifyResponse.orderId?.split('_') || [];
+    const plan = orderIdParts[2]; // gold_userId_plan_timestamp
 
     const startDate = new Date()
     const endDate = new Date(startDate)
@@ -47,17 +57,23 @@ export async function POST(request: NextRequest) {
       endDate.setFullYear(endDate.getFullYear() + 1)
     } else {
       return NextResponse.json(
-        { error: 'Invalid plan type' },
+        { error: 'Invalid plan type in order' },
         { status: 400 }
       )
     }
 
     // Call custom backend to update user profile to premium
     try {
+      const cookieStore = await cookies();
+      const token = cookieStore.get('access_token')?.value;
+
       // This endpoint updates the authenticated user's profile on vista-backend.
       await fetch(`${env.NEXT_PUBLIC_API_URL}/v1/me/profile/update`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
           body: JSON.stringify({
               verification_type: 'premium',
               role: 'premium',

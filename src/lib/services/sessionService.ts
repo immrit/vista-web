@@ -116,7 +116,10 @@ class SessionManagerService {
     }
   }
 
-  public getCurrentSessionId() {
+  public getCurrentSessionId(): string | null {
+    if (!this.currentSessionId && process.env.NODE_ENV === 'production') {
+      return null;
+    }
     return this.currentSessionId || 'mock-session-id';
   }
 

@@ -23,6 +23,7 @@ export interface Profile {
     posts_count?: number
     followers_count?: number
     following_count?: number
+    is_private?: boolean
 }
 
 export interface Post {

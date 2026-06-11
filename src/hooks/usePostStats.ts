@@ -7,9 +7,15 @@ interface UsePostStatsProps {
   postId: string;
   initialLikesCount: number;
   initialCommentsCount: number;
+  enabled?: boolean;
 }
 
-export function usePostStats({ postId, initialLikesCount, initialCommentsCount }: UsePostStatsProps) {
+export function usePostStats({
+  postId,
+  initialLikesCount,
+  initialCommentsCount,
+  enabled = true,
+}: UsePostStatsProps) {
   const [likesCount, setLikesCount] = useState(initialLikesCount);
   const [commentsCount, setCommentsCount] = useState(initialCommentsCount);
 
@@ -19,7 +25,7 @@ export function usePostStats({ postId, initialLikesCount, initialCommentsCount }
   }, [initialLikesCount, initialCommentsCount]);
 
   const refreshStats = useCallback(async () => {
-    if (!postId) return;
+    if (!postId || !enabled) return;
 
     try {
       const [post, commentCount] = await Promise.all([
@@ -32,11 +38,12 @@ export function usePostStats({ postId, initialLikesCount, initialCommentsCount }
     } catch (error) {
       console.error('Error refreshing post stats:', error);
     }
-  }, [postId]);
+  }, [postId, enabled]);
 
   useEffect(() => {
+    if (!enabled) return;
     refreshStats();
-  }, [refreshStats]);
+  }, [enabled, refreshStats]);
 
   return {
     likesCount,

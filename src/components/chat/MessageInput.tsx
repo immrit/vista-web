@@ -4,13 +4,15 @@ import { useState, useRef, useEffect, KeyboardEvent } from 'react';
 import { Send, Paperclip, Smile, X, Mic, Image, Video, File } from 'lucide-react';
 import { FileUploadSheet } from './FileUploadSheet';
 import { VoiceRecorder } from './VoiceRecorder';
+import { useTypingIndicator } from '@/lib/hooks/use-typing-indicator';
+import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 
 interface MessageInputProps {
     conversationId: string;
     replyToMessageId?: string | null;
     editingMessageId?: string | null;
-    onSend: (content: string, replyToId?: string | null, editingId?: string | null) => Promise<void>;
+    onSend: (content: string, files?: File[], replyToId?: string | null, editingId?: string | null) => Promise<void>;
     onCancelReply?: () => void;
     onCancelEdit?: () => void;
 }
@@ -30,6 +32,8 @@ export function MessageInput({
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const { profile } = useAuth();
+    const { setTyping } = useTypingIndicator({ conversationId, userId: profile?.id || '' });
 
     // Auto-resize textarea
     useEffect(() => {
@@ -44,7 +48,7 @@ export function MessageInput({
     useEffect(() => {
         if (content.trim() && !isTyping) {
             setIsTyping(true);
-            // TODO: Send typing indicator to backend realtime channel
+            setTyping(true);
         }
 
         if (typingTimeoutRef.current) {
@@ -53,7 +57,6 @@ export function MessageInput({
 
         typingTimeoutRef.current = setTimeout(() => {
             setIsTyping(false);
-            // TODO: Stop typing indicator
         }, 3000);
 
         return () => {
@@ -61,7 +64,7 @@ export function MessageInput({
                 clearTimeout(typingTimeoutRef.current);
             }
         };
-    }, [content, isTyping]);
+    }, [content, isTyping, setTyping]);
 
     const handleSend = async () => {
         if (!content.trim() && selectedFiles.length === 0) return;
@@ -78,7 +81,7 @@ export function MessageInput({
         textareaRef.current?.focus();
 
         try {
-            await onSend(messageContent, replyId, editId);
+            await onSend(messageContent, selectedFiles, replyId, editId);
         } catch (error: any) {
             const errorMessage = error?.message || JSON.stringify(error) || 'Unknown error';
             console.error('Error sending message:', errorMessage);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { apiClient, getBackendWebSocketUrl } from '@/lib/apiClient';
+import { apiClient, getBackendWebSocketUrl, getWebSocketProtocols } from '@/lib/apiClient';
 import type { Message } from '@/lib/models/message';
 
 interface UseRealtimeMessagesOptions {
@@ -77,7 +77,7 @@ export function useRealtimeMessages({
   useEffect(() => {
     if (!conversationId || !userId) return;
 
-    const ws = new WebSocket(getBackendWebSocketUrl('/v1/chat/ws'));
+    const ws = new WebSocket(getBackendWebSocketUrl('/v1/chat/ws'), getWebSocketProtocols());
 
     ws.onmessage = event => {
       try {

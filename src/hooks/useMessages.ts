@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Message } from '@/lib/models/message';
 import { soundManager } from '@/lib/audio/NotificationSounds';
-import { apiClient, getBackendWebSocketUrl } from '@/lib/apiClient';
+import { apiClient, getBackendWebSocketUrl, getWebSocketProtocols } from '@/lib/apiClient';
+import { UploadService } from '@/lib/uploadService';
 
 interface UseMessagesOptions {
     conversationId: string;
@@ -96,7 +97,7 @@ export function useMessages({ conversationId, currentUserId }: UseMessagesOption
         };
 
         const setupWebSocket = () => {
-            ws = new WebSocket(getBackendWebSocketUrl('/v1/chat/ws'));
+            ws = new WebSocket(getBackendWebSocketUrl('/v1/chat/ws'), getWebSocketProtocols());
 
             ws.onopen = () => {
                 console.log('WebSocket connected');
@@ -203,8 +204,22 @@ export function useMessages({ conversationId, currentUserId }: UseMessagesOption
 
             if (files && files.length > 0) {
                 const file = files[0];
-                // TODO: use actual file upload
                 attachmentType = file.type.split('/')[0];
+                
+                try {
+                    if (attachmentType === 'image') {
+                        attachmentUrl = await UploadService.uploadImage(file, currentUserId);
+                    } else if (attachmentType === 'video') {
+                        attachmentUrl = await UploadService.uploadVideo(file, currentUserId);
+                    } else if (attachmentType === 'audio') {
+                        attachmentUrl = await UploadService.uploadMusic(file, currentUserId);
+                    } else {
+                        // Using image upload rule as fallback for unknown types
+                        attachmentUrl = await UploadService.uploadImage(file, currentUserId);
+                    }
+                } catch (error: any) {
+                    throw new Error(`آپلود فایل با خطا مواجه شد: ${error.message}`);
+                }
             }
 
             const optimisticMessage: Message = {

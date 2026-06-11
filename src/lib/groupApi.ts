@@ -96,12 +96,13 @@ export const groupApi = {
 
   // List group members
   listMembers(conversationId: string) {
-    return apiClient.get<GroupMember[]>(`/v1/chat/groups/${conversationId}/members`)
+    return apiClient.get<{ members: GroupMember[] }>(`/v1/chat/groups/${conversationId}/members`)
+      .then(res => res.members || [])
   },
 
   // Add members
   addMembers(conversationId: string, userIds: string[]) {
-    return apiClient.post<{ added: number }>(`/v1/chat/groups/${conversationId}/members`, { user_ids: userIds })
+    return apiClient.post<{ added: number }>(`/v1/chat/groups/${conversationId}/members`, { member_ids: userIds })
   },
 
   // Remove a member

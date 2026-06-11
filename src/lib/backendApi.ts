@@ -25,6 +25,7 @@ interface BackendProfile {
   is_verified?: boolean;
   subscription_plan?: Nullable<string>;
   subscription_expires_at?: Nullable<string>;
+  is_private?: boolean;
   post_count?: number;
   posts_count?: number;
   follower_count?: number;
@@ -98,6 +99,7 @@ export function normalizeProfile(raw: Nullable<BackendProfile | BackendAuthor>):
     posts_count: (profile as BackendProfile).posts_count ?? (profile as BackendProfile).post_count ?? 0,
     followers_count: (profile as BackendProfile).followers_count ?? (profile as BackendProfile).follower_count ?? 0,
     following_count: (profile as BackendProfile).following_count ?? 0,
+    is_private: Boolean((profile as BackendProfile).is_private),
   };
 }
 
@@ -182,6 +184,31 @@ export const profileApi = {
     );
     return (data.profiles || []).map(normalizeProfile);
   },
+
+  async getPrivacySettings() {
+    const data = await apiClient.get<any>('/v1/me/privacy');
+    return data;
+  },
+  async updatePrivacySettings(settings: any) {
+    const data = await apiClient.post<any>('/v1/me/privacy', settings);
+    return data;
+  },
+  async getUserSettings() {
+    const data = await apiClient.get<any>('/v1/me/settings');
+    return data;
+  },
+  async updateUserSettings(settings: any) {
+    const data = await apiClient.post<any>('/v1/me/settings', settings);
+    return data;
+  },
+  async getNotificationSettings() {
+    const data = await apiClient.get<any>('/v1/me/notification-settings');
+    return data;
+  },
+  async updateNotificationSettings(settings: any) {
+    const data = await apiClient.post<any>('/v1/me/notification-settings', settings);
+    return data;
+  },
 };
 
 export const postApi = {
@@ -196,9 +223,15 @@ export const postApi = {
     };
   },
 
-  async explore(limit = 20, offset = 0) {
+  async explore(limit = 20, cursor?: string) {
+    const queryParams = new URLSearchParams({ limit: limit.toString() });
+    if (cursor) {
+      queryParams.append('cursor', cursor);
+    } else {
+      queryParams.append('offset', '0');
+    }
     const data = await apiClient.get<{ posts?: BackendPost[]; has_more?: boolean; next_cursor?: string }>(
-      `/v1/explore?limit=${limit}&offset=${offset}`,
+      `/v1/explore?${queryParams.toString()}`,
     );
     return {
       posts: (data.posts || []).map(normalizePost),
@@ -277,6 +310,13 @@ export const postApi = {
       `/v1/hashtags/search?q=${encodeURIComponent(query.replace(/^#/, ''))}&limit=${limit}`,
     );
     return (data.hashtags || []).map(item => ({ tag: item.tag, count: item.count ?? item.usage_count ?? 0 }));
+  },
+
+  async feedEvent(postId: string, eventType: string = 'view') {
+    await apiClient.post('/v1/feed/event', {
+      post_id: postId,
+      event_type: eventType,
+    });
   },
 };
 

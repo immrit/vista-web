@@ -4,6 +4,7 @@ import "./globals.css";
 import LayoutWithSidebar from "./LayoutWithSidebar";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { GlobalMiniPlayer } from "@/components/ui/GlobalMiniPlayer";
+import { Toaster } from 'sonner';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -88,6 +89,7 @@ export default function RootLayout({
         <QueryProvider>
           <LayoutWithSidebar>{children}</LayoutWithSidebar>
           <GlobalMiniPlayer />
+          <Toaster position="top-center" richColors />
         </QueryProvider>
       </body>
     </html>

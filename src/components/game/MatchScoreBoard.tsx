@@ -1,17 +1,24 @@
 import React from 'react';
 import { PlayerState, MatchState } from '@/lib/game/types';
 import { cn } from '@/lib/utils';
-import Image from 'next/image';
 
 interface MatchScoreBoardProps {
   match: MatchState;
   currentPlayerId: string;
 }
 
+function getRenderableAvatarUrl(avatarUrl: string) {
+  if (avatarUrl.startsWith('https://api.dicebear.com/') && avatarUrl.includes('/svg')) {
+    return avatarUrl.replace('/svg', '/png');
+  }
+
+  return avatarUrl;
+}
+
 export function MatchScoreBoard({ match, currentPlayerId }: MatchScoreBoardProps) {
   const isPlayer1 = match.player1.id === currentPlayerId;
   const me = isPlayer1 ? match.player1 : match.player2!;
-  const opponent = isPlayer1 ? match.player2! : match.player1;
+  const opponent = isPlayer1 ? match.player2 : match.player1;
 
   // Total possible rounds
   const totalRounds = 4; // Should match MAX_ROUNDS in backend
@@ -24,7 +31,7 @@ export function MatchScoreBoard({ match, currentPlayerId }: MatchScoreBoardProps
       <div className="flex items-center space-x-4 space-x-reverse z-10">
         <div className="relative animate-bounce-slow">
           <div className="w-20 h-20 rounded-full overflow-hidden border-[6px] border-indigo-400 bg-white shadow-[0_4px_15px_rgba(99,102,241,0.5)]">
-            <Image src={me.avatarUrl} alt={me.name} width={80} height={80} className="object-cover bg-indigo-50" />
+            <img src={getRenderableAvatarUrl(me.avatarUrl)} alt={me.name} className="h-full w-full object-cover bg-indigo-50" />
           </div>
           <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-gradient-to-b from-indigo-500 to-indigo-600 text-white text-xs font-black px-3 py-1 rounded-full border-2 border-white shadow-md">
             شما
@@ -56,13 +63,17 @@ export function MatchScoreBoard({ match, currentPlayerId }: MatchScoreBoardProps
       {/* Opponent */}
       <div className="flex items-center space-x-4 space-x-reverse text-left flex-row-reverse z-10">
         <div className="relative ml-4">
-          <div className="w-20 h-20 rounded-full overflow-hidden border-[6px] border-rose-400 bg-white shadow-[0_4px_15px_rgba(244,63,94,0.5)]">
-            <Image src={opponent.avatarUrl} alt={opponent.name} width={80} height={80} className="object-cover bg-rose-50" />
+          <div className="w-20 h-20 rounded-full overflow-hidden border-[6px] border-rose-400 bg-white shadow-[0_4px_15px_rgba(244,63,94,0.5)] flex items-center justify-center bg-rose-50">
+            {opponent ? (
+              <img src={getRenderableAvatarUrl(opponent.avatarUrl)} alt={opponent.name} className="h-full w-full object-cover" />
+            ) : (
+              <span className="text-4xl text-rose-300">?</span>
+            )}
           </div>
         </div>
         <div className="flex flex-col items-end bg-white/80 dark:bg-slate-800/80 px-4 py-2 rounded-2xl shadow-inner border border-white/50">
-          <span className="font-bold text-sm text-slate-800 dark:text-slate-200 mb-1">{opponent.name}</span>
-          <span className="font-black text-4xl text-rose-600 dark:text-rose-400 drop-shadow-sm">{opponent.score}</span>
+          <span className="font-bold text-sm text-slate-800 dark:text-slate-200 mb-1">{opponent ? opponent.name : 'منتظر حریف'}</span>
+          <span className="font-black text-4xl text-rose-600 dark:text-rose-400 drop-shadow-sm">{opponent ? opponent.score : 0}</span>
         </div>
       </div>
     </div>

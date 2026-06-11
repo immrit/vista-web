@@ -20,8 +20,13 @@ function isStaticAsset(pathname: string) {
   );
 }
 
+function isPublicSharePath(pathname: string) {
+  return /^\/post\/[^/]+/.test(pathname) || /^\/profile\/[^/]+/.test(pathname);
+}
+
 function isPublicPath(pathname: string) {
-  return PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) return true;
+  return isPublicSharePath(pathname);
 }
 
 // ─── Security Headers ─────────────────────────────────────────────────────────
@@ -134,6 +139,8 @@ export function middleware(request: NextRequest) {
     const res = NextResponse.redirect(new URL('/feed', request.url));
     return applySecurityHeaders(res);
   }
+
+  let res = NextResponse.next();
 
   // CSRF check
   const csrfError = csrfCheck(request);

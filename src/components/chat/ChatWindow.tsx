@@ -302,11 +302,11 @@ export function ChatWindow({
                     conversationId={conversationId}
                     replyToMessageId={replyToMessageId}
                     editingMessageId={editingMessageId}
-                    onSend={async (content, replyToId, editingId) => {
+                    onSend={async (content, files, replyToId, editingId) => {
                         if (editingId) {
                             await handleEditComplete(editingId, content);
                         } else {
-                            await sendMessage(content, undefined, replyToId || undefined);
+                            await sendMessage(content, files, replyToId || undefined);
                         }
                     }}
                     onCancelReply={() => setReplyToMessageId(null)}

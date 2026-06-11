@@ -24,10 +24,12 @@ export interface MatchState {
   matchId: string;
   player1: PlayerState;
   player2: PlayerState | null;
-  status: 'waiting' | 'in_progress' | 'finished';
+  status: 'waiting' | 'in_progress' | 'waiting_for_opponent' | 'finished';
   rounds: RoundState[];
   currentRoundIndex: number;
   winnerId: string | null;
   createdAt: number;
   updatedAt: number;
+  turnStartedAt: number;
+  rewardedAt?: number;
 }

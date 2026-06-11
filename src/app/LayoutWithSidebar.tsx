@@ -22,11 +22,20 @@ export default function LayoutWithSidebar({ children }: { children: React.ReactN
         router.replace("/set-password");
     }, [isHydrated, loading, pathname, router, user?.password_required]);
 
-    // Hide sidebar on auth and mandatory password setup screens.
-    const hideSidebar = pathname.startsWith("/auth") || pathname === "/set-password";
+    const isPublicSharePath =
+        /^\/post\/[^/]+/.test(pathname) || /^\/profile\/[^/]+/.test(pathname);
 
-    // Hide bottom navigation on /messages
-    const hideBottomNav = pathname.startsWith("/messages");
+    // Hide sidebar on auth, password setup, and public share pages for guests.
+    const hideSidebar =
+        pathname.startsWith("/auth") ||
+        pathname === "/set-password" ||
+        (isPublicSharePath && !user);
+
+    // Hide bottom navigation on /messages and /game (game has its own mobile navs or UI)
+    const hideBottomNav =
+        pathname.startsWith("/messages") ||
+        pathname.startsWith("/game") ||
+        (isPublicSharePath && !user);
 
     // 🔥 Optimistic rendering: فقط hydration را چک کن، loading را چک نکن
     // محتوا را سریع نشان بده - hydration خیلی سریع است

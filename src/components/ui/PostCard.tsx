@@ -38,7 +38,8 @@ export function PostCard({ post, onUpdate, onPostDeleted, showComments = false, 
     const { likesCount, commentsCount, refreshStats } = usePostStats({
         postId: post.id,
         initialLikesCount: post.likes_count || 0,
-        initialCommentsCount: post.comments_count || 0
+        initialCommentsCount: post.comments_count || 0,
+        enabled: Boolean(user),
     });
 
     const p = post.profiles;
@@ -98,7 +99,8 @@ export function PostCard({ post, onUpdate, onPostDeleted, showComments = false, 
 
     const generateShareUrl = (type: 'web' | 'app') => {
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://coffevista.ir';
-        const postUrl = `${baseUrl}/post/${post.id}`;
+        const username = p?.username ? `?u=${encodeURIComponent(p.username)}` : '';
+        const postUrl = `${baseUrl}/post/${post.id}${username}`;
 
         if (type === 'app') {
             return `vista://post/${post.id}`;

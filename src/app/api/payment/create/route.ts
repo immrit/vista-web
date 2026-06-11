@@ -1,28 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createZibalService } from '@/lib/zibal'
 import { env } from '@/lib/env'
+import { verifyAuth, getCurrentProfile } from '@/lib/dal'
+
+const PLAN_PRICES: Record<string, number> = {
+    monthly: 50000,
+    yearly: 500000,
+}
 
 export async function POST(request: NextRequest) {
     try {
-        const { userId, plan, amount } = await request.json()
+        let user;
+        try {
+            user = await verifyAuth();
+        } catch (authError) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
 
-        if (!userId || !plan || !amount) {
+        const { plan } = await request.json()
+
+        if (!plan || !PLAN_PRICES[plan]) {
             return NextResponse.json(
-                { error: 'User ID, plan, and amount are required' },
+                { error: 'Valid plan is required' },
                 { status: 400 }
             )
         }
 
-        // Fetch user profile from custom backend
-        let profile = null;
-        try {
-            const profileRes = await fetch(`${env.NEXT_PUBLIC_API_URL}/v1/profiles/${userId}`);
-            if (profileRes.ok) {
-                profile = await profileRes.json();
-            }
-        } catch (e) {
-            console.error('Failed to fetch profile', e);
-        }
+        const amount = PLAN_PRICES[plan];
+        const userId = user.id;
+
+        const profile = await getCurrentProfile();
 
         if (!profile) {
             return NextResponse.json(
@@ -31,7 +38,7 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        const orderId = `gold_${userId}_${Date.now()}`
+        const orderId = `gold_${userId}_${plan}_${Date.now()}`
         const zibalService = createZibalService()
         const callbackUrl = `${env.NEXT_PUBLIC_APP_URL}/payment/callback`
         

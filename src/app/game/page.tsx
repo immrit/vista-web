@@ -1,227 +1,415 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Gamepad2, Trophy, Users, Zap, Swords, Coins, Link as LinkIcon } from 'lucide-react';
+import { Trophy, Home, Settings, Users, Gamepad2, Zap, Medal, Crown, UserCircle, Edit3, ShoppingCart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { apiClient } from '@/lib/apiClient';
 import { useAuth } from '@/hooks/useAuth';
+import { ActiveMatchCard } from '@/components/game/ActiveMatchCard';
+import { MatchState } from '@/lib/game/types';
+import { getCurrentRound, isPlayerTurn } from '@/lib/game/state';
+import { getAuthPlayerCandidates, resolveMatchPlayerId } from '@/lib/game/player';
+
+type Tab = 'home' | 'leaderboard';
+
+interface LeaderboardEntry {
+  rank: number;
+  userId: string;
+  name: string;
+  avatarUrl: string;
+  coins: number;
+}
 
 export default function GameHomePage() {
   const router = useRouter();
+  const [tab, setTab] = useState<Tab>('home');
   const [isMatchmaking, setIsMatchmaking] = useState(false);
   const [coins, setCoins] = useState<number | null>(null);
-  const [duelInviteCode, setDuelInviteCode] = useState('');
-  const [joinCodeInput, setJoinCodeInput] = useState('');
-  const { profile } = useAuth();
+  const [xp, setXp] = useState<number>(0);
+  const [level, setLevel] = useState<number>(1);
+  const [activeMatches, setActiveMatches] = useState<MatchState[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+  const { user, profile, loading } = useAuth();
+  const currentUser = user || profile;
+  const currentUserId = currentUser?.id;
+  const playerIdCandidates = getAuthPlayerCandidates(user?.id, profile?.id, profile?.user_id);
+  const [gameDisplayName, setGameDisplayName] = useState<string | null>(null);
+  const [gameAvatarUrl, setGameAvatarUrl] = useState<string | null>(null);
 
-  React.useEffect(() => {
-    if (profile) {
-      apiClient.get<{coins: number}>('/v1/game/coins').then(data => {
-        if (data) setCoins(data.coins);
-      }).catch(console.error);
+  const displayName = gameDisplayName || profile?.full_name || profile?.username || user?.full_name || user?.username || 'بازیکن';
+  const avatarUrl = gameAvatarUrl || profile?.avatar_url || user?.avatar_url || (currentUserId ? `https://api.dicebear.com/7.x/avataaars/png?seed=${currentUserId}` : '');
+
+  const fetchStats = useCallback(async () => {
+    if (!currentUserId) { setCoins(null); return; }
+    const data = await apiClient.get<{ coins: number; xp: number; level: number, displayName: string | null, avatarUrl: string | null }>('/v1/game/profile');
+    if (data) {
+      setCoins(data.coins);
+      setXp(data.xp);
+      setLevel(data.level);
+      setGameDisplayName(data.displayName);
+      setGameAvatarUrl(data.avatarUrl);
     }
-  }, [profile]);
+  }, [currentUserId]);
+
+  const fetchActiveMatches = useCallback(async () => {
+    if (!currentUserId) { setActiveMatches([]); return; }
+    const data = await apiClient.get<{ matches: MatchState[] }>('/v1/game/active-matches');
+    setActiveMatches(data?.matches || []);
+  }, [currentUserId]);
+
+  const fetchLeaderboard = useCallback(async () => {
+    setLeaderboardLoading(true);
+    try {
+      const data = await apiClient.get<{ leaderboard: LeaderboardEntry[] }>('/v1/game/leaderboard');
+      setLeaderboard(data?.leaderboard || []);
+    } catch (e) {
+      console.error('Failed to fetch leaderboard:', e);
+    } finally {
+      setLeaderboardLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchStats().catch(console.error); }, [fetchStats]);
+
+  useEffect(() => {
+    fetchActiveMatches().catch(console.error);
+    const interval = setInterval(() => { fetchActiveMatches().catch(console.error); }, 5000);
+    return () => clearInterval(interval);
+  }, [fetchActiveMatches]);
+
+  useEffect(() => {
+    if (!loading && !currentUserId) { router.push('/auth'); }
+  }, [loading, currentUserId, router]);
+
+  useEffect(() => {
+    if (tab === 'leaderboard') { fetchLeaderboard(); }
+  }, [tab, fetchLeaderboard]);
+
+  const hasWaitingMatch = activeMatches.some((match) => {
+    const matchPlayerId = resolveMatchPlayerId(match, playerIdCandidates);
+    return match.player1.id === matchPlayerId && !match.player2 && (match.status === 'waiting' || match.status === 'waiting_for_opponent');
+  });
+  const isReady = !loading && !!currentUserId && coins !== null;
+  const hasEnoughCoins = coins !== null && (coins >= 50 || hasWaitingMatch);
+  const isAtCapacity = activeMatches.length >= 5 && !hasWaitingMatch;
+  const startDisabled = !isReady || isMatchmaking || isAtCapacity || !hasEnoughCoins;
+
+  const routeToMatch = (matchId: string) => {
+    router.push(`/game/match/${matchId}`);
+  };
 
   const handleStartGame = async () => {
-    if (!profile) {
-      router.push('/auth');
-      return;
-    }
-    if (coins !== null && coins < 50) {
+    if (loading || !currentUserId || coins === null) return;
+    if (coins < 50 && !hasWaitingMatch) {
       alert('موجودی سکه شما کافی نیست! برای ورود به مسابقه حداقل ۵۰ سکه نیاز دارید.');
       return;
     }
     try {
       setIsMatchmaking(true);
       const data = await apiClient.post<{ matchId: string, status: string }>('/v1/game/matchmake', {
-        name: profile.full_name || profile.username || 'بازیکن',
-        avatarUrl: profile.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + profile.id,
+        name: displayName,
+        avatarUrl: avatarUrl || `https://api.dicebear.com/7.x/avataaars/png?seed=${currentUserId}`,
       });
-
-      if (data && data.status === 'match_found' && data.matchId) {
-        if (coins !== null) setCoins(coins - 50);
-        router.push(`/game/play/${data.matchId}`);
-      } else if (data.status === 'waiting') {
-        // Start polling for active match
-        const pollInterval = setInterval(async () => {
-          try {
-            const checkData = await apiClient.get<{ matchId: string | null }>('/v1/game/active-match');
-            if (checkData.matchId) {
-              clearInterval(pollInterval);
-              router.push(`/game/play/${checkData.matchId}`);
-            }
-          } catch (e) {
-            console.error('Polling error:', e);
-          }
-        }, 2000);
-        
-        // Clear interval on unmount
-        return () => clearInterval(pollInterval);
-      }
+      if (!data?.matchId) throw new Error('matchId دریافت نشد');
+      await Promise.all([fetchCoins().catch(console.error), fetchActiveMatches().catch(console.error)]);
+      await routeToMatch(data.matchId);
     } catch (error) {
       console.error(error);
       setIsMatchmaking(false);
-      alert('خطا در ورود به مسابقه: ' + (error as any).message);
+      alert('خطا در ورود به مسابقه: ' + ((error as any).message || 'نامشخص'));
     }
   };
 
-  const handleCreateDuel = async () => {
-    if (!profile) return router.push('/auth');
-    if (coins !== null && coins < 50) return alert('موجودی سکه شما کافی نیست! (۵۰ سکه)');
-    try {
-      setIsMatchmaking(true);
-      const data = await apiClient.post<{ matchId: string }>('/v1/game/duel/create', {
-        name: profile.full_name || profile.username || 'بازیکن',
-        avatarUrl: profile.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + profile.id,
-      });
-      if (data && data.matchId) {
-        setDuelInviteCode(data.matchId);
-        if (coins !== null) setCoins(coins - 50);
-      }
-    } catch (e: any) {
-      alert('خطا: ' + e.message);
-    } finally {
-      setIsMatchmaking(false);
-    }
-  };
-
-  const handleJoinDuel = async () => {
-    if (!profile) return router.push('/auth');
-    if (!joinCodeInput.trim()) return alert('لطفا کد مسابقه را وارد کنید.');
-    if (coins !== null && coins < 50) return alert('موجودی سکه شما کافی نیست! (۵۰ سکه)');
-    try {
-      setIsMatchmaking(true);
-      const data = await apiClient.post<{ matchId: string }>('/v1/game/duel/join', {
-        matchId: joinCodeInput.trim(),
-        name: profile.full_name || profile.username || 'بازیکن',
-        avatarUrl: profile.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + profile.id,
-      });
-      if (data && data.matchId) {
-        router.push(`/game/play/${data.matchId}`);
-      }
-    } catch (e: any) {
-      alert('خطا: ' + e.message);
-      setIsMatchmaking(false);
-    }
-  };
+  if (loading || !currentUserId) {
+    return <div className="min-h-screen bg-[#1a6ebd] flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent"></div></div>;
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-sky-100 via-pink-50 to-indigo-100 dark:from-indigo-950 dark:via-purple-900 dark:to-slate-900 p-6 md:p-12 flex flex-col items-center justify-center font-sans">
-      <div className="max-w-4xl w-full flex flex-col items-center space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
-        
-        <div className="text-center space-y-4 animate-wobble">
-          <div className="inline-flex items-center justify-center p-5 bg-gradient-to-br from-pink-400 to-purple-500 rounded-[2rem] shadow-[0_8px_0_0_#9333ea] mb-4 text-white transform rotate-3">
-            <Gamepad2 size={56} strokeWidth={2} />
-          </div>
-          <h1 className="text-5xl md:text-7xl font-black text-slate-900 dark:text-white tracking-tight drop-shadow-md">
-            ویستا <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-violet-600 filter drop-shadow-sm">کوئیز</span>
-          </h1>
-          <p className="text-lg md:text-xl text-slate-700 dark:text-slate-300 max-w-xl mx-auto font-bold bg-white/40 dark:bg-slate-900/40 py-2 px-4 rounded-full backdrop-blur-sm border border-white/50 dark:border-slate-800/50">
-            اطلاعات عمومی خود را به چالش بکشید و با دوستان خود به صورت آنلاین رقابت کنید!
-          </p>
-        </div>
+    <div className="min-h-screen bg-[#1a6ebd] pb-20 font-sans relative overflow-x-hidden">
+      {/* Background question marks pattern */}
+      <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Ctext x=\'10\' y=\'40\' font-family=\'Arial\' font-size=\'40\' fill=\'white\' font-weight=\'bold\'%3E?%3C/text%3E%3C/svg%3E")', backgroundSize: '60px 60px' }}></div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
-          <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-6 rounded-[2rem] shadow-lg border-b-4 border-slate-200 dark:border-slate-800 flex flex-col items-center text-center space-y-3 hover:-translate-y-1 transition-transform">
-            <div className="bg-amber-100 dark:bg-amber-900/30 p-3 rounded-full"><Zap className="text-amber-500" size={32} /></div>
-            <h3 className="font-black text-xl dark:text-white">سرعت و دقت</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400 font-medium">هرچه سریع‌تر جواب دهید، امتیاز بیشتری می‌گیرید.</p>
+      {/* Top Bar */}
+      <div className="bg-[#0e5c9f] px-3 py-3 flex items-center justify-between text-white text-sm shadow-md sticky top-0 z-50">
+        <div className="flex items-center space-x-2 space-x-reverse flex-1">
+          {/* Level / XP bar */}
+          <div className="flex bg-[#114b82] rounded-md overflow-hidden relative flex-1 h-8 items-center pl-8">
+            <div className="bg-[#20b2f5] h-full transition-all" style={{width: `${Math.min(100, Math.max(0, ((xp - Math.pow(level - 1, 2) * 100) / (Math.pow(level, 2) * 100 - Math.pow(level - 1, 2) * 100)) * 100))}%`}}></div>
+            <div className="absolute inset-0 flex items-center justify-center font-bold text-[10px]">
+              {xp.toLocaleString('fa-IR')} / {(Math.pow(level, 2) * 100).toLocaleString('fa-IR')} XP
+            </div>
+            <div className="absolute left-0 top-0 h-full bg-[#0a3560] px-2 flex items-center justify-center font-black text-xs border-r border-white/10 text-white">
+              Lvl {level}
+            </div>
           </div>
-          <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-6 rounded-[2rem] shadow-lg border-b-4 border-slate-200 dark:border-slate-800 flex flex-col items-center text-center space-y-3 hover:-translate-y-1 transition-transform">
-            <div className="bg-blue-100 dark:bg-blue-900/30 p-3 rounded-full"><Users className="text-blue-500" size={32} /></div>
-            <h3 className="font-black text-xl dark:text-white">رقابت دونفره</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400 font-medium">در ۶ راند نفس‌گیر با حریف خود مبارزه کنید.</p>
-          </div>
-          <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-6 rounded-[2rem] shadow-lg border-b-4 border-slate-200 dark:border-slate-800 flex flex-col items-center text-center space-y-3 hover:-translate-y-1 transition-transform">
-            <div className="bg-emerald-100 dark:bg-emerald-900/30 p-3 rounded-full"><Trophy className="text-emerald-500" size={32} /></div>
-            <h3 className="font-black text-xl dark:text-white">جدول امتیازات</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400 font-medium">امتیاز جمع کنید و در صدر جدول ویستا قرار بگیرید.</p>
-          </div>
+          {/* Coins */}
+          <button 
+            onClick={() => router.push('/game/store')}
+            className="flex items-center bg-[#114b82] rounded-md h-8 px-3 min-w-[80px] space-x-1.5 space-x-reverse hover:bg-[#0a3560] active:scale-95 transition-all cursor-pointer border border-yellow-500/30 shadow-[0_0_8px_rgba(234,179,8,0.3)]"
+          >
+            <div className="w-4 h-4 flex items-center justify-center bg-yellow-400 text-yellow-900 rounded-full font-bold text-[10px] leading-none pb-0.5">+</div>
+            <span className="font-bold text-sm text-white">{coins !== null ? coins.toLocaleString('fa-IR') : '...'}</span>
+            <div className="w-5 h-5 relative"><Image src="/images/coin.png" alt="coin" fill /></div>
+          </button>
         </div>
+        <div className="mr-2 text-white/70 font-bold text-sm">ویستا کوییز</div>
+      </div>
 
-        <div className="flex flex-col items-center w-full max-w-lg space-y-4">
+      <div className="max-w-md mx-auto p-4">
+        {/* Tab buttons */}
+        <div className="flex bg-[#114b82]/60 rounded-2xl p-1 mb-5 border border-white/10">
           <button
-            onClick={handleStartGame}
-            disabled={isMatchmaking}
-            className={cn(
-              "w-full relative overflow-hidden px-12 py-6 rounded-[2rem] text-2xl font-black text-white transition-all duration-200 transform flex items-center justify-center space-x-3 space-x-reverse",
-              isMatchmaking 
-                ? "bg-slate-400 border-b-4 border-slate-500 translate-y-1" 
-                : "bg-gradient-to-b from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 border-b-[6px] border-emerald-700 active:border-b-0 active:translate-y-[6px] shadow-lg"
+            onClick={() => setTab('home')}
+            className={cn("flex-1 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center space-x-1.5 space-x-reverse",
+              tab === 'home' ? "bg-white text-[#1a6ebd] shadow-md" : "text-white/70 hover:text-white"
             )}
           >
-            {isMatchmaking ? (
-              <>
-                <div className="w-6 h-6 border-4 border-white border-t-transparent rounded-full animate-spin" />
-                <span>در حال اتصال...</span>
-              </>
-            ) : (
-              <>
-                <Gamepad2 size={32} className="animate-wobble" />
-                <span className="drop-shadow-md">شروع مسابقه عمومی</span>
-                <div className="bg-black/20 px-3 py-1 rounded-full text-base flex items-center space-x-1 space-x-reverse ml-auto shadow-inner">
-                  <span>۵۰-</span>
-                  <div className="relative w-5 h-5"><Image src="/images/coin.png" alt="coin" fill/></div>
-                </div>
-              </>
-            )}
+            <Home size={16} /> <span>خانه</span>
           </button>
+          <button
+            onClick={() => setTab('leaderboard')}
+            className={cn("flex-1 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center space-x-1.5 space-x-reverse",
+              tab === 'leaderboard' ? "bg-white text-[#1a6ebd] shadow-md" : "text-white/70 hover:text-white"
+            )}
+          >
+            <Trophy size={16} /> <span>جدول برترین‌ها</span>
+          </button>
+        </div>
 
-          {/* Duels Section */}
-          <div className="w-full bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b-4 border-slate-200 dark:border-slate-800 rounded-[2rem] p-8 space-y-6 mt-8 shadow-xl relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-pink-400 via-purple-400 to-indigo-400"></div>
-            
-            <div className="flex items-center space-x-3 space-x-reverse text-indigo-600 dark:text-indigo-400 font-black text-2xl border-b-2 border-slate-100 dark:border-slate-800/50 pb-4">
-              <div className="bg-indigo-100 dark:bg-indigo-900/50 p-2 rounded-xl"><Swords size={28} /></div>
-              <span>بازی با دوستان (دوئل)</span>
-            </div>
-
-            {duelInviteCode ? (
-              <div className="space-y-4 bg-indigo-50 dark:bg-indigo-900/20 p-6 rounded-[2rem] border-2 border-indigo-100 dark:border-indigo-800/50 text-center animate-pop">
-                <p className="text-base text-indigo-800 dark:text-indigo-300 font-bold">مسابقه ساخته شد! کد زیر را به دوستتان بدهید:</p>
-                <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl flex items-center justify-center font-mono text-2xl select-all font-black text-indigo-600 dark:text-indigo-400 shadow-inner border-2 border-slate-100 dark:border-slate-700">
-                  {duelInviteCode}
+        {tab === 'home' && (
+          <div className="space-y-4">
+            {/* Profile Header */}
+            <div className="flex flex-col items-center space-y-3 py-4">
+              <div className="relative">
+                <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-[#3ca2ea] bg-white shadow-lg">
+                  <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                 </div>
-                <div className="flex items-center justify-center space-x-2 space-x-reverse text-sm font-bold text-amber-600 animate-pulse mt-4">
-                  <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
-                  <span>منتظر ورود حریف...</span>
+                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-[#78c02c] text-white text-xs font-bold px-3 py-0.5 rounded-full shadow">
+                  {displayName}
                 </div>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <button
-                  onClick={handleCreateDuel}
-                  disabled={isMatchmaking}
-                  className="bg-gradient-to-b from-indigo-400 to-indigo-500 hover:from-indigo-300 hover:to-indigo-400 text-white border-b-[6px] border-indigo-700 active:border-b-0 active:translate-y-[6px] py-4 rounded-[2rem] font-black flex flex-col items-center justify-center transition-all duration-200 shadow-md"
-                >
-                  <span className="text-xl drop-shadow-sm">ساخت مسابقه جدید</span>
-                  <span className="text-sm bg-black/20 px-3 py-1 rounded-full mt-2 flex items-center shadow-inner">هزینه: ۵۰ <div className="relative w-4 h-4 mx-1"><Image src="/images/coin.png" alt="coin" fill/></div></span>
-                </button>
-                <div className="flex flex-col space-y-3 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-[2rem] border-2 border-slate-100 dark:border-slate-800">
-                  <input 
-                    type="text" 
-                    placeholder="کد مسابقه را وارد کنید..."
-                    value={joinCodeInput}
-                    onChange={e => setJoinCodeInput(e.target.value)}
-                    className="w-full bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-4 font-bold text-center focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900 transition-all shadow-inner"
-                    dir="ltr"
+              <div className="flex items-center space-x-2 space-x-reverse text-white/60 text-xs">
+                <Users size={12} />
+                <span>عضو ویستا کوییز</span>
+              </div>
+            </div>
+
+            {/* Start Game Button */}
+            <button
+              onClick={handleStartGame}
+              disabled={startDisabled}
+              id="start-game-btn"
+              className={cn(
+                "w-full rounded-[2rem] p-5 flex flex-col items-center justify-center transition-all shadow-[0_8px_0_#5b9a1c] active:translate-y-[8px] active:shadow-none border-2 border-[#b5e786] relative",
+                startDisabled
+                  ? "bg-slate-400 border-slate-300 shadow-[0_8px_0_#64748b]"
+                  : "bg-gradient-to-b from-[#87d235] to-[#73bc26]"
+              )}
+            >
+              <div className="flex items-center space-x-3 space-x-reverse text-white">
+                <span className="font-black text-3xl drop-shadow-md">
+                  {!isReady ? 'در حال بارگذاری...'
+                    : isMatchmaking ? 'در حال اتصال...'
+                    : isAtCapacity ? 'ظرفیت پر است'
+                    : !hasEnoughCoins ? 'سکه کافی نیست'
+                    : hasWaitingMatch ? 'ادامه انتظار'
+                    : 'شروع بازی جدید'}
+                </span>
+                {!startDisabled && <div className="w-0 h-0 border-t-8 border-t-transparent border-b-8 border-b-transparent border-r-[12px] border-r-white drop-shadow-md"></div>}
+              </div>
+              {!startDisabled && (
+                <p className="text-white/70 text-sm mt-1 font-medium">
+                  {hasWaitingMatch ? 'شما در صف انتظار هستید' : `هزینه: ۵۰ سکه`}
+                </p>
+              )}
+              {!startDisabled && <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-20"><Gamepad2 size={40} /></div>}
+            </button>
+
+            {/* Quick Actions */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                id="lobby-btn"
+                onClick={() => router.push('/game/lobby')}
+                className="bg-gradient-to-b from-[#4fa9ed] to-[#3695df] border border-[#9fd2f6] rounded-2xl shadow-[0_6px_0_#1c6ab0] p-4 flex flex-col items-start text-white space-y-1 active:translate-y-[6px] active:shadow-none transition-all"
+              >
+                <Users size={24} className="text-white/80" />
+                <span className="font-black text-lg">تالار</span>
+                <span className="text-[11px] opacity-80">بازی‌های آزاد رو ببین</span>
+              </button>
+
+              <button
+                id="duel-btn"
+                onClick={() => router.push('/game/duel/create')}
+                className="bg-gradient-to-b from-[#f36b59] to-[#ea4b34] border border-[#f8a89d] rounded-2xl shadow-[0_6px_0_#bc2e1a] p-4 flex flex-col items-start text-white space-y-1 active:translate-y-[6px] active:shadow-none transition-all relative overflow-hidden"
+              >
+                <div className="absolute -left-2 -top-2 bg-red-700 text-white text-[9px] font-bold px-4 py-0.5 rotate-[-45deg]">دوئل</div>
+                <Trophy size={24} className="text-[#fbcf68] z-10" fill="#fbcf68" />
+                <span className="font-black text-lg z-10">دوئل خصوصی</span>
+                <span className="text-[11px] opacity-80 z-10">با دوستت بازی کن</span>
+              </button>
+            </div>
+
+            {/* Active Matches Section */}
+            {activeMatches.length > 0 && (
+              <div className="mt-2 space-y-3">
+                <h3 className="text-white font-bold px-1 flex items-center space-x-2 space-x-reverse">
+                  <Gamepad2 size={16} className="text-[#78c02c]" />
+                  <span>بازی‌های فعال شما ({activeMatches.length})</span>
+                </h3>
+                {activeMatches.map(match => (
+                  <ActiveMatchCard
+                    key={match.matchId}
+                    match={match}
+                    currentPlayerId={resolveMatchPlayerId(match, playerIdCandidates) || currentUserId}
                   />
-                  <button 
-                    onClick={handleJoinDuel}
-                    disabled={isMatchmaking || !joinCodeInput.trim()}
-                    className="w-full bg-gradient-to-b from-pink-500 to-rose-500 text-white hover:from-pink-400 hover:to-rose-400 py-3 rounded-2xl font-black text-lg transition-all duration-200 flex items-center justify-center space-x-2 space-x-reverse disabled:opacity-50 border-b-4 border-rose-700 active:border-b-0 active:translate-y-1"
-                  >
-                    <LinkIcon size={20} />
-                    <span className="drop-shadow-sm">ورود به بازی</span>
-                  </button>
-                </div>
+                ))}
               </div>
             )}
           </div>
-        </div>
+        )}
 
+        {tab === 'leaderboard' && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-white font-black text-lg">جدول برترین بازیکنان</h2>
+              <button onClick={fetchLeaderboard} className="text-white/60 text-xs hover:text-white transition-colors">
+                بروزرسانی ↻
+              </button>
+            </div>
+
+            {leaderboardLoading ? (
+              <div className="flex justify-center py-10">
+                <div className="animate-spin rounded-full h-10 w-10 border-4 border-white border-t-transparent"></div>
+              </div>
+            ) : leaderboard.length === 0 ? (
+              <div className="text-center py-10 text-white/60">
+                <Trophy size={48} className="mx-auto mb-3 opacity-30" />
+                <p>هنوز داده‌ای موجود نیست</p>
+              </div>
+            ) : (
+              <>
+                {/* Top 3 podium */}
+                {leaderboard.length >= 3 && (
+                  <div className="flex items-end justify-center space-x-3 space-x-reverse py-4 mb-2">
+                    {/* 2nd place */}
+                    <div className="flex flex-col items-center space-y-2 cursor-pointer hover:scale-105 transition-transform" onClick={() => router.push(`/game/profile/${leaderboard[1].userId}`)}>
+                      <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-slate-300 shadow-lg">
+                        <img src={leaderboard[1].avatarUrl || `https://api.dicebear.com/7.x/avataaars/png?seed=${leaderboard[1].userId}`} alt="" className="w-full h-full object-cover" />
+                      </div>
+                      <div className="bg-[#a0aec0] rounded-xl px-3 py-4 text-center w-20 shadow-[0_4px_0_#718096]">
+                        <Medal size={16} className="text-white mx-auto mb-1" />
+                        <p className="text-white font-black text-xs truncate">{leaderboard[1].name}</p>
+                        <p className="text-white/80 text-[10px]">{leaderboard[1].coins.toLocaleString('fa-IR')}💰</p>
+                      </div>
+                    </div>
+                    {/* 1st place */}
+                    <div className="flex flex-col items-center space-y-2 z-10 cursor-pointer hover:scale-105 transition-transform relative" onClick={() => router.push(`/game/profile/${leaderboard[0].userId}`)}>
+                      <div className="absolute -top-6 text-yellow-400 drop-shadow-md">
+                        <Crown size={32} fill="currentColor" />
+                      </div>
+                      <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.4)]">
+                        <img src={leaderboard[0].avatarUrl || `https://api.dicebear.com/7.x/avataaars/png?seed=${leaderboard[0].userId}`} alt="" className="w-full h-full object-cover" />
+                      </div>
+                      <div className="bg-gradient-to-b from-yellow-400 to-yellow-600 rounded-xl px-3 py-5 text-center w-24 shadow-[0_6px_0_#b45309]">
+                        <Trophy size={18} className="text-white mx-auto mb-1" fill="white" />
+                        <p className="text-white font-black text-xs truncate">{leaderboard[0].name}</p>
+                        <p className="text-white/90 text-[10px]">{leaderboard[0].coins.toLocaleString('fa-IR')}💰</p>
+                      </div>
+                    </div>
+                    {/* 3rd place */}
+                    <div className="flex flex-col items-center space-y-2 cursor-pointer hover:scale-105 transition-transform" onClick={() => router.push(`/game/profile/${leaderboard[2].userId}`)}>
+                      <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-amber-600 shadow-lg">
+                        <img src={leaderboard[2].avatarUrl || `https://api.dicebear.com/7.x/avataaars/png?seed=${leaderboard[2].userId}`} alt="" className="w-full h-full object-cover" />
+                      </div>
+                      <div className="bg-gradient-to-b from-amber-600 to-amber-800 rounded-xl px-3 py-3 text-center w-20 shadow-[0_4px_0_#7c5013]">
+                        <Medal size={16} className="text-amber-300 mx-auto mb-1" />
+                        <p className="text-white font-black text-xs truncate">{leaderboard[2].name}</p>
+                        <p className="text-white/80 text-[10px]">{leaderboard[2].coins.toLocaleString('fa-IR')}💰</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Rest of leaderboard */}
+                <div className="space-y-2 mt-4">
+                  {leaderboard.slice(3).map((entry) => (
+                    <div key={entry.userId} className="bg-[#114b82]/60 rounded-2xl px-4 py-3 flex items-center space-x-3 space-x-reverse border border-white/10">
+                      <span className="text-white/60 font-black text-lg w-7 text-center">{entry.rank}</span>
+                      <div className="flex items-center space-x-3 space-x-reverse cursor-pointer group" onClick={() => router.push(`/game/profile/${entry.userId}`)}>
+                        <div className="w-10 h-10 rounded-full overflow-hidden border border-white/20 group-hover:border-white transition-colors">
+                          <img src={entry.avatarUrl || `https://api.dicebear.com/7.x/avataaars/png?seed=${entry.userId}`} alt="" className="w-full h-full object-cover" />
+                        </div>
+                        <span className="text-white font-bold text-sm group-hover:text-blue-300 transition-colors">{entry.name}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                      </div>
+                      <div className="flex items-center space-x-1.5 space-x-reverse">
+                        <div className="relative w-4 h-4"><Image src="/images/coin.png" alt="coin" fill /></div>
+                        <span className="text-white font-bold text-sm">{entry.coins.toLocaleString('fa-IR')}</span>
+                      </div>
+                      {entry.userId === currentUserId && (
+                        <span className="text-[10px] bg-[#78c02c] text-white px-2 py-0.5 rounded-full font-bold">شما</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Bottom Nav Bar */}
+      <div className="fixed bottom-0 left-0 right-0 md:right-[220px] bg-[#1b73b5] border-t border-[#114b82] flex items-center justify-around py-2 px-4 shadow-[0_-4px_10px_rgba(0,0,0,0.1)] z-50">
+        <button
+          onClick={() => router.push('/game/profile')}
+          className="flex flex-col items-center text-white/50 hover:text-white transition-colors"
+        >
+          <UserCircle size={24} />
+          <span className="text-[10px] mt-1 font-bold">پروفایل</span>
+        </button>
+        <button
+          id="lobby-nav-btn"
+          onClick={() => router.push('/game/lobby')}
+          className="flex flex-col items-center text-white/50 hover:text-white transition-colors"
+        >
+          <Users size={24} />
+          <span className="text-[10px] mt-1 font-bold">تالار</span>
+        </button>
+        <button
+          onClick={() => setTab('home')}
+          id="center-play-btn"
+          className={cn(
+            "flex flex-col items-center -mt-6 transition-colors",
+            tab === 'home' ? "text-white" : "text-white/70"
+          )}
+        >
+          <div className={cn(
+            "rounded-full p-4 mb-1 border-4 transition-colors",
+            tab === 'home' ? "bg-[#87d235] border-[#5da01f]" : "bg-[#1b73b5] border-[#114b82] hover:bg-[#2080c9]"
+          )}>
+            <Home size={28} />
+          </div>
+          <span className="text-[10px] font-bold">خانه</span>
+        </button>
+        <button
+          onClick={() => setTab('leaderboard')}
+          className={cn("flex flex-col items-center transition-colors", tab === 'leaderboard' ? "text-white" : "text-white/50 hover:text-white")}
+        >
+          <Trophy size={24} />
+          <span className="text-[10px] mt-1 font-bold">برترین‌ها</span>
+        </button>
+        <button
+          id="settings-nav-btn"
+          onClick={() => router.push('/game/settings')}
+          className="flex flex-col items-center text-white/50 hover:text-white transition-colors"
+        >
+          <Settings size={24} />
+          <span className="text-[10px] mt-1 font-bold">تنظیمات</span>
+        </button>
       </div>
     </div>
   );

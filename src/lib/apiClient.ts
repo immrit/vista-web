@@ -101,21 +101,20 @@ async function refreshAuthCookies(): Promise<boolean> {
   return refreshInFlight;
 }
 
-export function getBackendWebSocketUrl(path: string, token?: string | null) {
+export function getBackendWebSocketUrl(path: string) {
   let base = getApiBaseUrl();
   if (base.startsWith('/') && typeof window !== 'undefined') {
     base = `${window.location.protocol}//${window.location.host}${base}`;
   }
   base = base.replace(/^http/i, 'ws');
   const url = new URL(path, base);
-  // Tokens in query params appear in server logs / browser history.
-  // We pass it here for backward compat with the Go WS handler, but prefer
-  // migrating the backend to read it from the Authorization header instead.
-  const accessToken = token ?? getStoredAccessToken();
-  if (accessToken) {
-    url.searchParams.set('access_token', accessToken);
-  }
+  // Token is no longer sent in query parameters for security.
   return url.toString();
+}
+
+export function getWebSocketProtocols(token?: string | null): string[] {
+  const accessToken = token ?? getStoredAccessToken();
+  return accessToken ? ['Authorization', accessToken] : [];
 }
 
 class ApiClient {

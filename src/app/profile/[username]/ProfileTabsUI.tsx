@@ -1,6 +1,6 @@
 "use client";
 import { PostWithProfile, Profile } from '@/lib/types';
-import { Music, MessageSquare, Heart, Settings } from 'lucide-react';
+import { Music, MessageSquare, Heart, Settings, Lock } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
@@ -10,6 +10,8 @@ import GoldenTickPromo from '@/components/ui/GoldenTickPromo';
 import GoldenTickBadge from '@/components/ui/GoldenTickBadge';
 import SettingsDrawer from '@/components/ui/SettingsDrawer';
 import GoldenTickModal from '@/components/ui/GoldenTickModal';
+import { GuestJoinBanner } from '@/components/ui/GuestJoinBanner';
+import { GuestShareHeader } from '@/components/ui/GuestShareHeader';
 
 export default function ProfileTabsUI({ profile, posts, musicPosts, isRtl }: {
     profile: Profile;
@@ -23,8 +25,12 @@ export default function ProfileTabsUI({ profile, posts, musicPosts, isRtl }: {
     const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
     const [showGoldenTickModal, setShowGoldenTickModal] = useState(false);
     const [isPurchasing, setIsPurchasing] = useState(false);
-    const { user, signOut } = useAuth();
+    const { user, signOut, loading: authLoading } = useAuth();
     const router = useRouter();
+
+    const isGuest = !authLoading && !user;
+    const isPrivateProfile = Boolean(profile.is_private);
+    const isLockedForGuest = isGuest && isPrivateProfile;
 
     // Check if the current user is viewing their own profile
     const isOwnProfile = user?.id === profile.id;
@@ -56,8 +62,9 @@ export default function ProfileTabsUI({ profile, posts, musicPosts, isRtl }: {
 
     return (
         <>
-            <div className={`min-h-screen dark:bg-zinc-950 bg-gray-50 flex flex-col md:flex-row relative`} dir={isRtl ? 'rtl' : 'ltr'}>
-                <main className="flex-1 flex flex-col items-center px-2 sm:px-4 md:px-8 py-8 pb-20 md:pb-8 pt-16 md:pt-8">
+            {isGuest && <GuestShareHeader />}
+            <div className={`min-h-screen dark:bg-zinc-950 bg-gray-50 flex flex-col md:flex-row relative ${isGuest ? 'pb-28' : ''}`} dir={isRtl ? 'rtl' : 'ltr'}>
+                <main className={`flex-1 flex flex-col items-center px-2 sm:px-4 md:px-8 py-8 ${isGuest ? 'pt-4 pb-8' : 'pb-20 md:pb-8 pt-16 md:pt-8'}`}>
                     <div className="w-full max-w-4xl mx-auto">
                         {/* Profile Header */}
                         <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-800 p-6 mb-6">
@@ -150,12 +157,26 @@ export default function ProfileTabsUI({ profile, posts, musicPosts, isRtl }: {
                         )}
 
                         {/* Golden Tick Promo - Show for users without golden tick (fallback) */}
-                        {!hasGoldenTick && !isOwnProfile && (
+                        {!hasGoldenTick && !isOwnProfile && !isLockedForGuest && (
                             <div className="mb-6">
                                 <GoldenTickPromo />
                             </div>
                         )}
 
+                        {isLockedForGuest ? (
+                            <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-800 p-8 mb-6 text-center">
+                                <div className="mx-auto w-16 h-16 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mb-4">
+                                    <Lock className="w-8 h-8 text-zinc-500 dark:text-zinc-400" />
+                                </div>
+                                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                                    این حساب کاربری خصوصی است
+                                </h2>
+                                <p className="text-gray-500 dark:text-gray-400 text-sm max-w-md mx-auto">
+                                    برای دیدن پست‌های {profile.full_name || profile.username}، وارد ویستا شو و درخواست دنبال کردن بده.
+                                </p>
+                            </div>
+                        ) : (
+                        <>
                         {/* Tabs */}
                         <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-800 mb-6">
                             <div className="flex border-b border-zinc-200 dark:border-zinc-800">
@@ -217,9 +238,22 @@ export default function ProfileTabsUI({ profile, posts, musicPosts, isRtl }: {
                                 )
                             )}
                         </div>
+                        </>
+                        )}
                     </div>
                 </main>
             </div>
+
+            {isGuest && (
+                <GuestJoinBanner
+                    title={`${profile.full_name || profile.username} توی ویستاست`}
+                    description={
+                        isLockedForGuest
+                            ? 'برای دنبال کردن و دیدن پست‌ها، وارد ویستا شو'
+                            : 'ثبت‌نام کن تا پست‌ها رو لایک کنی و با این کاربر در ارتباط باشی'
+                    }
+                />
+            )}
 
             {/* Settings Drawer - Mobile Only */}
             <SettingsDrawer

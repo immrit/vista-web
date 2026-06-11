@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/Button'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { PostWithProfile, Profile } from '@/lib/types'
-import { profileApi } from '@/lib/backendApi'
+import { profileApi, postApi } from '@/lib/backendApi'
 import { Navigation } from '@/components/ui/Navigation'
 import { PostCard } from '@/components/ui/PostCard'
 import { Bell } from 'lucide-react'
@@ -15,6 +15,41 @@ import { PostErrorBoundary } from '@/components/ErrorBoundary'
 import { postPreloader } from '@/lib/preloader/PostPreloader'
 import { performanceMonitor } from '@/lib/analytics/PerformanceMonitor'
 import { usePresence } from '@/hooks/usePresence'
+
+function PostVisibilityTracker({ post, children }: { post: PostWithProfile, children: React.ReactNode }) {
+    const ref = useRef<HTMLDivElement>(null)
+    const timerRef = useRef<NodeJS.Timeout | null>(null)
+
+    useEffect(() => {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    if (!timerRef.current) {
+                        timerRef.current = setTimeout(() => {
+                            postApi.feedEvent(post.id, 'view').catch(console.error)
+                        }, 2000)
+                    }
+                } else {
+                    if (timerRef.current) {
+                        clearTimeout(timerRef.current)
+                        timerRef.current = null
+                    }
+                }
+            })
+        }, { threshold: 0.6 })
+
+        if (ref.current) {
+            observer.observe(ref.current)
+        }
+
+        return () => {
+            if (timerRef.current) clearTimeout(timerRef.current)
+            observer.disconnect()
+        }
+    }, [post.id])
+
+    return <div ref={ref}>{children}</div>
+}
 
 export default function FeedPage() {
     const { user, profile, loading } = useAuth()
@@ -264,16 +299,18 @@ export default function FeedPage() {
                             <div className="space-y-4">
                                 {displayPosts.map((post, index) => (
                                     <PostErrorBoundary key={post.id}>
-                                        <div
-                                            onMouseEnter={() => handlePostHover(index)}
-                                        >
-                                            <PostCard
-                                                post={post}
-                                                onUpdate={handlePostUpdate}
-                                                onPostDeleted={handlePostDeleted}
-                                                showComments={user && profile ? true : false}
-                                            />
-                                        </div>
+                                        <PostVisibilityTracker post={post}>
+                                            <div
+                                                onMouseEnter={() => handlePostHover(index)}
+                                            >
+                                                <PostCard
+                                                    post={post}
+                                                    onUpdate={handlePostUpdate}
+                                                    onPostDeleted={handlePostDeleted}
+                                                    showComments={user && profile ? true : false}
+                                                />
+                                            </div>
+                                        </PostVisibilityTracker>
                                     </PostErrorBoundary>
                                 ))}
 

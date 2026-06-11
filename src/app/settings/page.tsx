@@ -13,6 +13,8 @@ import { SubscriptionStatus } from '@/components/ui/SubscriptionStatus';
 import { useSubscription } from '@/hooks/useSubscription';
 import EnamadBadge from '@/components/ui/EnamadBadge';
 import ActiveSessionsPanel from '@/components/settings/ActiveSessionsPanel';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { profileApi } from '@/lib/backendApi';
 import {
     Trash2,
     Save,
@@ -46,6 +48,7 @@ export default function SettingsPage() {
     const { user, profile, loading, updateProfile, sendDeleteCode, verifyDeleteCode } = useAuth();
     const router = useRouter();
     const subscription = useSubscription();
+    const queryClient = useQueryClient();
 
     const [currentSection, setCurrentSection] = useState<SettingsSection>('main');
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -108,6 +111,64 @@ export default function SettingsPage() {
             });
         }
     }, [profile]);
+
+    // Fetch initial settings
+    const { data: userSettings } = useQuery({
+        queryKey: ['userSettings', user?.id],
+        queryFn: () => profileApi.getUserSettings(),
+        enabled: !!user,
+    });
+    
+    const { data: privacySettings } = useQuery({
+        queryKey: ['privacySettings', user?.id],
+        queryFn: () => profileApi.getPrivacySettings(),
+        enabled: !!user,
+    });
+
+    const { data: notificationSettings } = useQuery({
+        queryKey: ['notificationSettings', user?.id],
+        queryFn: () => profileApi.getNotificationSettings(),
+        enabled: !!user,
+    });
+
+    useEffect(() => {
+        if (userSettings || privacySettings || notificationSettings) {
+            setSettings(prev => ({
+                ...prev,
+                notifications: {
+                    ...prev.notifications,
+                    ...(notificationSettings || {})
+                },
+                privacy: {
+                    ...prev.privacy,
+                    ...(privacySettings || {})
+                },
+                appearance: {
+                    ...prev.appearance,
+                    ...(userSettings?.appearance || {})
+                },
+                security: {
+                    ...prev.security,
+                    ...(userSettings?.security || {})
+                }
+            }));
+        }
+    }, [userSettings, privacySettings, notificationSettings]);
+
+    const savePrivacyMutation = useMutation({
+        mutationFn: (newSettings: any) => profileApi.updatePrivacySettings(newSettings),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['privacySettings', user?.id] })
+    });
+    
+    const saveUserSettingsMutation = useMutation({
+        mutationFn: (newSettings: any) => profileApi.updateUserSettings(newSettings),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['userSettings', user?.id] })
+    });
+    
+    const saveNotificationSettingsMutation = useMutation({
+        mutationFn: (newSettings: any) => profileApi.updateNotificationSettings(newSettings),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notificationSettings', user?.id] })
+    });
 
     // Wait for hydration before checking auth
     const [isHydrated, setIsHydrated] = useState(false);
@@ -220,7 +281,16 @@ export default function SettingsPage() {
         try {
             setError(null);
             setSuccess(null);
-            console.log('Saving settings:', settings);
+            
+            await Promise.all([
+                savePrivacyMutation.mutateAsync(settings.privacy),
+                saveUserSettingsMutation.mutateAsync({
+                    appearance: settings.appearance,
+                    security: settings.security
+                }),
+                saveNotificationSettingsMutation.mutateAsync(settings.notifications)
+            ]);
+
             setSuccess('تنظیمات با موفقیت ذخیره شد');
         } catch (err) {
             setError(err instanceof Error ? err.message : 'خطا در ذخیره تنظیمات');

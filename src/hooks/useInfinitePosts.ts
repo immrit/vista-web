@@ -1,11 +1,11 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { postCache } from '@/lib/cache/PostCache';
 import { postApi } from '@/lib/backendApi';
 import { PostWithProfile } from '@/lib/types';
 
 interface PostsResponse {
   posts: PostWithProfile[];
-  nextPage: number | undefined;
+  nextCursor?: string;
+  hasMore: boolean;
 }
 
 const POSTS_PER_PAGE = 10;
@@ -13,22 +13,18 @@ const POSTS_PER_PAGE = 10;
 export function useInfinitePosts() {
   return useInfiniteQuery<PostsResponse, Error>({
     queryKey: ['posts', 'infinite'],
-    queryFn: async ({ pageParam = 0 }) => {
-      const page = pageParam as number;
-      const cacheKey = `posts:page:${page}:size:${POSTS_PER_PAGE}`;
-
-      const data = await postCache.get<PostWithProfile[]>(cacheKey, async () => {
-        const response = await postApi.feed(POSTS_PER_PAGE, page * POSTS_PER_PAGE);
-        return response.posts;
-      });
+    queryFn: async ({ pageParam }) => {
+      const cursor = pageParam as string | undefined;
+      const response = await postApi.explore(POSTS_PER_PAGE, cursor);
 
       return {
-        posts: data,
-        nextPage: data.length === POSTS_PER_PAGE ? page + 1 : undefined,
+        posts: response.posts,
+        nextCursor: response.nextCursor,
+        hasMore: response.hasMore,
       };
     },
-    getNextPageParam: (lastPage) => lastPage.nextPage,
-    initialPageParam: 0,
+    getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.nextCursor : undefined),
+    initialPageParam: undefined,
     staleTime: 5 * 60 * 1000, // 5 دقیقه
     gcTime: 10 * 60 * 1000, // 10 دقیقه
   });

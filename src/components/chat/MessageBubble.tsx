@@ -62,8 +62,27 @@ export function MessageBubble({
                                 : 'bg-gray-100 dark:bg-zinc-800 text-gray-900 dark:text-white rounded-bl-none'
                         )}
                     >
+                        {/* Media Attachment */}
+                        {message.attachmentUrl && (
+                            <div className="mb-2">
+                                {message.attachmentType === 'image' ? (
+                                    <img src={message.attachmentUrl} alt="attachment" className="rounded-lg max-w-full h-auto max-h-60 object-cover" />
+                                ) : message.attachmentType === 'video' ? (
+                                    <video src={message.attachmentUrl} controls className="rounded-lg max-w-full h-auto max-h-60" />
+                                ) : message.attachmentType === 'audio' ? (
+                                    <audio src={message.attachmentUrl} controls className="max-w-full" />
+                                ) : (
+                                    <a href={message.attachmentUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 underline" style={{ color: 'inherit' }}>
+                                        📎 دانلود فایل
+                                    </a>
+                                )}
+                            </div>
+                        )}
+
                         {/* Message Content */}
-                        <p className="text-sm sm:text-base leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                        {message.content && (
+                            <p className="text-sm sm:text-base leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                        )}
 
                         {/* Time & Status */}
                         <div

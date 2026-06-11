@@ -72,7 +72,7 @@ export default function ExplorePage() {
   const fetchPopularPosts = async () => {
     setIsSearching(true);
     try {
-      const data = await postApi.explore(20, 0);
+      const data = await postApi.explore(20);
       setSearchResults(data.posts);
       setUsers([]);
       setHashtags([]);
@@ -101,7 +101,7 @@ export default function ExplorePage() {
       }
 
       const [posts, matchedUsers, matchedTags] = await Promise.all([
-        postApi.explore(50, 0),
+        postApi.explore(50),
         profileApi.search(query, 20),
         postApi.searchHashtags(query, 20),
       ]);
