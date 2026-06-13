@@ -157,8 +157,8 @@ export function middleware(request: NextRequest) {
     if (!token && !refreshToken) {
       const loginUrl = new URL('/auth', request.url);
       loginUrl.searchParams.set('next', pathname);
-      const res = NextResponse.redirect(loginUrl);
-      return applySecurityHeaders(res);
+      const redirectRes = NextResponse.redirect(loginUrl);
+      return applySecurityHeaders(redirectRes);
     }
   }
 

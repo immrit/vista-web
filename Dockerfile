@@ -1,16 +1,53 @@
-# Override at build time:
-# docker compose build --build-arg NODE_IMAGE=docker.arvancloud.ir/node:22-slim
-ARG NODE_IMAGE=node:22-slim
-
-FROM ${NODE_IMAGE} AS deps
+FROM node:20-slim AS deps
 WORKDIR /app
 
 COPY package.json package-lock.json .npmrc ./
 ENV NODE_OPTIONS="--max_old_space_size=1536"
-RUN npm ci --no-audit --no-fund
 
-ARG NODE_IMAGE=node:22-slim
-FROM ${NODE_IMAGE} AS builder
+# Fix .npmrc: Next.js needs optional dependencies for its SWC compiler!
+RUN sed -i '/optional=false/d' .npmrc
+
+# ==========================================
+# Automated Smart Mirror Fallback Script
+# ==========================================
+RUN set -e; \
+    MIRRORS="\
+      https://package-mirror.liara.ir/repository/npm/ \
+      https://mirror-npm.runflare.com/ \
+      https://mirror-abrha.net/repository/npm/ \
+      https://npm.devneeds.ir/ \
+      https://mirrors.tencent.com/npm/ \
+      https://mirrors.huaweicloud.com/repository/npm/ \
+      https://registry.npmmirror.com/ \
+      https://registry.npmjs.org/ \
+    "; \
+    SUCCESS=0; \
+    cp package-lock.json package-lock.json.bak; \
+    for MIRROR in $MIRRORS; do \
+        echo "=========================================="; \
+        echo "🚀 Testing NPM Mirror: $MIRROR"; \
+        echo "=========================================="; \
+        cp package-lock.json.bak package-lock.json; \
+        sed -i "s|https://registry.npmjs.org/|$MIRROR|g; s|https://registry.npmmirror.com/|$MIRROR|g; s|https://package-mirror.liara.ir/repository/npm/|$MIRROR|g" package-lock.json; \
+        if npm ci --no-audit --no-fund --registry=$MIRROR --fetch-timeout=30000 --fetch-retries=1; then \
+            if [ -f "node_modules/.bin/next" ]; then \
+                echo "✅ SUCCESS: Installed all packages and verified Next.js executable using $MIRROR"; \
+                SUCCESS=1; \
+                break; \
+            else \
+                echo "❌ WARNING: $MIRROR installed successfully but Next.js executable (.bin/next) is MISSING! Skipping fake package..."; \
+            fi; \
+        else \
+            echo "❌ FAILED: $MIRROR is blocked, rate-limited or slow. Switching to next..."; \
+        fi; \
+        rm -rf node_modules; \
+    done; \
+    if [ $SUCCESS -eq 0 ]; then \
+        echo "🚨 CRITICAL ERROR: All 8 mirrors failed or provided corrupted packages!"; \
+        exit 1; \
+    fi
+
+FROM node:20-slim AS builder
 WORKDIR /app
 
 ARG NEXT_PUBLIC_API_URL=https://api.coffevista.ir
@@ -29,12 +66,13 @@ ENV NODE_ENV=production \
     ENCRYPTION_KEY=${ENCRYPTION_KEY} \
     CSRF_SECRET=${CSRF_SECRET}
 
-COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+COPY --from=deps /app/node_modules ./node_modules
+
+# Run standard npm build script which executes local next directly without fetching network
 RUN npm run build
 
-ARG NODE_IMAGE=node:22-slim
-FROM ${NODE_IMAGE} AS runner
+FROM node:20-slim AS runner
 WORKDIR /app
 
 ARG NEXT_PUBLIC_API_URL=https://api.coffevista.ir
