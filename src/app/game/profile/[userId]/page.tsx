@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { ArrowRight, Trophy, Crown, Loader2, Flag } from 'lucide-react'
+import { Avatar } from '@/components/ui/Avatar'
 import { apiClient } from '@/lib/apiClient'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -77,7 +78,7 @@ export default function PublicGameProfilePage() {
           <div className="bg-gradient-to-b from-[#1b73b5] to-[#114b82] pt-10 pb-8 px-4 flex flex-col items-center border-b border-white/10">
             <div className="relative">
               <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-[#3ca2ea] bg-white shadow-xl">
-                <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                <Avatar src={avatarUrl} alt="Avatar" className="w-full h-full" />
               </div>
               <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-[#78c02c] text-white text-sm font-black px-5 py-1.5 rounded-full shadow-lg border-2 border-white whitespace-nowrap">
                 سطح {profile.level}

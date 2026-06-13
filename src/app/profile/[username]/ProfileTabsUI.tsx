@@ -1,313 +1,272 @@
-"use client";
-import { PostWithProfile, Profile } from '@/lib/types';
-import { Music, MessageSquare, Heart, Settings, Lock } from 'lucide-react';
-import { useState } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { useRouter } from 'next/navigation';
-import { PostCard } from '@/components/ui/PostCard';
-import { Button } from '@/components/ui/Button';
-import GoldenTickPromo from '@/components/ui/GoldenTickPromo';
-import GoldenTickBadge from '@/components/ui/GoldenTickBadge';
-import SettingsDrawer from '@/components/ui/SettingsDrawer';
-import GoldenTickModal from '@/components/ui/GoldenTickModal';
-import { GuestJoinBanner } from '@/components/ui/GuestJoinBanner';
-import { GuestShareHeader } from '@/components/ui/GuestShareHeader';
+'use client'
+
+import { PostWithProfile, Profile } from '@/lib/types'
+import { Grid3X3, Clapperboard, Music, MessageSquare, Share2, Settings, Lock, UserPlus, UserMinus } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { useAuth } from '@/hooks/useAuth'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { PostCard } from '@/components/ui/PostCard'
+import { ThoughtBubble } from '@/components/notes/ThoughtBubble'
+import { NoteInputSheet } from '@/components/notes/NoteInputSheet'
+import { useCurrentUserNote, useBatchNotes } from '@/hooks/useStories'
+import { followApi } from '@/lib/socialApi'
+import { cn } from '@/lib/theme/cn'
+import { toast } from 'sonner'
+import { MobileTopBar } from '@/components/layout/MobileTopBar'
+import { GuestJoinBanner } from '@/components/ui/GuestJoinBanner'
+import { GuestShareHeader } from '@/components/ui/GuestShareHeader'
+import { NoteViewerSheet } from '@/components/notes/NoteViewerSheet'
 
 export default function ProfileTabsUI({ profile, posts, musicPosts, isRtl }: {
-    profile: Profile;
-    posts: PostWithProfile[];
-    musicPosts: PostWithProfile[];
-    isRtl: boolean;
+  profile: Profile
+  posts: PostWithProfile[]
+  musicPosts: PostWithProfile[]
+  isRtl: boolean
 }) {
-    const [activeTab, setActiveTab] = useState<'posts' | 'music'>('posts');
-    const [localPosts, setLocalPosts] = useState(posts);
-    const [localMusicPosts, setLocalMusicPosts] = useState(musicPosts);
-    const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
-    const [showGoldenTickModal, setShowGoldenTickModal] = useState(false);
-    const [isPurchasing, setIsPurchasing] = useState(false);
-    const { user, signOut, loading: authLoading } = useAuth();
-    const router = useRouter();
+  const [activeTab, setActiveTab] = useState<'posts' | 'reels' | 'music'>('posts')
+  const [localPosts, setLocalPosts] = useState(posts)
+  const [followStatus, setFollowStatus] = useState<string>((profile as Record<string, unknown>).follow_status as string || 'none')
+  const [showNoteSheet, setShowNoteSheet] = useState(false)
+  const [showNoteViewer, setShowNoteViewer] = useState(false)
+  const { user, loading: authLoading } = useAuth()
+  const { note: myNote } = useCurrentUserNote()
+  const { data: profileNotes = {} } = useBatchNotes([profile.id])
+  const profileNote = profileNotes[profile.id]
+  const router = useRouter()
 
-    const isGuest = !authLoading && !user;
-    const isPrivateProfile = Boolean(profile.is_private);
-    const isLockedForGuest = isGuest && isPrivateProfile;
+  const isGuest = !authLoading && !user
+  const isOwnProfile = user?.id === profile.id
+  const isPrivate = Boolean(profile.is_private)
+  const isLocked = isPrivate && followStatus !== 'following' && !isOwnProfile
+  const reelPosts = localPosts.filter(p => p.video_url)
 
-    // Check if the current user is viewing their own profile
-    const isOwnProfile = user?.id === profile.id;
+  const tabs = [
+    { id: 'posts' as const, icon: Grid3X3, label: 'پست‌ها' },
+    { id: 'reels' as const, icon: Clapperboard, label: 'Reels' },
+    { id: 'music' as const, icon: Music, label: 'موزیک' },
+  ]
 
-    // Get current verification status
-    const hasGoldenTick = profile?.verification_type === 'goldTick' || profile?.verification_type === 'premium';
+  const handleFollow = async () => {
+    try {
+      if (followStatus === 'following') {
+        await followApi.unfollow(profile.id)
+        setFollowStatus('none')
+        toast.success('لغو دنبال کردن')
+      } else {
+        const res = await followApi.follow(profile.id)
+        setFollowStatus(res.status || 'following')
+        toast.success(res.status === 'requested' ? 'درخواست ارسال شد' : 'دنبال شد')
+      }
+    } catch {
+      toast.error('خطا')
+    }
+  }
 
-    const handlePostUpdate = (updatedPost: PostWithProfile) => {
-        setLocalPosts(prevPosts =>
-            prevPosts.map(post =>
-                post.id === updatedPost.id ? updatedPost : post
-            )
-        );
-        setLocalMusicPosts(prevPosts =>
-            prevPosts.map(post =>
-                post.id === updatedPost.id ? updatedPost : post
-            )
-        );
-    };
+  const displayNote = isOwnProfile ? myNote : profileNote
 
-    const handleLogout = async () => {
-        try {
-            await signOut();
-            router.push('/auth');
-        } catch (error) {
-            console.error('Error signing out:', error);
-        }
-    };
+  const handleNoteClick = () => {
+    if (isOwnProfile) setShowNoteSheet(true)
+    else if (profileNote?.content) setShowNoteViewer(true)
+  }
 
-    return (
-        <>
-            {isGuest && <GuestShareHeader />}
-            <div className={`min-h-screen dark:bg-zinc-950 bg-gray-50 flex flex-col md:flex-row relative ${isGuest ? 'pb-28' : ''}`} dir={isRtl ? 'rtl' : 'ltr'}>
-                <main className={`flex-1 flex flex-col items-center px-2 sm:px-4 md:px-8 py-8 ${isGuest ? 'pt-4 pb-8' : 'pb-20 md:pb-8 pt-16 md:pt-8'}`}>
-                    <div className="w-full max-w-4xl mx-auto">
-                        {/* Profile Header */}
-                        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-800 p-6 mb-6">
-                            <div className="flex flex-col md:flex-row gap-6">
-                                {/* Avatar Section */}
-                                <div className="flex flex-col items-center md:items-start">
-                                    <div className="relative">
-                                        {profile.avatar_url ? (
-                                            <img
-                                                src={profile.avatar_url}
-                                                alt="آواتار"
-                                                className="w-32 h-32 rounded-full object-cover border-4 border-zinc-200 dark:border-zinc-700"
-                                            />
-                                        ) : (
-                                            <div className="w-32 h-32 rounded-full bg-zinc-300 dark:bg-zinc-700 flex items-center justify-center text-4xl font-bold text-zinc-600 dark:text-zinc-300 border-4 border-zinc-200 dark:border-zinc-700">
-                                                {profile.full_name?.charAt(0) || profile.username?.charAt(0) || '👤'}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                                {/* Profile Info */}
-                                <div className="flex-1">
-                                    <div className="flex items-start justify-between">
-                                        <div>
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                                                    {profile.full_name || profile.username}
-                                                </h1>
-                                                {hasGoldenTick && <GoldenTickBadge size="lg" />}
-                                            </div>
-                                            <p className="text-gray-500 dark:text-gray-400 mb-3">@{profile.username}</p>
-                                        </div>
-                                        {isOwnProfile && (
-                                            <div className="flex gap-2">
-                                                {/* Settings button - visible on mobile */}
-                                                <Button
-                                                    onClick={() => setShowSettingsDrawer(true)}
-                                                    variant="outline"
-                                                    className="flex items-center gap-2 md:hidden"
-                                                >
-                                                    <Settings className="w-4 h-4" />
-                                                </Button>
-                                                {/* Edit Profile button - visible on desktop */}
-                                                <Button
-                                                    onClick={() => router.push('/settings')}
-                                                    variant="outline"
-                                                    className="hidden md:flex items-center gap-2"
-                                                >
-                                                    <Settings className="w-4 h-4" />
-                                                    ویرایش مشخصات
-                                                </Button>
-                                            </div>
-                                        )}
-                                    </div>
-                                    {profile.bio && (
-                                        <p className="text-gray-700 dark:text-gray-300 mb-4 whitespace-pre-line">
-                                            {profile.bio}
-                                        </p>
-                                    )}
-                                    {/* Join Date */}
-                                    {profile.created_at && (
-                                        <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 mb-4">
-                                            <span>عضویت از {new Date(profile.created_at).toLocaleDateString('fa-IR')}</span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
+  return (
+    <>
+      {isGuest && <GuestShareHeader />}
+      {!isGuest && <MobileTopBar title={profile.username || ''} showLogo={false} showNotifications={false}>
+        <span className="font-bold">@{profile.username}</span>
+      </MobileTopBar>}
 
-                        {/* Golden Tick CTA - Show for own profile without golden tick */}
-                        {isOwnProfile && !hasGoldenTick && (
-                            <div className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-2xl border border-amber-200 dark:border-amber-800 p-6">
-                                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                                    <div className="flex-1 text-center md:text-right">
-                                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
-                                            تیک طلایی ویستا
-                                        </h3>
-                                        <p className="text-gray-600 dark:text-gray-400 text-sm">
-                                            با خرید تیک طلایی، اعتبار و ویژگی‌های بیشتری کسب کنید
-                                        </p>
-                                    </div>
-                                    <Button
-                                        onClick={() => setShowGoldenTickModal(true)}
-                                        className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
-                                    >
-                                        خرید تیک طلایی
-                                    </Button>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Golden Tick Promo - Show for users without golden tick (fallback) */}
-                        {!hasGoldenTick && !isOwnProfile && !isLockedForGuest && (
-                            <div className="mb-6">
-                                <GoldenTickPromo />
-                            </div>
-                        )}
-
-                        {isLockedForGuest ? (
-                            <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-800 p-8 mb-6 text-center">
-                                <div className="mx-auto w-16 h-16 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mb-4">
-                                    <Lock className="w-8 h-8 text-zinc-500 dark:text-zinc-400" />
-                                </div>
-                                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                                    این حساب کاربری خصوصی است
-                                </h2>
-                                <p className="text-gray-500 dark:text-gray-400 text-sm max-w-md mx-auto">
-                                    برای دیدن پست‌های {profile.full_name || profile.username}، وارد ویستا شو و درخواست دنبال کردن بده.
-                                </p>
-                            </div>
-                        ) : (
-                        <>
-                        {/* Tabs */}
-                        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-800 mb-6">
-                            <div className="flex border-b border-zinc-200 dark:border-zinc-800">
-                                <button
-                                    onClick={() => setActiveTab('posts')}
-                                    className={`flex-1 py-4 px-6 text-center font-medium transition ${activeTab === 'posts'
-                                        ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50 dark:bg-blue-900/20'
-                                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                                        }`}
-                                >
-                                    پست‌ها ({localPosts.length})
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab('music')}
-                                    className={`flex-1 py-4 px-6 text-center font-medium transition flex items-center justify-center gap-2 ${activeTab === 'music'
-                                        ? 'text-purple-600 border-b-2 border-purple-600 bg-purple-50 dark:bg-purple-900/20'
-                                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                                        }`}
-                                >
-                                    <Music className="w-4 h-4" />
-                                    موزیک ({localMusicPosts.length})
-                                </button>
-                            </div>
-                        </div>
-                        {/* Posts Content */}
-                        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-800 p-6">
-                            {activeTab === 'posts' ? (
-                                localPosts.length === 0 ? (
-                                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                                        هنوز پستی منتشر نکرده است.
-                                    </div>
-                                ) : (
-                                    <div className="space-y-6">
-                                        {localPosts.map(post => (
-                                            <PostCard
-                                                key={post.id}
-                                                post={post}
-                                                onUpdate={handlePostUpdate}
-                                            />
-                                        ))}
-                                    </div>
-                                )
-                            ) : (
-                                localMusicPosts.length === 0 ? (
-                                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                                        <Music className="w-12 h-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
-                                        هنوز موزیکی منتشر نکرده است.
-                                    </div>
-                                ) : (
-                                    <div className="space-y-6">
-                                        {localMusicPosts.map(post => (
-                                            <PostCard
-                                                key={post.id}
-                                                post={post}
-                                                onUpdate={handlePostUpdate}
-                                            />
-                                        ))}
-                                    </div>
-                                )
-                            )}
-                        </div>
-                        </>
-                        )}
+      <div className={cn('min-h-screen pb-bottom-nav lg:pb-0', isGuest && 'pb-28')} dir={isRtl ? 'rtl' : 'ltr'}>
+        <div className="feed-container lg:pt-6">
+          {/* Header */}
+          <div className="px-4 py-6 lg:glass-card lg:rounded-2xl lg:mb-4">
+            <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start">
+              {/* Avatar + Note */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={handleNoteClick}
+                  className="relative block"
+                >
+                  {profile.avatar_url ? (
+                    <img src={profile.avatar_url} alt="" className="w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover ring-4 ring-vista-primary/20" />
+                  ) : (
+                    <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-vista-gradient flex items-center justify-center text-white text-3xl font-bold">
+                      {(profile.full_name || profile.username || 'و').charAt(0)}
                     </div>
-                </main>
+                  )}
+                  {displayNote && (
+                    <ThoughtBubble note={displayNote} onClick={handleNoteClick} />
+                  )}
+                </button>
+              </div>
+
+              {/* Stats + Info */}
+              <div className="flex-1 w-full text-center sm:text-right">
+                <div className="flex items-center justify-center sm:justify-start gap-2 mb-1">
+                  <h1 className="text-xl font-bold">{profile.full_name || profile.username}</h1>
+                  {profile.is_verified && (
+                    <span className="text-vista-primary text-sm">✓</span>
+                  )}
+                  {isPrivate && <Lock className="w-4 h-4 text-vista-text-secondary" />}
+                </div>
+                <p className="text-vista-text-secondary text-sm mb-4">@{profile.username}</p>
+
+                {/* Stats row */}
+                <div className="flex justify-center sm:justify-start gap-8 mb-4">
+                  {[
+                    { n: profile.posts_count || localPosts.length, l: 'پست' },
+                    { n: profile.followers_count || 0, l: 'دنبال‌کننده' },
+                    { n: profile.following_count || 0, l: 'دنبال‌شونده' },
+                  ].map(({ n, l }) => (
+                    <div key={l} className="text-center">
+                      <p className="font-bold text-lg">{n.toLocaleString('fa-IR')}</p>
+                      <p className="text-xs text-vista-text-secondary">{l}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {profile.bio && (
+                  <p className="text-sm leading-relaxed mb-4 max-w-md">{profile.bio}</p>
+                )}
+
+                {/* Actions */}
+                <div className="flex gap-2 justify-center sm:justify-start flex-wrap">
+                  {isOwnProfile ? (
+                    <>
+                      <Link href="/settings/account" className="px-5 py-2 rounded-2xl border border-vista-border dark:border-vista-border-dark font-semibold text-sm hover:bg-vista-surface-variant dark:hover:bg-vista-surface-variant-dark transition-colors">
+                        ویرایش پروفایل
+                      </Link>
+                      <Link href="/settings" className="p-2 rounded-2xl border border-vista-border dark:border-vista-border-dark hover:bg-vista-surface-variant transition-colors">
+                        <Settings className="w-5 h-5" />
+                      </Link>
+                    </>
+                  ) : !isGuest ? (
+                    <>
+                      <button onClick={handleFollow} className={cn(
+                        'px-5 py-2 rounded-2xl font-semibold text-sm transition-colors',
+                        followStatus === 'following'
+                          ? 'border border-vista-border dark:border-vista-border-dark'
+                          : 'bg-vista-gradient text-white'
+                      )}>
+                        {followStatus === 'following' ? (
+                          <span className="flex items-center gap-1"><UserMinus className="w-4 h-4" /> دنبال می‌کنید</span>
+                        ) : followStatus === 'requested' ? (
+                          'درخواست ارسال شد'
+                        ) : (
+                          <span className="flex items-center gap-1"><UserPlus className="w-4 h-4" /> دنبال کردن</span>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => router.push(`/messages?user=${profile.id}`)}
+                        className="px-5 py-2 rounded-2xl border border-vista-border dark:border-vista-border-dark font-semibold text-sm flex items-center gap-1"
+                      >
+                        <MessageSquare className="w-4 h-4" /> پیام
+                      </button>
+                      <button className="p-2 rounded-2xl border border-vista-border dark:border-vista-border-dark">
+                        <Share2 className="w-5 h-5" />
+                      </button>
+                    </>
+                  ) : null}
+                </div>
+              </div>
             </div>
+          </div>
 
-            {isGuest && (
-                <GuestJoinBanner
-                    title={`${profile.full_name || profile.username} توی ویستاست`}
-                    description={
-                        isLockedForGuest
-                            ? 'برای دنبال کردن و دیدن پست‌ها، وارد ویستا شو'
-                            : 'ثبت‌نام کن تا پست‌ها رو لایک کنی و با این کاربر در ارتباط باشی'
-                    }
-                />
+          {/* Tabs */}
+          <div className="sticky top-0 z-20 bg-vista-bg/90 dark:bg-vista-bg-dark/90 backdrop-blur-xl border-b border-vista-border dark:border-vista-border-dark">
+            <div className="flex">
+              {tabs.map(({ id, icon: Icon, label }) => (
+                <button
+                  key={id}
+                  onClick={() => setActiveTab(id)}
+                  className={cn(
+                    'flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-medium transition-colors relative',
+                    activeTab === id ? 'text-vista-primary' : 'text-vista-text-secondary'
+                  )}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span className="hidden sm:inline">{label}</span>
+                  {activeTab === id && (
+                    <span className="absolute bottom-0 inset-x-4 h-0.5 bg-vista-gradient rounded-full" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="px-2 py-4">
+            {isLocked ? (
+              <div className="text-center py-16">
+                <Lock className="w-12 h-12 mx-auto mb-4 text-vista-text-secondary" />
+                <p className="font-semibold">حساب خصوصی</p>
+                <p className="text-sm text-vista-text-secondary mt-1">برای مشاهده پست‌ها این کاربر را دنبال کنید</p>
+              </div>
+            ) : activeTab === 'posts' ? (
+              localPosts.length === 0 ? (
+                <EmptyTab label="پستی وجود ندارد" />
+              ) : (
+                <div className="grid grid-cols-3 gap-0.5 sm:gap-1">
+                  {localPosts.map(post => (
+                    <Link key={post.id} href={`/post/${post.id}`} className="aspect-square relative overflow-hidden bg-vista-surface-variant dark:bg-vista-surface-variant-dark group">
+                      {post.image_url ? (
+                        <img src={post.image_url} alt="" className="w-full h-full object-cover group-hover:opacity-90 transition-opacity" />
+                      ) : post.video_url ? (
+                        <video src={post.video_url} className="w-full h-full object-cover" muted />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center p-2 text-xs text-center line-clamp-4">{post.content}</div>
+                      )}
+                    </Link>
+                  ))}
+                </div>
+              )
+            ) : activeTab === 'reels' ? (
+              reelPosts.length === 0 ? (
+                <EmptyTab label="Reels وجود ندارد" />
+              ) : (
+                <div className="grid grid-cols-3 gap-0.5 sm:gap-1">
+                  {reelPosts.map(post => (
+                    <Link key={post.id} href={`/post/${post.id}`} className="aspect-[9/16] relative overflow-hidden bg-black">
+                      <video src={post.video_url!} className="w-full h-full object-cover" muted />
+                    </Link>
+                  ))}
+                </div>
+              )
+            ) : musicPosts.length === 0 ? (
+              <EmptyTab label="پست موزیکی وجود ندارد" />
+            ) : (
+              <div className="space-y-3">
+                {musicPosts.map(post => (
+                  <PostCard key={post.id} post={post} onUpdate={p => setLocalPosts(prev => prev.map(x => x.id === p.id ? p : x))} />
+                ))}
+              </div>
             )}
+          </div>
+        </div>
+      </div>
 
-            {/* Settings Drawer - Mobile Only */}
-            <SettingsDrawer
-                isOpen={showSettingsDrawer}
-                onClose={() => setShowSettingsDrawer(false)}
-                onLogout={handleLogout}
-            />
+      {isGuest && <GuestJoinBanner />}
+      {isOwnProfile && <NoteInputSheet isOpen={showNoteSheet} onClose={() => setShowNoteSheet(false)} />}
+      {!isOwnProfile && (
+        <NoteViewerSheet
+          note={profileNote}
+          username={profile.username}
+          avatarUrl={profile.avatar_url}
+          isOpen={showNoteViewer}
+          onClose={() => setShowNoteViewer(false)}
+          onReply={() => router.push(`/messages?user=${profile.id}`)}
+        />
+      )}
+    </>
+  )
+}
 
-            {/* Golden Tick Modal */}
-            <GoldenTickModal
-                isOpen={showGoldenTickModal}
-                onClose={() => setShowGoldenTickModal(false)}
-                onPurchase={async (plan) => {
-                    if (!user) return
-
-                    setIsPurchasing(true)
-                    try {
-            const planData = plan === 'monthly'
-                ? { price: 99000, name: 'ماهانه' }
-                : { price: 899000, name: 'سالانه' }
-
-                        // ذخیره plan در localStorage برای استفاده در callback
-                        localStorage.setItem('payment_plan', plan)
-
-                        // Create payment request
-                        const response = await fetch('/api/payment/create', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({
-                                userId: user.id,
-                                plan,
-                                amount: planData.price
-                            }),
-                        })
-
-                        const data = await response.json()
-
-                        if (response.ok && data.success && data.paymentUrl) {
-                            // Redirect to payment URL
-                            window.location.href = data.paymentUrl
-                        } else {
-                            alert(data.error || 'خطا در ایجاد درخواست پرداخت')
-                            setIsPurchasing(false)
-                        }
-                    } catch (error) {
-                        console.error('Error creating payment:', error)
-                        alert('خطا در ایجاد درخواست پرداخت')
-                        setIsPurchasing(false)
-                    }
-                }}
-                isLoading={isPurchasing}
-            />
-        </>
-    );
-} 
+function EmptyTab({ label }: { label: string }) {
+  return (
+    <div className="text-center py-16 text-vista-text-secondary">
+      <p>{label}</p>
+    </div>
+  )
+}

@@ -1,15 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/apiClient';
 import { ConversationList } from '@/components/chat/ConversationList';
 import { ChatWindow } from '@/components/chat/ChatWindow';
-import { cn } from '@/lib/utils';
-
-const conversationsCache = new Map<string, { data: ConversationListItem[]; timestamp: number }>();
-const CACHE_TTL = 2 * 60 * 1000;
+import { NotesTray } from '@/components/notes/NotesTray';
+import { ConnectionBanner } from '@/components/chat/ConnectionBanner';
+import { cn } from '@/lib/theme/cn';
+import { Plus, Search, ArrowRight } from 'lucide-react';
+import Link from 'next/link';
+import { getChatWebSocket } from '@/lib/chat/chatWebSocket';
 
 interface ConversationListItem {
   id: string;
@@ -24,21 +26,20 @@ interface ConversationListItem {
   isOnline?: boolean;
 }
 
-function normalizeConversation(raw: any): ConversationListItem {
-  const peerId = raw.peer_id || raw.other_user_id || 'unknown';
-  const lastMessageTime = raw.last_message_at || raw.last_message_time || raw.updated_at || raw.created_at || null;
-
+function normalizeConversation(raw: Record<string, unknown>): ConversationListItem {
+  const peerId = String(raw.peer_id || raw.other_user_id || 'unknown');
+  const lastMessageTime = (raw.last_message_at || raw.last_message_time || raw.updated_at || raw.created_at || null) as string | null;
   return {
-    id: raw.id,
+    id: String(raw.id),
     otherUserId: peerId,
-    otherUserName: raw.name || raw.other_user_name || raw.peer_name || 'کاربر ناشناس',
-    otherUserUsername: raw.username || raw.other_user_username || raw.peer_username,
-    otherUserAvatar: raw.image || raw.avatar_url || raw.other_user_avatar || null,
-    lastMessage: raw.last_message_text || raw.last_message || null,
+    otherUserName: String(raw.name || raw.other_user_name || raw.peer_name || 'کاربر'),
+    otherUserUsername: (raw.username || raw.other_user_username || raw.peer_username) as string | undefined,
+    otherUserAvatar: (raw.image || raw.avatar_url || raw.other_user_avatar || null) as string | null,
+    lastMessage: (raw.last_message_text || raw.last_message || null) as string | null,
     lastMessageTime,
-    unreadCount: raw.unread_count || 0,
-    updatedAt: raw.updated_at || lastMessageTime || '',
-    isOnline: raw.is_online || false,
+    unreadCount: Number(raw.unread_count || 0),
+    updatedAt: String(raw.updated_at || lastMessageTime || ''),
+    isOnline: Boolean(raw.is_online),
   };
 }
 
@@ -47,173 +48,255 @@ export default function MessagesPage() {
   const { user, loading } = useAuth();
   const [conversations, setConversations] = useState<ConversationListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [showConversationList, setShowConversationList] = useState(true);
+  const [showList, setShowList] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filter, setFilter] = useState<'all' | 'unread'>('all');
 
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+  const loadConversations = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await apiClient.get<{ conversations?: Record<string, unknown>[] }>('/v1/chat/conversations?limit=50');
+      setConversations((data.conversations || []).map(normalizeConversation));
+    } catch {
+      setConversations([]);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    if (isMobile && selectedConversationId) {
-      setShowConversationList(false);
-    }
-  }, [isMobile, selectedConversationId]);
+    const check = () => setIsMobile(window.innerWidth < 1024);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
+  useEffect(() => {
+    if (!loading && !user) router.replace('/auth');
+  }, [user, loading, router]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-
     const params = new URLSearchParams(window.location.search);
-    const conversationId = params.get('conversation');
-    if (!conversationId) return;
-
-    setSelectedConversationId(conversationId);
-    if (isMobile) setShowConversationList(false);
-  }, [isMobile]);
+    const convId = params.get('conversation');
+    const userId = params.get('user');
+    if (convId) {
+      setSelectedId(convId);
+      if (isMobile) setShowList(false);
+    } else if (userId && user) {
+      apiClient.post<{ id: string }>('/v1/chat/conversations', { peer_id: userId })
+        .then(conv => {
+          setSelectedId(conv.id);
+          if (isMobile) setShowList(false);
+          router.replace(`/messages?conversation=${conv.id}`);
+        })
+        .catch(() => {});
+    }
+  }, [isMobile, user, router]);
 
   useEffect(() => {
-    if (loading) return;
+    if (!user) return;
+    void loadConversations();
+  }, [user, loadConversations]);
 
-    if (!user) {
-      router.replace('/auth?redirect=/messages');
-      return;
-    }
+  useEffect(() => {
+    if (!user) return;
+    const ws = getChatWebSocket();
+    if (!ws) return;
 
-    let ignore = false;
-    const cacheKey = `conversations:${user.id}`;
+    return ws.subscribe(event => {
+      if (event.type === 'new_message') {
+        const payload = event.data ?? {};
+        const conversationId = String(payload.conversation_id ?? '');
+        if (!conversationId) return;
 
-    const fetchFreshConversations = async () => {
-      const response = await apiClient.get<any>('/v1/chat/conversations?limit=50');
-      const rawConversations = Array.isArray(response) ? response : response.conversations || [];
-      const normalized = rawConversations.map(normalizeConversation);
+        setConversations(prev => {
+          const idx = prev.findIndex(c => c.id === conversationId);
+          const preview = String(payload.content ?? payload.message_type ?? 'پیام');
+          const time = String(payload.created_at ?? new Date().toISOString());
+          const senderId = String(payload.sender_id ?? '');
 
-      conversationsCache.set(cacheKey, { data: normalized, timestamp: Date.now() });
-      if (!ignore) {
-        setConversations(normalized);
-        setError(null);
-        setIsLoading(false);
+          if (idx === -1) {
+            void loadConversations();
+            return prev;
+          }
+
+          const updated = [...prev];
+          const item = { ...updated[idx] };
+          item.lastMessage = preview;
+          item.lastMessageTime = time;
+          item.updatedAt = time;
+          if (senderId !== user.id && selectedId !== conversationId) {
+            item.unreadCount += 1;
+          }
+          updated[idx] = item;
+          return updated.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+        });
       }
-    };
 
-    const fetchConversations = async () => {
-      try {
-        const cached = conversationsCache.get(cacheKey);
-        const now = Date.now();
+      if (event.type === 'conversation_updated') {
+        void loadConversations();
+      }
 
-        if (cached && now - cached.timestamp < CACHE_TTL) {
-          setConversations(cached.data);
-          setIsLoading(false);
-          setError(null);
-          fetchFreshConversations().catch(console.error);
-          return;
-        }
-
-        setIsLoading(true);
-        await fetchFreshConversations();
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'بارگیری گفتگوها با مشکل مواجه شد.';
-        console.error('Failed to load conversations:', err);
-        if (!ignore) {
-          setError(message);
-          setIsLoading(false);
+      if (event.type === 'read_receipt') {
+        const conversationId = String(event.data?.conversation_id ?? '');
+        const readerId = String(event.data?.user_id ?? '');
+        if (readerId === user.id && conversationId) {
+          setConversations(prev =>
+            prev.map(c => (c.id === conversationId ? { ...c, unreadCount: 0 } : c)),
+          );
         }
       }
-    };
+    });
+  }, [user, selectedId, loadConversations]);
 
-    fetchConversations();
-
-    return () => {
-      ignore = true;
-    };
-  }, [loading, router, user]);
-
-  const activeConversation = selectedConversationId
-    ? conversations.find(conversation => conversation.id === selectedConversationId) ?? {
-      id: selectedConversationId,
-      otherUserId: '',
-      otherUserName: 'گروه ویستا',
-      otherUserAvatar: null,
-      unreadCount: 0,
-      updatedAt: '',
-    }
-    : null;
-
-  const handleBackToList = () => {
-    setSelectedConversationId(null);
-    setShowConversationList(true);
+  const selectConversation = (id: string) => {
+    setSelectedId(id);
+    setConversations(prev => prev.map(c => (c.id === id ? { ...c, unreadCount: 0 } : c)));
+    if (isMobile) setShowList(false);
   };
+
+  const filtered = conversations.filter(c =>
+    !searchQuery ||
+    c.otherUserName.includes(searchQuery) ||
+    c.otherUserUsername?.includes(searchQuery),
+  );
+
+  const peerIds = conversations.map(c => c.otherUserId);
+  const selected = conversations.find(c => c.id === selectedId);
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center p-6">
-        <div className="rounded-xl border border-zinc-200 p-6 text-sm text-gray-500 dark:border-zinc-800 dark:text-gray-400">
-          در حال بررسی حساب کاربری...
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-10 h-10 border-2 border-vista-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
-  if (!user) return null;
-
   return (
-    <div className="fixed inset-0 flex bg-gray-50 dark:bg-zinc-950 overflow-hidden md:right-[220px] md:inset-auto md:left-0 md:top-0 md:bottom-0">
+    <div className="h-[calc(100vh-var(--safe-area-top))] lg:h-screen flex flex-col lg:flex-row">
       <div
         className={cn(
-          'border-l border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900',
-          'md:w-[380px] md:flex-shrink-0',
-          isMobile ? (showConversationList ? 'w-full' : 'hidden') : 'flex flex-col',
+          'flex flex-col border-l border-vista-border dark:border-vista-border-dark bg-vista-bg dark:bg-vista-bg-dark',
+          'w-full lg:w-[380px] shrink-0',
+          isMobile && !showList && 'hidden',
+          isMobile && 'h-full',
         )}
       >
-        {error ? (
-          <div className="m-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
-            {error}
+        <ConnectionBanner />
+
+        <div className="flex items-center justify-between px-4 h-14 border-b border-vista-border dark:border-vista-border-dark">
+          <h1 className="font-bold text-lg">پیام‌ها</h1>
+          <Link
+            href="/messages/create"
+            className="p-2 rounded-full hover:bg-vista-surface-variant dark:hover:bg-vista-surface-variant-dark"
+          >
+            <Plus className="w-5 h-5" />
+          </Link>
+        </div>
+
+        <div className="px-4 py-2 space-y-2">
+          <div className="relative">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-vista-text-secondary" />
+            <input
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="جستجو..."
+              className="input-vista py-2.5 pr-9 text-sm"
+            />
           </div>
-        ) : (
-          <ConversationList
-            conversations={conversations}
-            selectedId={selectedConversationId}
-            onSelect={id => {
-              setSelectedConversationId(id);
-              if (isMobile) setShowConversationList(false);
-              router.replace(`/messages?conversation=${encodeURIComponent(id)}`);
-            }}
-          />
-        )}
+
+          <div className="flex gap-2">
+            {(['all', 'unread'] as const).map(type => (
+              <button
+                key={type}
+                onClick={() => setFilter(type)}
+                className={cn(
+                  'px-3 py-1.5 rounded-full text-xs font-medium transition',
+                  filter === type
+                    ? 'bg-vista-gradient text-white'
+                    : 'bg-vista-surface-variant dark:bg-vista-surface-variant-dark text-vista-text-secondary',
+                )}
+              >
+                {type === 'all' ? 'همه' : 'خوانده‌نشده'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <NotesTray userIds={peerIds} />
+
+        <div className="flex-1 min-h-0 overflow-hidden">
+          {isLoading ? (
+            <div className="flex justify-center py-12">
+              <div className="w-8 h-8 border-2 border-vista-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : (
+            <ConversationList
+              conversations={filtered}
+              selectedId={selectedId}
+              onSelect={selectConversation}
+              compact
+              filter={filter}
+            />
+          )}
+        </div>
       </div>
 
-      <div className={cn('flex-1 min-w-0', isMobile ? (selectedConversationId ? 'flex flex-col' : 'hidden') : 'flex flex-col')}>
-        {selectedConversationId && activeConversation ? (
-          <ChatWindow
-            conversationId={selectedConversationId}
-            currentUserId={user.id}
-            conversationName={activeConversation.otherUserName}
-            conversationAvatar={activeConversation.otherUserAvatar}
-            otherUserId={activeConversation.otherUserId}
-            otherUserUsername={activeConversation.otherUserUsername}
-            onBack={isMobile ? handleBackToList : undefined}
-          />
-        ) : (
-          !isMobile && (
-            <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
-              <div className="text-center space-y-4">
-                <svg className="w-24 h-24 mx-auto text-gray-300 dark:text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                  />
-                </svg>
-                <p className="text-lg font-medium">یک گفتگو را انتخاب کنید</p>
-                <p className="text-sm">برای شروع، یکی از گفتگوهای سمت راست را باز کنید.</p>
+      <div className={cn('flex-1 flex flex-col min-w-0', isMobile && showList && 'hidden')}>
+        {selectedId && selected ? (
+          <>
+            {isMobile && (
+              <div className="flex items-center gap-3 px-4 h-14 border-b border-vista-border dark:border-vista-border-dark bg-vista-bg dark:bg-vista-bg-dark">
+                <button
+                  onClick={() => {
+                    setShowList(true);
+                    setSelectedId(null);
+                  }}
+                  className="p-2 -mr-2"
+                >
+                  <ArrowRight className="w-5 h-5 rotate-180" />
+                </button>
+                <div className="flex items-center gap-2">
+                  {selected.otherUserAvatar ? (
+                    <img src={selected.otherUserAvatar} alt="" className="w-8 h-8 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-vista-gradient flex items-center justify-center text-white text-sm font-bold">
+                      {selected.otherUserName.charAt(0)}
+                    </div>
+                  )}
+                  <span className="font-semibold">{selected.otherUserName}</span>
+                </div>
               </div>
+            )}
+            <ChatWindow
+              conversationId={selectedId}
+              currentUserId={user!.id}
+              conversationName={selected.otherUserName}
+              conversationAvatar={selected.otherUserAvatar}
+              otherUserId={selected.otherUserId}
+              otherUserUsername={selected.otherUserUsername}
+              onBack={
+                isMobile
+                  ? () => {
+                      setShowList(true);
+                      setSelectedId(null);
+                    }
+                  : undefined
+              }
+            />
+          </>
+        ) : (
+          <div className="flex-1 hidden lg:flex items-center justify-center text-vista-text-secondary">
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-vista-surface-variant dark:bg-vista-surface-variant-dark flex items-center justify-center text-2xl">
+                💬
+              </div>
+              <p className="font-semibold">یک مکالمه انتخاب کنید</p>
             </div>
-          )
+          </div>
         )}
       </div>
     </div>

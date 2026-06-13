@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Hash, Search, TrendingUp, User } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { Navigation } from '@/components/ui/Navigation';
+import { MobileTopBar } from '@/components/layout/MobileTopBar';
 import { PostCard } from '@/components/ui/PostCard';
 import { postApi, profileApi } from '@/lib/backendApi';
 import { PostWithProfile, Profile } from '@/lib/types';
@@ -149,15 +149,11 @@ export default function ExplorePage() {
   }
 
   return (
-    <div className="min-h-screen dark:bg-zinc-950 bg-gray-50 flex flex-col lg:flex-row relative" dir={isRtl ? 'rtl' : 'ltr'}>
-      <Navigation lang={lang} user={profile || undefined} />
+    <>
+      <MobileTopBar title="جستجو" showLogo={false} />
 
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 h-16 flex items-center justify-center border-b border-zinc-800 dark:bg-zinc-950 bg-white shadow-sm">
-        <span className="text-2xl font-bold text-white select-none font-bauhaus">جستجو</span>
-      </div>
-
-      <main className="flex-1 md:mr-[220px] pt-16 lg:pt-0">
-        <div className="max-w-4xl mx-auto px-4 py-6">
+      <main className="feed-container lg:pt-6 px-4 py-4">
+        <div className="max-w-2xl mx-auto lg:glass-card lg:p-6 lg:rounded-2xl">
           <form onSubmit={handleSearch} className="mb-6">
             <div className="relative">
               <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500">
@@ -284,7 +280,7 @@ export default function ExplorePage() {
           )}
         </div>
       </main>
-    </div>
+    </>
   );
 }
 

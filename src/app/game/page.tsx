@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Trophy, Home, Settings, Users, Gamepad2, Zap, Medal, Crown, UserCircle, Edit3, ShoppingCart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
+import { Avatar } from '@/components/ui/Avatar';
 import { apiClient } from '@/lib/apiClient';
 import { useAuth } from '@/hooks/useAuth';
 import { ActiveMatchCard } from '@/components/game/ActiveMatchCard';
@@ -185,7 +186,7 @@ export default function GameHomePage() {
             <div className="flex flex-col items-center space-y-3 py-4">
               <div className="relative">
                 <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-[#3ca2ea] bg-white shadow-lg">
-                  <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                  <Avatar src={avatarUrl} alt="Avatar" className="w-full h-full" />
                 </div>
                 <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-[#78c02c] text-white text-xs font-bold px-3 py-0.5 rounded-full shadow">
                   {displayName}
@@ -297,7 +298,7 @@ export default function GameHomePage() {
                     {/* 2nd place */}
                     <div className="flex flex-col items-center space-y-2 cursor-pointer hover:scale-105 transition-transform" onClick={() => router.push(`/game/profile/${leaderboard[1].userId}`)}>
                       <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-slate-300 shadow-lg">
-                        <img src={leaderboard[1].avatarUrl || `https://api.dicebear.com/7.x/avataaars/png?seed=${leaderboard[1].userId}`} alt="" className="w-full h-full object-cover" />
+                        <Avatar src={leaderboard[1].avatarUrl || `https://api.dicebear.com/7.x/avataaars/png?seed=${leaderboard[1].userId}`} alt={leaderboard[1].name} className="w-full h-full" />
                       </div>
                       <div className="bg-[#a0aec0] rounded-xl px-3 py-4 text-center w-20 shadow-[0_4px_0_#718096]">
                         <Medal size={16} className="text-white mx-auto mb-1" />
@@ -311,7 +312,7 @@ export default function GameHomePage() {
                         <Crown size={32} fill="currentColor" />
                       </div>
                       <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.4)]">
-                        <img src={leaderboard[0].avatarUrl || `https://api.dicebear.com/7.x/avataaars/png?seed=${leaderboard[0].userId}`} alt="" className="w-full h-full object-cover" />
+                        <Avatar src={leaderboard[0].avatarUrl || `https://api.dicebear.com/7.x/avataaars/png?seed=${leaderboard[0].userId}`} alt={leaderboard[0].name} className="w-full h-full" />
                       </div>
                       <div className="bg-gradient-to-b from-yellow-400 to-yellow-600 rounded-xl px-3 py-5 text-center w-24 shadow-[0_6px_0_#b45309]">
                         <Trophy size={18} className="text-white mx-auto mb-1" fill="white" />
@@ -322,7 +323,7 @@ export default function GameHomePage() {
                     {/* 3rd place */}
                     <div className="flex flex-col items-center space-y-2 cursor-pointer hover:scale-105 transition-transform" onClick={() => router.push(`/game/profile/${leaderboard[2].userId}`)}>
                       <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-amber-600 shadow-lg">
-                        <img src={leaderboard[2].avatarUrl || `https://api.dicebear.com/7.x/avataaars/png?seed=${leaderboard[2].userId}`} alt="" className="w-full h-full object-cover" />
+                        <Avatar src={leaderboard[2].avatarUrl || `https://api.dicebear.com/7.x/avataaars/png?seed=${leaderboard[2].userId}`} alt={leaderboard[2].name} className="w-full h-full" />
                       </div>
                       <div className="bg-gradient-to-b from-amber-600 to-amber-800 rounded-xl px-3 py-3 text-center w-20 shadow-[0_4px_0_#7c5013]">
                         <Medal size={16} className="text-amber-300 mx-auto mb-1" />
@@ -340,7 +341,7 @@ export default function GameHomePage() {
                       <span className="text-white/60 font-black text-lg w-7 text-center">{entry.rank}</span>
                       <div className="flex items-center space-x-3 space-x-reverse cursor-pointer group" onClick={() => router.push(`/game/profile/${entry.userId}`)}>
                         <div className="w-10 h-10 rounded-full overflow-hidden border border-white/20 group-hover:border-white transition-colors">
-                          <img src={entry.avatarUrl || `https://api.dicebear.com/7.x/avataaars/png?seed=${entry.userId}`} alt="" className="w-full h-full object-cover" />
+                          <Avatar src={entry.avatarUrl || `https://api.dicebear.com/7.x/avataaars/png?seed=${entry.userId}`} alt={entry.name} className="w-full h-full" />
                         </div>
                         <span className="text-white font-bold text-sm group-hover:text-blue-300 transition-colors">{entry.name}</span>
                       </div>

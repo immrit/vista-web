@@ -1,6 +1,6 @@
 import { apiClient } from './apiClient';
 
-type UploadKind = 'image' | 'video' | 'music' | 'avatar';
+type UploadKind = 'image' | 'video' | 'music' | 'avatar' | 'story';
 
 interface PresignResponse {
   url: string;
@@ -34,6 +34,12 @@ const uploadRules: Record<UploadKind, { prefix: string; maxSize: number; mimeTyp
     maxSize: 5 * 1024 * 1024,
     mimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'],
     error: 'فقط فایل‌های تصویری (jpg, jpeg, png, gif, webp) پشتیبانی می‌شوند',
+  },
+  story: {
+    prefix: 'stories',
+    maxSize: 30 * 1024 * 1024,
+    mimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/quicktime'],
+    error: 'فقط تصویر یا ویدیو برای استوری پشتیبانی می‌شود',
   },
 };
 
@@ -105,6 +111,10 @@ export class UploadService {
 
   static uploadAvatar(file: File, userId: string) {
     return uploadWithBackend(file, userId, 'avatar');
+  }
+
+  static uploadStory(file: File, userId: string) {
+    return uploadWithBackend(file, userId, 'story');
   }
 
   static async deleteFile(fileUrl: string): Promise<boolean> {

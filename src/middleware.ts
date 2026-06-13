@@ -6,12 +6,16 @@ import type { NextRequest } from 'next/server';
 const PUBLIC_PATHS = [
   '/auth',
   '/group',
-  '/api/auth/token',   // our HttpOnly cookie setter — must be public
-  '/api/auth',         // legacy public auth routes
 ];
 
 const STATIC_PREFIXES = ['/_next', '/static', '/favicon', '/icons', '/images', '/public'];
-const API_AUTH_PREFIXES = ['/api/auth'];
+const API_CSRF_EXEMPT = new Set([
+  '/api/auth/refresh',
+]);
+
+function isCsrfExempt(pathname: string): boolean {
+  return API_CSRF_EXEMPT.has(pathname);
+}
 
 function isStaticAsset(pathname: string) {
   return (
@@ -44,7 +48,7 @@ const SECURITY_HEADERS: Record<string, string> = {
   'X-XSS-Protection': '1; mode=block',
   // Disable dangerous browser features
   'Permissions-Policy':
-    'camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()',
+    'camera=(self), microphone=(self), geolocation=(), payment=(), usb=(), bluetooth=()',
   // Prevent the browser window from being opened in a cross-origin context
   'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
   // Restrict embedded resources
@@ -57,7 +61,7 @@ const SECURITY_HEADERS: Record<string, string> = {
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: blob: https:",
     "connect-src 'self' https://api.coffevista.ir wss://api.coffevista.ir http://localhost:8080 ws://localhost:8080 http://127.0.0.1:8080 ws://127.0.0.1:8080",
-    "media-src 'self' https://storage.coffevista.ir blob:",
+    "media-src 'self' https://storage.coffevista.ir https://storage.389346.ir.cdn.ir blob:",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -80,7 +84,7 @@ function csrfCheck(request: NextRequest): NextResponse | null {
   if (!MUTATION_METHODS.has(request.method)) return null;
 
   // Skip CSRF for paths that are explicitly public auth routes
-  if (API_AUTH_PREFIXES.some((p) => request.nextUrl.pathname.startsWith(p))) return null;
+  if (isCsrfExempt(request.nextUrl.pathname)) return null;
 
   const origin  = request.headers.get('origin');
   const referer = request.headers.get('referer');
@@ -158,7 +162,6 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  const res = NextResponse.next();
   return applySecurityHeaders(res);
 }
 

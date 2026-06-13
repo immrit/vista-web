@@ -17,26 +17,15 @@ export default function ProfileRoot() {
         if (isHydrated && !loading) {
             if (profile?.username) {
                 router.replace(`/profile/${profile.username}`);
+            } else if (!user) {
+                router.replace('/auth');
             }
         }
-    }, [isHydrated, profile, loading, router]);
+    }, [isHydrated, profile, loading, router, user]);
 
-    if (!isHydrated || loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center text-lg text-gray-500 dark:text-gray-300">
-                در حال بارگذاری...
-            </div>
-        );
-    }
-
-    if (!user || !profile?.username) {
-        return (
-            <div className="min-h-screen flex items-center justify-center text-center text-lg text-gray-500 dark:text-gray-300">
-                برای مشاهده پروفایل ابتدا وارد شوید.
-            </div>
-        );
-    }
-
-    // تا ریدایرکت انجام شود چیزی نمایش نده
-    return null;
+    return (
+        <div className="min-h-screen flex items-center justify-center">
+            <div className="w-10 h-10 border-2 border-vista-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+    );
 }

@@ -1,4 +1,5 @@
 'use client';
+import React from 'react';
 
 import { cn } from '@/lib/utils';
 
@@ -17,6 +18,7 @@ const sizeClasses = {
 };
 
 export function Avatar({ src, alt, size = 'md', className }: AvatarProps) {
+    const [imgError, setImgError] = React.useState(false);
     const safeAlt = alt?.trim() ?? '';
     const initials = safeAlt
         ? safeAlt
@@ -28,7 +30,7 @@ export function Avatar({ src, alt, size = 'md', className }: AvatarProps) {
               .slice(0, 2)
         : '؟';
 
-    const imageSrc = src ?? undefined;
+    const imageSrc = (!imgError && src) ? src : undefined;
     const imageAlt = safeAlt || 'کاربر';
 
     return (
@@ -40,7 +42,12 @@ export function Avatar({ src, alt, size = 'md', className }: AvatarProps) {
             )}
         >
             {imageSrc ? (
-                <img src={imageSrc} alt={imageAlt} className="w-full h-full object-cover" />
+                <img 
+                    src={imageSrc} 
+                    alt={imageAlt} 
+                    className="w-full h-full object-cover" 
+                    onError={() => setImgError(true)}
+                />
             ) : (
                 <span>{initials}</span>
             )}

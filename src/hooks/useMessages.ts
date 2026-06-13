@@ -1,317 +1,343 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Message } from '@/lib/models/message';
 import { soundManager } from '@/lib/audio/NotificationSounds';
-import { apiClient, getBackendWebSocketUrl, getWebSocketProtocols } from '@/lib/apiClient';
+import { apiClient } from '@/lib/apiClient';
 import { UploadService } from '@/lib/uploadService';
+import {
+  fetchConversation,
+  fetchConversationMessages,
+  formatChatMessage,
+  markConversationRead,
+} from '@/lib/chat/chatApi';
+import { sanitizeChatMessage } from '@/lib/chat/sanitizeMessage';
+import { assertValidConversationId, assertValidMessageId } from '@/lib/chat/security';
+import { getChatWebSocket } from '@/lib/chat/chatWebSocket';
+import { useSecretChat } from '@/hooks/useSecretChat';
 
 interface UseMessagesOptions {
-    conversationId: string;
-    currentUserId: string;
+  conversationId: string;
+  currentUserId: string;
 }
 
 export function useMessages({ conversationId, currentUserId }: UseMessagesOptions) {
-    const [messages, setMessages] = useState<Message[]>([]);
-    const [conversation, setConversation] = useState<any>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const previousMessagesCountRef = useRef<number>(0);
-    const isInitialLoadRef = useRef<boolean>(true);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [conversation, setConversation] = useState<Record<string, unknown> | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const isInitialLoadRef = useRef(true);
+  const markReadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isSecret = Boolean(conversation?.is_secret);
+  const secretChat = useSecretChat({
+    conversationId,
+    userId: currentUserId,
+    isSecret,
+    messages,
+  });
 
-    // Fetch conversation details
-    useEffect(() => {
-        if (!conversationId) return;
+  useEffect(() => {
+    if (!conversationId) return;
 
-        const fetchConversation = async () => {
-            try {
-                // Fetch from the backend API
-                const data = await apiClient.get<any>(`/v1/chat/conversations/${conversationId}`);
-                
-                // Format participants for the UI
-                let participants = [];
-                if (data.peer_id) {
-                    participants.push({
-                        user_id: data.peer_id,
-                        profile: {
-                            id: data.peer_id,
-                            full_name: data.name,
-                            avatar_url: data.image
-                        }
-                    });
-                }
+    fetchConversation(conversationId)
+      .then(data => {
+        let participants: Record<string, unknown>[] = [];
+        if (data.peer_id) {
+          participants = [{
+            user_id: data.peer_id,
+            profile: {
+              id: data.peer_id,
+              full_name: data.name,
+              avatar_url: data.image,
+            },
+          }];
+        }
+        setConversation({ ...data, participants });
+      })
+      .catch(error => {
+        console.error('Error fetching conversation:', error?.message || error);
+      });
+  }, [conversationId]);
 
-                const enrichedConversation = {
-                    ...data,
-                    participants
-                };
+  const scheduleMarkRead = useCallback(() => {
+    if (!conversationId) return;
+    if (markReadTimerRef.current) clearTimeout(markReadTimerRef.current);
+    markReadTimerRef.current = setTimeout(() => {
+      markConversationRead(conversationId).catch(() => {});
+    }, 400);
+  }, [conversationId]);
 
-                setConversation(enrichedConversation);
-            } catch (error: any) {
-                console.error('Error fetching conversation:', error?.message || error);
+  useEffect(() => {
+    if (!conversationId || !currentUserId) return;
+
+    let cancelled = false;
+    isInitialLoadRef.current = true;
+    setIsLoading(true);
+    setHasMore(true);
+
+    fetchConversationMessages(conversationId, currentUserId, { limit: 50 })
+      .then(rows => {
+        if (cancelled) return;
+        setMessages(rows);
+        setHasMore(rows.length >= 50);
+        isInitialLoadRef.current = false;
+        scheduleMarkRead();
+      })
+      .catch(error => {
+        console.error('Error fetching messages:', error?.message || error);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    const ws = getChatWebSocket();
+    if (!ws) return () => { cancelled = true; };
+
+    const unsubscribe = ws.subscribe(event => {
+      const payload = event.data ?? {};
+      const eventConversationId = String(payload.conversation_id ?? '');
+
+      if (event.type === 'new_message' && eventConversationId === conversationId) {
+        const newMessage = formatChatMessage(payload, currentUserId);
+
+        if (newMessage.senderId === currentUserId) {
+          setMessages(prev => {
+            const filtered = prev.filter(
+              msg => !(msg.id.startsWith('temp_') && msg.content === newMessage.content && msg.isMe),
+            );
+            if (filtered.some(msg => msg.id === newMessage.id)) {
+              return filtered.map(msg => (msg.id === newMessage.id ? newMessage : msg));
             }
-        };
-
-        fetchConversation();
-    }, [conversationId]);
-
-    // Fetch initial messages and subscribe to real-time updates
-    useEffect(() => {
-        if (!conversationId || !currentUserId) return;
-
-        let ws: WebSocket | null = null;
-        let isMounted = true;
-
-        const fetchMessages = async () => {
-            setIsLoading(true);
-            try {
-                const response = await apiClient.get<{messages: any[]}>(`/v1/chat/conversations/${conversationId}/messages?limit=50`);
-                
-                if (!isMounted) return;
-
-                const formattedMessages: Message[] = (response.messages || []).map(msg => ({
-                    id: msg.id,
-                    content: msg.content || '',
-                    senderId: msg.sender_id,
-                    conversationId: msg.conversation_id,
-                    createdAt: msg.created_at,
-                    updatedAt: msg.updated_at,
-                    isMe: msg.sender_id === currentUserId,
-                    isRead: msg.is_read || false,
-                    isDelivered: msg.is_delivered || false,
-                    isSent: true,
-                    replyToId: msg.reply_to_message_id,
-                    reactions: msg.reactions || [],
-                    attachmentUrl: msg.media_url,
-                    attachmentType: msg.message_type,
-                })).reverse(); // API usually returns newest first if paginated, but UI needs oldest to newest
-
-                setMessages(formattedMessages);
-                previousMessagesCountRef.current = formattedMessages.length;
-                isInitialLoadRef.current = false;
-            } catch (error: any) {
-                const errorMessage = error?.message || JSON.stringify(error) || 'Unknown error';
-                console.error('Error fetching messages:', errorMessage);
-            } finally {
-                if (isMounted) setIsLoading(false);
-            }
-        };
-
-        const setupWebSocket = () => {
-            ws = new WebSocket(getBackendWebSocketUrl('/v1/chat/ws'), getWebSocketProtocols());
-
-            ws.onopen = () => {
-                console.log('WebSocket connected');
-                // The backend requires authentication. Usually if we don't pass header, we might get 401. 
-                // We'll see how it behaves. The backend middleware checks X-Device-ID or token.
-            };
-
-            ws.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    
-                    if (data.type === 'new_message' && data.data.conversation_id === conversationId) {
-                        const payload = data.data;
-                        const newMessage: Message = {
-                            id: payload.id,
-                            content: payload.content || '',
-                            senderId: payload.sender_id,
-                            conversationId: payload.conversation_id,
-                            createdAt: payload.created_at,
-                            updatedAt: payload.updated_at,
-                            isMe: payload.sender_id === currentUserId,
-                            isRead: payload.is_read || false,
-                            isDelivered: payload.is_delivered || false,
-                            isSent: true,
-                            replyToId: payload.reply_to_message_id,
-                            reactions: payload.reactions || [],
-                            attachmentUrl: payload.media_url,
-                            attachmentType: payload.message_type,
-                        };
-
-                        if (payload.sender_id === currentUserId) {
-                            setMessages(prev => {
-                                const filtered = prev.filter(msg => 
-                                    !(msg.id.startsWith('temp_') && msg.content === newMessage.content && msg.senderId === currentUserId)
-                                );
-                                const exists = filtered.some(msg => msg.id === newMessage.id);
-                                if (!exists) return [...filtered, newMessage];
-                                return filtered.map(msg => msg.id === newMessage.id ? newMessage : msg);
-                            });
-                        } else {
-                            setMessages(prev => {
-                                const exists = prev.some(msg => msg.id === newMessage.id);
-                                if (!exists) {
-                                    if (!isInitialLoadRef.current) {
-                                        soundManager.playReceived();
-                                        if (navigator.vibrate) navigator.vibrate([50, 100, 50]);
-                                        if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
-                                            const notificationOptions: NotificationOptions & { vibrate?: number[] } = {
-                                                body: newMessage.content.substring(0, 100),
-                                                icon: '/favicon.ico',
-                                                tag: newMessage.id,
-                                            };
-                                            if ('vibrate' in Notification.prototype) {
-                                                notificationOptions.vibrate = [200, 100, 200];
-                                            }
-                                            new Notification('پیام جدید', notificationOptions);
-                                        }
-                                    }
-                                    return [...prev, newMessage];
-                                }
-                                return prev;
-                            });
-                        }
-                    } else if (data.type === 'message_updated' && data.data.conversation_id === conversationId) {
-                        const payload = data.data;
-                        setMessages(prev => prev.map(msg => 
-                            msg.id === payload.id 
-                                ? { ...msg, content: payload.content, updatedAt: payload.updated_at } 
-                                : msg
-                        ));
-                    } else if (data.type === 'message_deleted' && data.data.conversation_id === conversationId) {
-                        setMessages(prev => prev.filter(msg => msg.id !== data.data.message_id));
-                    }
-                } catch (e) {
-                    console.error('Failed to parse WS message', e);
-                }
-            };
-
-            ws.onerror = (error) => {
-                console.error('WebSocket error:', error);
-            };
-
-            ws.onclose = () => {
-                console.log('WebSocket disconnected');
-            };
-        };
-
-        fetchMessages().then(() => {
-            setupWebSocket();
-        });
-
-        return () => {
-            isMounted = false;
-            if (ws) {
-                ws.close();
-            }
-        };
-    }, [conversationId, currentUserId]);
-
-    const sendMessage = useCallback(
-        async (content: string, files?: File[], replyToId?: string | null) => {
-            let attachmentUrl = null;
-            let attachmentType = null;
-
-            if (files && files.length > 0) {
-                const file = files[0];
-                attachmentType = file.type.split('/')[0];
-                
-                try {
-                    if (attachmentType === 'image') {
-                        attachmentUrl = await UploadService.uploadImage(file, currentUserId);
-                    } else if (attachmentType === 'video') {
-                        attachmentUrl = await UploadService.uploadVideo(file, currentUserId);
-                    } else if (attachmentType === 'audio') {
-                        attachmentUrl = await UploadService.uploadMusic(file, currentUserId);
-                    } else {
-                        // Using image upload rule as fallback for unknown types
-                        attachmentUrl = await UploadService.uploadImage(file, currentUserId);
-                    }
-                } catch (error: any) {
-                    throw new Error(`آپلود فایل با خطا مواجه شد: ${error.message}`);
-                }
-            }
-
-            const optimisticMessage: Message = {
-                id: `temp_${Date.now()}_${Math.random()}`,
-                conversationId,
-                senderId: currentUserId,
-                content,
-                attachmentUrl,
-                attachmentType: attachmentType as any,
-                replyToId: replyToId || null,
-                createdAt: new Date().toISOString(),
-                updatedAt: null,
-                isDelivered: false,
-                isRead: false,
-                isSent: false,
-                isMe: true,
-                reactions: [],
-            };
-
-            setMessages(prev => [...prev, optimisticMessage]);
-
-            try {
-                const data = await apiClient.post<any>(`/v1/chat/conversations/${conversationId}/messages`, {
-                    content,
-                    reply_to_message_id: replyToId || undefined,
-                    media_url: attachmentUrl || undefined,
-                    message_type: attachmentType || undefined
+            return [...filtered, newMessage];
+          });
+        } else {
+          setMessages(prev => {
+            if (prev.some(msg => msg.id === newMessage.id)) return prev;
+            if (!isInitialLoadRef.current) {
+              soundManager.playReceived();
+              if (navigator.vibrate) navigator.vibrate([50, 100, 50]);
+              if (document.hidden && Notification.permission === 'granted') {
+                new Notification('پیام جدید', {
+                  body: newMessage.content.substring(0, 100),
+                  icon: '/favicon.ico',
+                  tag: newMessage.id,
                 });
-
-                setMessages(prev =>
-                    prev.map(msg =>
-                        msg.id === optimisticMessage.id
-                            ? {
-                                  ...msg,
-                                  id: data.id,
-                                  createdAt: data.created_at,
-                                  isSent: true,
-                              }
-                            : msg
-                    )
-                );
-                
-                soundManager.playSent();
-                return data;
-            } catch (error: any) {
-                setMessages(prev =>
-                    prev.map(msg =>
-                        msg.id === optimisticMessage.id
-                            ? { ...msg, isSent: false }
-                            : msg
-                    )
-                );
-                const errorMessage = error?.message || JSON.stringify(error) || 'Unknown error';
-                console.error('Error sending message:', errorMessage);
-                throw new Error(errorMessage);
+              }
             }
-        },
-        [conversationId, currentUserId]
-    );
+            scheduleMarkRead();
+            return [...prev, newMessage];
+          });
+        }
+      }
 
-    const editMessage = useCallback(
-        async (messageId: string, newContent: string) => {
-            try {
-                await apiClient.put(`/v1/chat/messages/${messageId}`, { content: newContent });
-            } catch (error: any) {
-                const errorMessage = error?.message || JSON.stringify(error) || 'Unknown error';
-                console.error('Error editing message:', errorMessage);
-                throw new Error(errorMessage);
-            }
-        },
-        []
-    );
+      if (event.type === 'message_updated' && eventConversationId === conversationId) {
+        setMessages(prev =>
+          prev.map(msg =>
+            msg.id === String(payload.id ?? '')
+              ? { ...msg, content: String(payload.content ?? msg.content), updatedAt: String(payload.updated_at ?? msg.updatedAt) }
+              : msg,
+          ),
+        );
+      }
 
-    const deleteMessage = useCallback(
-        async (messageId: string) => {
-            try {
-                await apiClient.delete(`/v1/chat/messages/${messageId}?for_everyone=true`);
-            } catch (error: any) {
-                const errorMessage = error?.message || JSON.stringify(error) || 'Unknown error';
-                console.error('Error deleting message:', errorMessage);
-                throw new Error(errorMessage);
-            }
-        },
-        []
-    );
+      if (event.type === 'message_deleted' && eventConversationId === conversationId) {
+        const messageId = String(payload.message_id ?? payload.id ?? '');
+        setMessages(prev => prev.filter(msg => msg.id !== messageId));
+      }
 
-    return {
-        messages,
-        conversation,
-        isLoading,
-        sendMessage,
-        editMessage,
-        deleteMessage,
+      if (event.type === 'read_receipt' && eventConversationId === conversationId) {
+        const readerId = String(payload.user_id ?? '');
+        if (readerId && readerId !== currentUserId) {
+          setMessages(prev =>
+            prev.map(msg => (msg.isMe ? { ...msg, isRead: true, isDelivered: true } : msg)),
+          );
+        }
+      }
+
+      if (event.type === 'reaction_updated' && eventConversationId === conversationId) {
+        const messageId = String(payload.message_id ?? '');
+        if (!messageId) return;
+        setMessages(prev =>
+          prev.map(msg =>
+            msg.id === messageId
+              ? {
+                  ...msg,
+                  reactions: Array.isArray(payload.reactions)
+                    ? payload.reactions.map((r: Record<string, unknown>) => ({
+                        userId: String(r.user_id ?? ''),
+                        emoji: String(r.emoji ?? ''),
+                        createdAt: String(r.created_at ?? ''),
+                      }))
+                    : msg.reactions,
+                }
+              : msg,
+          ),
+        );
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+      if (markReadTimerRef.current) clearTimeout(markReadTimerRef.current);
     };
+  }, [conversationId, currentUserId, scheduleMarkRead]);
+
+  const loadMoreMessages = useCallback(async () => {
+    if (!conversationId || !currentUserId || isLoadingMore || !hasMore || messages.length === 0) return;
+    setIsLoadingMore(true);
+    try {
+      const oldest = messages[0];
+      const older = await fetchConversationMessages(conversationId, currentUserId, {
+        limit: 50,
+        before: oldest.createdAt,
+      });
+      setHasMore(older.length >= 50);
+      setMessages(prev => {
+        const existing = new Set(prev.map(m => m.id));
+        const unique = older.filter(m => !existing.has(m.id));
+        return [...unique, ...prev];
+      });
+    } catch (error) {
+      console.error('Error loading older messages:', error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [conversationId, currentUserId, hasMore, isLoadingMore, messages]);
+
+  const sendMessage = useCallback(
+    async (content: string, files?: File[], replyToId?: string | null) => {
+      assertValidConversationId(conversationId);
+      if (replyToId) assertValidMessageId(replyToId);
+
+      const normalized = sanitizeChatMessage(content);
+      let attachmentUrl: string | null = null;
+      let attachmentType: string | null = null;
+
+      if (files && files.length > 0) {
+        const file = files[0];
+        attachmentType = file.type.split('/')[0];
+        try {
+          if (attachmentType === 'image') {
+            attachmentUrl = await UploadService.uploadImage(file, currentUserId);
+          } else if (attachmentType === 'video') {
+            attachmentUrl = await UploadService.uploadVideo(file, currentUserId);
+          } else if (attachmentType === 'audio') {
+            attachmentUrl = await UploadService.uploadMusic(file, currentUserId);
+          } else {
+            attachmentUrl = await UploadService.uploadImage(file, currentUserId);
+          }
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : 'upload failed';
+          throw new Error(`آپلود فایل با خطا مواجه شد: ${message}`);
+        }
+      }
+
+      if (!normalized && !attachmentUrl) return;
+      if (isSecret && !files?.length && !secretChat.isReady) {
+        throw new Error('در حال تبادل کلید امنیتی با مخاطب هستیم. لطفاً کمی صبر کنید.');
+      }
+
+      const outboundContent = isSecret && !files?.length
+        ? await secretChat.encryptIfNeeded(normalized)
+        : normalized;
+
+      const clientMessageId = crypto.randomUUID();
+      const optimisticMessage: Message = {
+        id: `temp_${clientMessageId}`,
+        conversationId,
+        senderId: currentUserId,
+        content: normalized,
+        attachmentUrl,
+        attachmentType: attachmentType as Message['attachmentType'],
+        replyToId: replyToId || null,
+        createdAt: new Date().toISOString(),
+        updatedAt: null,
+        isDelivered: false,
+        isRead: false,
+        isSent: false,
+        isMe: true,
+        reactions: [],
+      };
+
+      setMessages(prev => [...prev, optimisticMessage]);
+
+      try {
+        const data = await apiClient.post<Record<string, unknown>>(
+          `/v1/chat/conversations/${conversationId}/messages`,
+          {
+            id: clientMessageId,
+            content: outboundContent,
+            message_type: attachmentType || 'text',
+            ...(replyToId ? { reply_to_message_id: replyToId } : {}),
+            ...(attachmentUrl ? { media_url: attachmentUrl } : {}),
+          },
+        );
+
+        setMessages(prev =>
+          prev.map(msg =>
+            msg.id === optimisticMessage.id
+                              ? {
+                                  ...msg,
+                                  id: String(data.id ?? msg.id),
+                                  createdAt: String(data.created_at ?? msg.createdAt),
+                                  content: outboundContent,
+                                  isSent: true,
+                                  isDelivered: true,
+                                }
+              : msg,
+          ),
+        );
+
+        soundManager.playSent();
+        return data;
+      } catch (error: unknown) {
+        setMessages(prev =>
+          prev.map(msg => (msg.id === optimisticMessage.id ? { ...msg, isSent: false } : msg)),
+        );
+        if (error instanceof Error) {
+          if (error.message.includes('internal server error')) {
+            throw new Error('ارسال پیام ناموفق بود. اتصال را بررسی کنید و دوباره تلاش کنید.');
+          }
+          throw error;
+        }
+        throw new Error('ارسال پیام ناموفق بود');
+      }
+    },
+    [conversationId, currentUserId, isSecret, secretChat.encryptIfNeeded, secretChat.isReady],
+  );
+
+  const editMessage = useCallback(async (messageId: string, newContent: string) => {
+    assertValidMessageId(messageId);
+    const normalized = sanitizeChatMessage(newContent);
+    const outbound = isSecret ? await secretChat.encryptIfNeeded(normalized) : normalized;
+    await apiClient.put(`/v1/chat/messages/${messageId}`, { content: outbound });
+    setMessages(prev =>
+      prev.map(msg => (msg.id === messageId ? { ...msg, content: normalized, updatedAt: new Date().toISOString() } : msg)),
+    );
+  }, [isSecret, secretChat.encryptIfNeeded]);
+
+  const deleteMessage = useCallback(async (messageId: string) => {
+    assertValidMessageId(messageId);
+    await apiClient.delete(`/v1/chat/messages/${messageId}?for_everyone=true`);
+    setMessages(prev => prev.filter(msg => msg.id !== messageId));
+  }, []);
+
+  return {
+    messages,
+    conversation,
+    isLoading,
+    isLoadingMore,
+    hasMore,
+    loadMoreMessages,
+    sendMessage,
+    editMessage,
+    deleteMessage,
+    markRead: scheduleMarkRead,
+    isSecret,
+    secretChatReady: secretChat.isReady,
+    secretNotices: secretChat.notices,
+    getDisplayContent: secretChat.getDisplayContent,
+  };
 }

@@ -25,7 +25,14 @@ async function readBodyRefreshToken(req: NextRequest) {
   }
 }
 
+import { checkRateLimit, getClientIdentifier, authRateLimit } from '@/lib/rate-limit';
+
 export async function POST(req: NextRequest) {
+  const rate = await checkRateLimit(getClientIdentifier(req), authRateLimit);
+  if (!rate.success) {
+    return NextResponse.json({ ok: false, error: 'rate_limited' }, { status: 429 });
+  }
+
   const refreshToken =
     req.cookies.get('refresh_token')?.value || (await readBodyRefreshToken(req));
 

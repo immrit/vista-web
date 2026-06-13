@@ -1,20 +1,10 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import LayoutWithSidebar from "./LayoutWithSidebar";
 import { QueryProvider } from "@/components/providers/QueryProvider";
+import { ThemeInit } from "@/components/providers/ThemeInit";
 import { GlobalMiniPlayer } from "@/components/ui/GlobalMiniPlayer";
 import { Toaster } from 'sonner';
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Vista Web",
@@ -59,6 +49,14 @@ export const metadata: Metadata = {
   verification: {
     google: 'your-google-verification-code',
   },
+  icons: {
+    icon: [
+      { url: '/favicon.png', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/icons/icon-192.png', type: 'image/png' },
+    ],
+  },
 };
 
 export default function RootLayout({
@@ -77,16 +75,17 @@ export default function RootLayout({
         <meta name="description" content="پلتفرم اجتماعی Vista برای اشتراک‌گذاری محتوا" />
         <meta name="format-detection" content="telephone=no" />
         <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="msapplication-TileColor" content="#3b82f6" />
+        <meta name="msapplication-TileColor" content="#6366F1" />
         <meta name="msapplication-tap-highlight" content="no" />
-        <meta name="theme-color" content="#3b82f6" />
+        <meta name="theme-color" content="#6366F1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 
-        <link rel="apple-touch-icon" href="/favicon.ico" />
-        <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-        <link rel="shortcut icon" href="/favicon.ico" />
+        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+        <link rel="icon" type="image/png" href="/favicon.png" />
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 dark:bg-zinc-950`}>
+      <body className="antialiased font-vazir bg-vista-bg dark:bg-vista-bg-dark text-vista-text-primary dark:text-vista-text-primary-dark">
         <QueryProvider>
+          <ThemeInit />
           <LayoutWithSidebar>{children}</LayoutWithSidebar>
           <GlobalMiniPlayer />
           <Toaster position="top-center" richColors />

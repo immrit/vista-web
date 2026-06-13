@@ -240,6 +240,19 @@ export const postApi = {
     };
   },
 
+  async following(limit = 20, cursor?: string) {
+    const queryParams = new URLSearchParams({ limit: limit.toString() });
+    if (cursor) queryParams.append('cursor', cursor);
+    const data = await apiClient.get<{ posts?: BackendPost[]; has_more?: boolean; next_cursor?: string }>(
+      `/v1/feed/following?${queryParams.toString()}`,
+    );
+    return {
+      posts: (data.posts || []).map(normalizePost),
+      hasMore: Boolean(data.has_more),
+      nextCursor: data.next_cursor,
+    };
+  },
+
   async get(postId: string) {
     const data = await apiClient.get<BackendPost>(`/v1/posts/${encodeURIComponent(postId)}`);
     return normalizePost(data);

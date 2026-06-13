@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowRight, Save, ShoppingCart, UserCircle, Crown, Loader2, CheckCircle2 } from 'lucide-react'
+import { Avatar } from '@/components/ui/Avatar'
 import { apiClient } from '@/lib/apiClient'
 import { useAuth } from '@/hooks/useAuth'
 import { toast } from 'sonner'
@@ -141,7 +142,7 @@ export default function GameProfilePage() {
             <div className="relative">
               <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-[#3ca2ea] bg-white shadow-xl flex items-center justify-center">
                 {avatarUrl ? (
-                  <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                  <Avatar src={avatarUrl} alt="Avatar" className="w-full h-full" />
                 ) : (
                   <UserCircle size={64} className="text-slate-300" />
                 )}
@@ -278,11 +279,7 @@ export default function GameProfilePage() {
                       )}
                     >
                       {profile?.avatar_url || user?.avatar_url ? (
-                        <img 
-                          src={profile?.avatar_url || user?.avatar_url} 
-                          alt="Vista Profile" 
-                          className="w-full h-full object-cover"
-                        />
+                        <Avatar src={profile?.avatar_url || user?.avatar_url || ''} alt="Vista" className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-slate-400">
                           <UserCircle size={32} />
@@ -306,7 +303,7 @@ export default function GameProfilePage() {
                             : "border-slate-200 hover:border-slate-300 hover:scale-105"
                         )}
                       >
-                        <img src={avatar.url} alt={avatar.id} className="w-full h-full object-cover" />
+                        <Avatar src={avatar.url} alt={avatar.id} className="w-full h-full" />
                       </button>
                     ))}
                   </div>

@@ -381,20 +381,35 @@ export function useAuth() {
         return data
     }
 
-    const sendDeleteCode = async () => {
+    const sendDeleteCode = async (reason: string) => {
         if (!user) throw new Error('No user logged in')
-        const data = await apiClient.post('/v1/auth/send-delete-code', {
-            userId: user.id,
-            userEmail: user.email,
-        })
+        return apiClient.post<SendOtpResponse>('/v1/auth/account-deletion/request-otp', { reason })
+    }
+
+    const requestAccountDeletionOtp = async (reason: string) => {
+        if (!user) throw new Error('No user logged in')
+        return apiClient.post<SendOtpResponse>('/v1/auth/account-deletion/request-otp', { reason })
+    }
+
+    const confirmAccountDeletion = async (input: { otp: string; password?: string; reason: string }) => {
+        if (!user) throw new Error('No user logged in')
+        const data = await apiClient.post<{ success: boolean; message?: string; scheduled_purge_at?: string; grace_period_days?: number }>(
+            '/v1/auth/account-deletion/confirm',
+            {
+                otp_code: input.otp,
+                password: input.password || '',
+                reason: input.reason,
+            }
+        )
         return data
     }
 
-    const verifyDeleteCode = async (code: string) => {
+    const verifyDeleteCode = async (code: string, reason: string, password?: string) => {
         if (!user) throw new Error('No user logged in')
-        await apiClient.post('/v1/auth/verify-delete-code', {
-            code,
-            userId: user.id,
+        await apiClient.post('/v1/auth/account-deletion/confirm', {
+            otp_code: code,
+            password: password || '',
+            reason,
         })
         await signOut()
     }
@@ -435,5 +450,7 @@ export function useAuth() {
         refreshProfile,
         sendDeleteCode,
         verifyDeleteCode,
+        requestAccountDeletionOtp,
+        confirmAccountDeletion,
     }
 }

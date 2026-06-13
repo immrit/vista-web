@@ -1,57 +1,70 @@
 "use client";
+
 import React, { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import NavigationWrapper from "./NavigationWrapper";
 import { useAuth } from "@/hooks/useAuth";
 import SessionInitializer from "@/components/SessionInitializer";
+import { AppShell } from "@/components/layout/AppShell";
+import { useUnreadCount } from "@/hooks/useUnreadCount";
 
 export default function LayoutWithSidebar({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const router = useRouter();
     const { user, loading } = useAuth();
+    const unreadCount = useUnreadCount();
     const [isHydrated, setIsHydrated] = useState(false);
 
-    // Hydration safety
     useEffect(() => {
         setIsHydrated(true);
     }, []);
 
     useEffect(() => {
         if (!isHydrated || loading || !user?.password_required) return;
-        if (pathname === "/set-password" || pathname.startsWith("/auth")) return;
+        if (pathname === "/set-password" || pathname.startsWith("/auth") || pathname.startsWith("/profile-setup")) return;
         router.replace("/set-password");
     }, [isHydrated, loading, pathname, router, user?.password_required]);
+
+    useEffect(() => {
+        if (!isHydrated || loading || !user) return;
+        if (user.password_required) return;
+        if (user.profile_completed === false && !pathname.startsWith("/profile-setup") && !pathname.startsWith("/auth") && pathname !== "/set-password") {
+            router.replace("/profile-setup");
+        }
+    }, [isHydrated, loading, pathname, router, user]);
 
     const isPublicSharePath =
         /^\/post\/[^/]+/.test(pathname) || /^\/profile\/[^/]+/.test(pathname);
 
-    // Hide sidebar on auth, password setup, and public share pages for guests.
-    const hideSidebar =
+    const hideShell =
         pathname.startsWith("/auth") ||
         pathname === "/set-password" ||
+        pathname.startsWith("/profile-setup") ||
         (isPublicSharePath && !user);
 
-    // Hide bottom navigation on /messages and /game (game has its own mobile navs or UI)
-    const hideBottomNav =
+    const hideMobileNav =
         pathname.startsWith("/messages") ||
         pathname.startsWith("/game") ||
         (isPublicSharePath && !user);
 
-    // 🔥 Optimistic rendering: فقط hydration را چک کن، loading را چک نکن
-    // محتوا را سریع نشان بده - hydration خیلی سریع است
     if (!isHydrated) {
-        return null; // یا می‌توانیم children را نشان بدهیم
+        return null;
+    }
+
+    if (hideShell) {
+        return (
+            <>
+                <SessionInitializer />
+                {children}
+            </>
+        );
     }
 
     return (
-        <div className="min-h-screen w-full flex">
+        <>
             <SessionInitializer />
-            {!hideSidebar && <NavigationWrapper showMobileNav={!hideBottomNav} />}
-            <main className={`flex-1 w-full transition-all duration-300 ${!hideSidebar ? "md:mr-[220px]" : ""}`}>
-                <div className="w-full h-full">
-                    {children}
-                </div>
-            </main>
-        </div>
+            <AppShell showMobileNav={!hideMobileNav} unreadCount={unreadCount}>
+                {children}
+            </AppShell>
+        </>
     );
 }

@@ -2,33 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: 'Vazirmatn', 'Tahoma', 'Arial', sans-serif;
-  direction: rtl;
-  text-align: right;
-}
-
-/* RTL Support */
-[dir="rtl"] {
-  direction: rtl;
-  text-align: right;
-}
-
-/* Font imports for Persian */
 @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap');
 
 @font-face {
@@ -39,24 +12,122 @@ body {
   font-display: swap;
 }
 
-.font-bauhaus {
-  font-family: 'BauhausBold', cursive;
+:root {
+  --vista-primary: #6366F1;
+  --vista-primary-end: #8B5CF6;
+  --vista-accent: #EC4899;
+  --vista-bg: #F8F9FF;
+  --vista-surface: #FFFFFF;
+  --vista-surface-variant: #F3F4FF;
+  --vista-border: #E5E7EB;
+  --vista-text: #0F1117;
+  --vista-text-secondary: #6B7280;
+  --background: var(--vista-bg);
+  --foreground: var(--vista-text);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-top: env(safe-area-inset-top, 0px);
 }
 
-/* Persian font utility */
-.font-persian {
-  font-family: 'Vazirmatn', 'Tahoma', 'Arial', sans-serif;
+.dark {
+  --vista-bg: #09090F;
+  --vista-surface: #13131E;
+  --vista-surface-variant: #1C1C2E;
+  --vista-border: #2A2A45;
+  --vista-text: #F0F0FF;
+  --vista-text-secondary: #8B8BAD;
+  --background: var(--vista-bg);
+  --foreground: var(--vista-text);
 }
 
-/* Music Player Animations */
-@keyframes waveform {
-  0% { transform: scaleY(1); }
-  100% { transform: scaleY(0.5); }
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-vista-bg text-vista-text-primary font-vazir antialiased;
+    direction: rtl;
+    text-align: right;
+    overscroll-behavior-y: none;
+    padding-top: var(--safe-area-top);
+  }
+
+  [dir='rtl'] {
+    direction: rtl;
+    text-align: right;
+  }
 }
 
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+@layer components {
+  .glass-island {
+    @apply backdrop-blur-glass bg-white/60 dark:bg-black/40 border border-white/30 dark:border-white/10;
+  }
+
+  .glass-card {
+    @apply backdrop-blur-xl bg-white/80 dark:bg-vista-surface-dark/80 border border-vista-border dark:border-vista-border-dark rounded-2xl;
+  }
+
+  .vista-gradient-text {
+    @apply bg-vista-gradient bg-clip-text text-transparent;
+  }
+
+  .story-ring {
+    background: linear-gradient(135deg, #6366F1, #8B5CF6, #EC4899, #6366F1);
+    background-size: 300% 300%;
+    animation: story-ring 3s ease infinite;
+  }
+
+  .story-ring-seen {
+    @apply bg-vista-border dark:bg-vista-border-dark;
+  }
+
+  .nav-halo {
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgba(248, 249, 255, 0.55) 35%,
+      rgba(248, 249, 255, 0.88) 65%,
+      #F8F9FF 100%
+    );
+  }
+
+  .dark .nav-halo {
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgba(9, 9, 15, 0.55) 35%,
+      rgba(9, 9, 15, 0.88) 65%,
+      #09090F 100%
+    );
+  }
+
+  .feed-container {
+    @apply w-full max-w-feed-max mx-auto;
+  }
+
+  .desktop-layout {
+    @apply hidden lg:grid lg:grid-cols-[275px_1fr_320px] lg:gap-8 lg:max-w-[1280px] lg:mx-auto lg:px-6;
+  }
+
+  .skeleton {
+    @apply animate-pulse bg-vista-surface-variant dark:bg-vista-surface-variant-dark rounded-lg;
+  }
+
+  .btn-vista {
+    @apply bg-vista-gradient text-white font-semibold rounded-2xl px-6 py-3
+           hover:opacity-90 active:scale-[0.98] transition-all duration-200
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .input-vista {
+    @apply w-full bg-vista-surface dark:bg-vista-surface-dark
+           border border-vista-border dark:border-vista-border-dark
+           rounded-2xl px-4 py-3.5 text-vista-text-primary dark:text-vista-text-primary-dark
+           placeholder:text-vista-text-secondary dark:placeholder:text-vista-text-secondary-dark
+           focus:outline-none focus:ring-2 focus:ring-vista-primary/40 focus:border-vista-primary
+           transition-all duration-200;
+  }
 }
 
 /* Custom scrollbar */
@@ -70,10 +141,90 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(99, 102, 241, 0.3);
   border-radius: 2px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.4);
+  background: rgba(99, 102, 241, 0.5);
+}
+
+/* PWA standalone mode */
+@media (display-mode: standalone) {
+  body {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  input, textarea, [contenteditable] {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+}
+
+/* Prevent pull-to-refresh on iOS PWA */
+html, body {
+  overflow-x: hidden;
+}
+
+.font-bauhaus {
+  font-family: 'BauhausBold', cursive;
+}
+
+.font-persian {
+  font-family: 'Vazirmatn', 'Tahoma', 'Arial', sans-serif;
+}
+
+/* Auth page — floating ribbon orbs */
+.auth-orb {
+  filter: blur(60px);
+  will-change: transform, opacity;
+}
+
+.auth-orb-1 {
+  animation: auth-orb-drift-1 10s ease-in-out infinite;
+}
+
+.auth-orb-2 {
+  animation: auth-orb-drift-2 12s ease-in-out infinite;
+}
+
+.auth-orb-3 {
+  animation: auth-orb-drift-3 9s ease-in-out infinite;
+}
+
+.auth-orb-accent {
+  filter: blur(72px);
+  animation: auth-orb-pulse 7s ease-in-out infinite;
+}
+
+@keyframes auth-orb-drift-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.85; }
+  33% { transform: translate(28px, 18px) scale(1.04); opacity: 1; }
+  66% { transform: translate(-16px, 32px) scale(0.98); opacity: 0.92; }
+}
+
+@keyframes auth-orb-drift-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.88; }
+  50% { transform: translate(-36px, -24px) scale(1.06); opacity: 1; }
+}
+
+@keyframes auth-orb-drift-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.9; }
+  40% { transform: translate(-20px, 14px) scale(1.03); opacity: 0.95; }
+  80% { transform: translate(24px, -18px) scale(0.97); opacity: 1; }
+}
+
+@keyframes auth-orb-pulse {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.5; }
+  50% { transform: translate(12px, -20px) scale(1.12); opacity: 0.85; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-orb-1,
+  .auth-orb-2,
+  .auth-orb-3,
+  .auth-orb-accent {
+    animation: none;
+  }
 }

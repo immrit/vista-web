@@ -10,6 +10,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
+import { checkRateLimit, getClientIdentifier, authRateLimit } from '@/lib/rate-limit';
+
 const COOKIE_OPTS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
@@ -17,10 +19,21 @@ const COOKIE_OPTS = {
   path: '/',
 };
 
-const ACCESS_MAX_AGE  = 60 * 60 * 24;        // 1 day
-const REFRESH_MAX_AGE = 60 * 60 * 24 * 3650; // long-lived until explicit logout/revocation
+const ACCESS_MAX_AGE = 60 * 60 * 24;
+const REFRESH_MAX_AGE = 60 * 60 * 24 * 3650;
+
+function isLikelyJwt(token: string): boolean {
+  const parts = token.split('.');
+  if (parts.length !== 3) return false;
+  return parts.every(part => part.length > 0 && part.length <= 2048) && token.length <= 8192;
+}
 
 export async function POST(req: NextRequest) {
+  const rate = await checkRateLimit(getClientIdentifier(req), authRateLimit);
+  if (!rate.success) {
+    return NextResponse.json({ ok: false, error: 'rate_limited' }, { status: 429 });
+  }
+
   let body: { access_token?: string; refresh_token?: string };
   try {
     body = await req.json();
@@ -29,8 +42,12 @@ export async function POST(req: NextRequest) {
   }
 
   const { access_token, refresh_token } = body;
-  if (!access_token || typeof access_token !== 'string') {
-    return NextResponse.json({ ok: false, error: 'missing_access_token' }, { status: 400 });
+  if (!access_token || typeof access_token !== 'string' || !isLikelyJwt(access_token)) {
+    return NextResponse.json({ ok: false, error: 'invalid_access_token' }, { status: 400 });
+  }
+
+  if (refresh_token !== undefined && (typeof refresh_token !== 'string' || refresh_token.length > 512)) {
+    return NextResponse.json({ ok: false, error: 'invalid_refresh_token' }, { status: 400 });
   }
 
   const res = NextResponse.json({ ok: true });

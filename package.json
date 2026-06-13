@@ -14,6 +14,7 @@
     "type-check": "tsc --noEmit",
     "build-check": "npm run type-check && npm run lint && npm run build",
     "generate:keys": "node ./scripts/generate-keys.js",
+    "dev:services": "powershell -ExecutionPolicy Bypass -File scripts/start-redis.ps1",
     "test": "jest",
     "test:security": "jest tests/security --runInBand",
     "test:integration": "jest tests/integration --runInBand"

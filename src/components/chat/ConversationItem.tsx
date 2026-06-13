@@ -28,8 +28,10 @@ export function ConversationItem({ conversation, isSelected, onClick }: Conversa
         <button
             onClick={onClick}
             className={cn(
-                'w-full p-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition active:scale-[0.98]',
-                isSelected && 'bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                'w-full p-3.5 flex items-center gap-3 transition active:scale-[0.99]',
+                isSelected
+                    ? 'bg-indigo-500/10 dark:bg-indigo-500/15'
+                    : 'hover:bg-vista-surface-variant/80 dark:hover:bg-vista-surface-variant-dark/80',
             )}
         >
             {/* Avatar with Online Status */}
@@ -38,7 +40,7 @@ export function ConversationItem({ conversation, isSelected, onClick }: Conversa
                     src={conversation.otherUserAvatar}
                     alt={conversation.otherUserName}
                     size="lg"
-                    className={cn(hasUnread && 'ring-2 ring-blue-500')}
+                    className={cn(hasUnread && 'ring-2 ring-indigo-500')}
                 />
                 {conversation.isOnline && (
                     <div className="absolute bottom-0 left-0 w-3.5 h-3.5 bg-green-500 border-2 border-white dark:border-zinc-900 rounded-full" />
