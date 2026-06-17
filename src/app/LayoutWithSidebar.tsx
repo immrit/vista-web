@@ -6,6 +6,13 @@ import { useAuth } from "@/hooks/useAuth";
 import SessionInitializer from "@/components/SessionInitializer";
 import { AppShell } from "@/components/layout/AppShell";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
+import {
+  buildAuthNextPath,
+  isOnboardingPath,
+  requiresAuth,
+  shouldHideAppShell,
+  shouldHideMobileNav,
+} from "@/lib/auth/routes";
 
 export default function LayoutWithSidebar({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
@@ -20,31 +27,31 @@ export default function LayoutWithSidebar({ children }: { children: React.ReactN
 
     useEffect(() => {
         if (!isHydrated || loading || !user?.password_required) return;
-        if (pathname === "/set-password" || pathname.startsWith("/auth") || pathname.startsWith("/profile-setup")) return;
+        if (isOnboardingPath(pathname)) return;
         router.replace("/set-password");
     }, [isHydrated, loading, pathname, router, user?.password_required]);
 
     useEffect(() => {
         if (!isHydrated || loading || !user) return;
         if (user.password_required) return;
-        if (user.profile_completed === false && !pathname.startsWith("/profile-setup") && !pathname.startsWith("/auth") && pathname !== "/set-password") {
+        if (
+            user.profile_completed === false &&
+            !pathname.startsWith("/profile-setup") &&
+            !isOnboardingPath(pathname)
+        ) {
             router.replace("/profile-setup");
         }
     }, [isHydrated, loading, pathname, router, user]);
 
-    const isPublicSharePath =
-        /^\/post\/[^/]+/.test(pathname) || /^\/profile\/[^/]+/.test(pathname);
+    useEffect(() => {
+        if (!isHydrated || loading || user) return;
+        if (!requiresAuth(pathname)) return;
+        const next = pathname === "/auth" ? "/feed" : buildAuthNextPath(pathname, window.location.search);
+        router.replace(`/auth?next=${encodeURIComponent(next)}`);
+    }, [isHydrated, loading, pathname, router, user]);
 
-    const hideShell =
-        pathname.startsWith("/auth") ||
-        pathname === "/set-password" ||
-        pathname.startsWith("/profile-setup") ||
-        (isPublicSharePath && !user);
-
-    const hideMobileNav =
-        pathname.startsWith("/messages") ||
-        pathname.startsWith("/game") ||
-        (isPublicSharePath && !user);
+    const hideShell = shouldHideAppShell(pathname, Boolean(user));
+    const hideMobileNav = shouldHideMobileNav(pathname, Boolean(user));
 
     if (!isHydrated) {
         return null;

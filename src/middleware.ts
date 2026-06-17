@@ -1,12 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-
-// ─── Route classification ─────────────────────────────────────────────────────
-
-const PUBLIC_PATHS = [
-  '/auth',
-  '/group',
-];
+import { requiresAuth } from '@/lib/auth/routes';
 
 const STATIC_PREFIXES = ['/_next', '/static', '/favicon', '/icons', '/images', '/public'];
 const API_CSRF_EXEMPT = new Set([
@@ -22,15 +16,6 @@ function isStaticAsset(pathname: string) {
     STATIC_PREFIXES.some((p) => pathname.startsWith(p)) ||
     pathname.includes('.')
   );
-}
-
-function isPublicSharePath(pathname: string) {
-  return /^\/post\/[^/]+/.test(pathname) || /^\/profile\/[^/]+/.test(pathname);
-}
-
-function isPublicPath(pathname: string) {
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) return true;
-  return isPublicSharePath(pathname);
 }
 
 // ─── Security Headers ─────────────────────────────────────────────────────────
@@ -118,16 +103,6 @@ function csrfCheck(request: NextRequest): NextResponse | null {
   return null;
 }
 
-// ─── Auth guard ───────────────────────────────────────────────────────────────
-
-function requiresAuth(pathname: string): boolean {
-  // Don't guard static assets, public paths, or API routes (they self-authenticate)
-  if (isStaticAsset(pathname)) return false;
-  if (isPublicPath(pathname)) return false;
-  if (pathname.startsWith('/api/')) return false;
-  return true;
-}
-
 // ─── Middleware ───────────────────────────────────────────────────────────────
 
 export function middleware(request: NextRequest) {
@@ -156,7 +131,10 @@ export function middleware(request: NextRequest) {
     const refreshToken = request.cookies.get('refresh_token')?.value;
     if (!token && !refreshToken) {
       const loginUrl = new URL('/auth', request.url);
-      loginUrl.searchParams.set('next', pathname);
+      loginUrl.searchParams.set(
+        'next',
+        `${pathname}${request.nextUrl.search}`,
+      );
       const redirectRes = NextResponse.redirect(loginUrl);
       return applySecurityHeaders(redirectRes);
     }
