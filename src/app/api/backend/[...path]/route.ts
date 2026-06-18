@@ -44,7 +44,11 @@ function copyRequestHeaders(req: NextRequest): Headers {
   if (forwardedFor) headers.set('x-forwarded-for', forwardedFor);
   if (deviceId) headers.set('x-device-id', deviceId);
 
-  const token = req.cookies.get('access_token')?.value;
+  // Full session takes precedence; otherwise a scoped game session (webview
+  // handoff) forwards its game_token. The backend confines the scoped token to
+  // /v1/game/* regardless of what path is proxied here.
+  const token =
+    req.cookies.get('access_token')?.value || req.cookies.get('game_token')?.value;
   if (token) {
     headers.set('authorization', `Bearer ${token}`);
   }

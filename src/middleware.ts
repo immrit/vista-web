@@ -125,11 +125,34 @@ export function middleware(request: NextRequest) {
   const csrfError = csrfCheck(request);
   if (csrfError) return csrfError;
 
-  // Auth guard: redirect unauthenticated users to /auth
+  // The game-SSO landing exchanges a one-time ticket; it must be reachable
+  // before any session cookie exists.
+  if (pathname === '/game/sso') {
+    return applySecurityHeaders(res);
+  }
+
+  // Auth guard.
+  //
+  // Two session kinds:
+  //   • full session  — access_token / refresh_token (native web users)
+  //   • game session  — game_token only, minted via the native-app handoff,
+  //                      confined to /game/* (the webview must not reach the
+  //                      rest of the app even if a link tries to navigate away).
   if (requiresAuth(pathname)) {
-    const token = request.cookies.get('access_token')?.value;
+    const accessToken = request.cookies.get('access_token')?.value;
     const refreshToken = request.cookies.get('refresh_token')?.value;
-    if (!token && !refreshToken) {
+    const gameToken = request.cookies.get('game_token')?.value;
+
+    const hasFullSession = Boolean(accessToken || refreshToken);
+    const isGamePath = pathname === '/game' || pathname.startsWith('/game/');
+
+    // A game-only session is valid *only* inside /game. Anywhere else it counts
+    // as unauthenticated, so the webview can never view feed/messages/etc.
+    const authorized = isGamePath
+      ? hasFullSession || Boolean(gameToken)
+      : hasFullSession;
+
+    if (!authorized) {
       const loginUrl = new URL('/auth', request.url);
       loginUrl.searchParams.set(
         'next',
