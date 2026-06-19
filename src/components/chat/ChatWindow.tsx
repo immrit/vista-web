@@ -71,6 +71,7 @@ export function ChatWindow({
     isSecret,
     secretChatReady,
     secretNotices,
+    markRead,
   } = useMessages({ conversationId, currentUserId });
 
   const isDark = useIsDark();
@@ -217,6 +218,7 @@ export function ChatWindow({
         {onBack && (
           <button
             onClick={onBack}
+            aria-label="بازگشت"
             className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition md:hidden"
           >
             <ArrowLeft className="w-5 h-5" style={{ color: chatTheme.icon }} />
@@ -255,18 +257,20 @@ export function ChatWindow({
           <SoundToggle />
           <button
             onClick={() => setShowSearch(s => !s)}
+            aria-label="جستجو در پیام‌ها"
             className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition"
           >
             <Search className="w-5 h-5" style={{ color: chatTheme.icon }} />
           </button>
-          <button className="hidden sm:flex p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition">
+          <button aria-label="تماس صوتی" className="hidden sm:flex p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition">
             <Phone className="w-5 h-5" style={{ color: chatTheme.icon }} />
           </button>
-          <button className="hidden sm:flex p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition">
+          <button aria-label="تماس تصویری" className="hidden sm:flex p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition">
             <Video className="w-5 h-5" style={{ color: chatTheme.icon }} />
           </button>
           <button
             onClick={() => setShowDetails(true)}
+            aria-label="اطلاعات گفتگو"
             className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition"
           >
             <Info className="w-5 h-5" style={{ color: chatTheme.icon }} />
@@ -290,13 +294,13 @@ export function ChatWindow({
               {filteredMessages.length} نتیجه
             </span>
           )}
-          <button onClick={() => setShowSearch(false)} className="p-1">
+          <button onClick={() => setShowSearch(false)} aria-label="بستن جستجو" className="p-1">
             <X className="w-4 h-4" style={{ color: chatTheme.secondaryText }} />
           </button>
         </div>
       )}
 
-      <div ref={containerRef} className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-1 min-h-0">
+      <div ref={containerRef} role="log" aria-live="polite" aria-label="پیام‌ها" className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-1 min-h-0">
         {isLoadingMore && (
           <div className="flex justify-center py-2">
             <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
@@ -360,6 +364,7 @@ export function ChatWindow({
       {showScrollButton && (
         <button
           onClick={scrollToBottom}
+          aria-label="رفتن به آخرین پیام"
           className="absolute bottom-24 left-1/2 -translate-x-1/2 z-10 p-2.5 rounded-full shadow-lg border backdrop-blur-md bg-white/90 dark:bg-zinc-900/90 border-zinc-200 dark:border-zinc-700"
         >
           <svg className="w-4 h-4 text-zinc-600 dark:text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">

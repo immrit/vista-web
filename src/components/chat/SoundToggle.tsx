@@ -20,8 +20,8 @@ export function SoundToggle() {
   return (
     <button
       onClick={handleToggle}
+      aria-label={isMuted ? 'فعال کردن صدا' : 'خاموش کردن صدا'}
       className="p-2 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-      title={isMuted ? 'فعال کردن صدا' : 'خاموش کردن صدا'}
     >
       {isMuted ? (
         <VolumeX className="w-5 h-5 text-zinc-500" />

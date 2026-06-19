@@ -28,9 +28,9 @@ export default function GameLobbyPage() {
 
   const fetchLobby = async () => {
     try {
-      const res = await apiClient.get<{ lobby: MatchState[] }>('/v1/game/lobby')
-      if (res.data) {
-        setMatches(res.data)
+      const res = await apiClient.get<{ matches: ActiveMatch[] }>('/v1/game/lobby')
+      if (res?.matches) {
+        setMatches(res.matches)
       }
     } catch (err) {
       console.error(err)

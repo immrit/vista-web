@@ -214,6 +214,31 @@ export const profileApi = {
   async requestVerification() {
     return apiClient.post('/v1/me/verification-request', {});
   },
+
+  async getFollowers(userId: string, limit = 30, cursor?: string): Promise<{ users: Profile[]; next_cursor?: string; has_more?: boolean }> {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (cursor) params.set('cursor', cursor);
+    const data = await apiClient.get<{ users?: BackendProfile[]; next_cursor?: string; has_more?: boolean }>(
+      `/v1/profiles/${encodeURIComponent(userId)}/followers?${params}`,
+    );
+    return { users: (data.users || []).map(normalizeProfile), next_cursor: data.next_cursor, has_more: data.has_more };
+  },
+
+  async getFollowing(userId: string, limit = 30, cursor?: string): Promise<{ users: Profile[]; next_cursor?: string; has_more?: boolean }> {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (cursor) params.set('cursor', cursor);
+    const data = await apiClient.get<{ users?: BackendProfile[]; next_cursor?: string; has_more?: boolean }>(
+      `/v1/profiles/${encodeURIComponent(userId)}/following?${params}`,
+    );
+    return { users: (data.users || []).map(normalizeProfile), next_cursor: data.next_cursor, has_more: data.has_more };
+  },
+
+  async getHashtagPosts(tag: string, limit = 20, offset = 0): Promise<{ posts: ReturnType<typeof normalizePost>[]; has_more: boolean }> {
+    const data = await apiClient.get<{ posts?: BackendPost[]; has_more?: boolean }>(
+      `/v1/posts/hashtag/${encodeURIComponent(tag)}?limit=${limit}&offset=${offset}`,
+    );
+    return { posts: (data.posts || []).map(normalizePost), has_more: Boolean(data.has_more) };
+  },
 };
 
 export const postApi = {

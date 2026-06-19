@@ -96,6 +96,12 @@ export default function RootLayout({
         <link rel="apple-touch-startup-image" href="/icons/splash/apple-splash-640-1136.png" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
       </head>
       <body className="antialiased font-vazir bg-vista-bg dark:bg-vista-bg-dark text-vista-text-primary dark:text-vista-text-primary-dark">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:right-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-vista-primary focus:text-white focus:rounded-xl focus:font-semibold focus:shadow-lg"
+        >
+          رفتن به محتوای اصلی
+        </a>
         <I18nProvider>
           <QueryProvider>
             <ThemeInit />

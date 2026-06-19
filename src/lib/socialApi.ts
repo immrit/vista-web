@@ -162,6 +162,18 @@ export const blockApi = {
   async reportUser(userId: string, reason: string): Promise<void> {
     await apiClient.post('/v1/me/report-user', { reported_user_id: userId, reason })
   },
+  async muteNotifications(userId: string): Promise<void> {
+    await apiClient.post(`/v1/me/mute-notifications/${encodeURIComponent(userId)}`)
+  },
+  async unmuteNotifications(userId: string): Promise<void> {
+    await apiClient.delete(`/v1/me/mute-notifications/${encodeURIComponent(userId)}`)
+  },
+  async getMutedNotificationUsers(): Promise<Array<{ id: string; username?: string; full_name?: string; avatar_url?: string }>> {
+    try {
+      const data = await apiClient.get<{ users?: Array<{ id: string; username?: string; full_name?: string; avatar_url?: string }> }>('/v1/me/mute-notifications')
+      return data.users || []
+    } catch { return [] }
+  },
 }
 
 export const muteApi = {

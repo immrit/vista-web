@@ -4,18 +4,21 @@
  * /game/sso?ticket=…
  *
  * Webview landing page for the native-app game handoff. It silently exchanges
- * the one-time ticket for a scoped game session cookie, then lands the user on
- * their game profile. The user never sees a login form.
+ * the one-time ticket for a scoped game session cookie, then hard-navigates the
+ * user to the game home page. The user never sees a login form.
+ *
+ * We use window.location.replace (not router.replace) so the browser starts a
+ * fresh navigation with the newly-set game_token cookie already in place.
+ * This prevents the root layout's useAuth hook from seeing an unauthenticated
+ * state and redirecting to /auth before the cookie is available.
  *
  * On failure it shows a neutral message (no login redirect) — a webview that
  * arrives here is meant only for the game section.
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 
 export default function GameSSOPage() {
-  const router = useRouter();
   const [failed, setFailed] = useState(false);
   const ran = useRef(false);
 
@@ -40,15 +43,17 @@ export default function GameSSOPage() {
           setFailed(true);
           return;
         }
-        // Drop the ticket from history, land on the user's game lobby.
-        router.replace('/game/lobby');
+        // Hard navigation: the game_token cookie is now set. A full page load
+        // ensures useAuth starts fresh and picks up the scoped cookie immediately,
+        // preventing the root layout from briefly redirecting to /auth.
+        window.location.replace('/game');
       } catch {
         setFailed(true);
       }
     };
 
     run();
-  }, [router]);
+  }, []);
 
   return (
     <div

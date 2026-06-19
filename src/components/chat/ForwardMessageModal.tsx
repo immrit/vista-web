@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { Search, Send, X } from 'lucide-react';
 import { apiClient } from '@/lib/apiClient';
 import { Avatar } from '@/components/ui/Avatar';
@@ -26,6 +27,7 @@ function normalizeForwardConv(raw: Record<string, unknown>): Conversation {
 }
 
 export function ForwardMessageModal({ content, onClose }: ForwardMessageModalProps) {
+  const trapRef = useFocusTrap<HTMLDivElement>(true);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -81,11 +83,11 @@ export function ForwardMessageModal({ content, onClose }: ForwardMessageModalPro
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white dark:bg-zinc-900 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md flex flex-col max-h-[80vh] animate-slide-in-bottom sm:animate-none">
+      <div ref={trapRef} role="dialog" aria-modal="true" aria-label="ارسال پیام به" className="relative bg-white dark:bg-zinc-900 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md flex flex-col max-h-[80vh] animate-slide-in-bottom sm:animate-none">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-zinc-200 dark:border-zinc-800">
           <h3 className="font-bold text-lg">ارسال پیام به</h3>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800">
+          <button onClick={onClose} aria-label="بستن" className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800">
             <X className="w-5 h-5 text-zinc-500" />
           </button>
         </div>

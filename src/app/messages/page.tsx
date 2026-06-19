@@ -24,6 +24,9 @@ interface ConversationListItem {
   unreadCount: number;
   updatedAt: string;
   isOnline?: boolean;
+  is_archived?: boolean;
+  is_pinned?: boolean;
+  is_muted?: boolean;
 }
 
 function normalizeConversation(raw: Record<string, unknown>): ConversationListItem {
@@ -40,6 +43,9 @@ function normalizeConversation(raw: Record<string, unknown>): ConversationListIt
     unreadCount: Number(raw.unread_count || 0),
     updatedAt: String(raw.updated_at || lastMessageTime || ''),
     isOnline: Boolean(raw.is_online),
+    is_archived: Boolean(raw.is_archived),
+    is_pinned: Boolean(raw.is_pinned),
+    is_muted: Boolean(raw.is_muted),
   };
 }
 
@@ -52,7 +58,7 @@ export default function MessagesPage() {
   const [isMobile, setIsMobile] = useState(false);
   const [showList, setShowList] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const [filter, setFilter] = useState<'all' | 'unread' | 'archived'>('all');
 
   const loadConversations = useCallback(async () => {
     setIsLoading(true);
@@ -158,6 +164,24 @@ export default function MessagesPage() {
     if (isMobile) setShowList(false);
   };
 
+  const handleArchiveToggle = (id: string, archived: boolean) => {
+    setConversations(prev => prev.map(c => c.id === id ? { ...c, is_archived: archived } : c));
+    if (selectedId === id && archived) { setSelectedId(null); if (isMobile) setShowList(true); }
+  };
+
+  const handleDelete = (id: string) => {
+    setConversations(prev => prev.filter(c => c.id !== id));
+    if (selectedId === id) { setSelectedId(null); if (isMobile) setShowList(true); }
+  };
+
+  const handlePinToggle = (id: string, pinned: boolean) => {
+    setConversations(prev => prev.map(c => c.id === id ? { ...c, is_pinned: pinned } : c));
+  };
+
+  const handleMuteToggle = (id: string, muted: boolean) => {
+    setConversations(prev => prev.map(c => c.id === id ? { ...c, is_muted: muted } : c));
+  };
+
   const filtered = conversations.filter(c =>
     !searchQuery ||
     c.otherUserName.includes(searchQuery) ||
@@ -209,7 +233,7 @@ export default function MessagesPage() {
           </div>
 
           <div className="flex gap-2">
-            {(['all', 'unread'] as const).map(type => (
+            {([['all', 'همه'], ['unread', 'نخوانده'], ['archived', 'آرشیو']] as const).map(([type, label]) => (
               <button
                 key={type}
                 onClick={() => setFilter(type)}
@@ -220,7 +244,7 @@ export default function MessagesPage() {
                     : 'bg-vista-surface-variant dark:bg-vista-surface-variant-dark text-vista-text-secondary',
                 )}
               >
-                {type === 'all' ? 'همه' : 'خوانده‌نشده'}
+                {label}
               </button>
             ))}
           </div>
@@ -240,6 +264,10 @@ export default function MessagesPage() {
               onSelect={selectConversation}
               compact
               filter={filter}
+              onArchiveToggle={handleArchiveToggle}
+              onDelete={handleDelete}
+              onPinToggle={handlePinToggle}
+              onMuteToggle={handleMuteToggle}
             />
           )}
         </div>

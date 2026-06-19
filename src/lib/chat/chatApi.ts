@@ -83,10 +83,12 @@ export async function fetchChatWebSocketConnection(): Promise<ChatWsConnection> 
 
   const base = (process.env.NEXT_PUBLIC_API_URL || 'https://api.coffevista.ir').replace(/\/+$/, '');
   const wsBase = base.replace(/^http/i, 'ws');
-  const url = new URL('/v1/chat/ws', wsBase).toString();
+  const urlObj = new URL('/v1/chat/ws', wsBase);
+  urlObj.searchParams.set('token', token);
+  const url = urlObj.toString();
 
-  // Token in subprotocol — not in URL query (avoids proxy/access-log leakage).
-  return { url, protocols: ['Authorization', token] };
+  // Token in query params instead of subprotocols to prevent strict protocol matching failures
+  return { url, protocols: [] };
 }
 
 export async function fetchChatWebSocketUrl(): Promise<string> {

@@ -115,7 +115,7 @@ export default function GameHomePage() {
         avatarUrl: avatarUrl || `https://api.dicebear.com/7.x/avataaars/png?seed=${currentUserId}`,
       });
       if (!data?.matchId) throw new Error('matchId دریافت نشد');
-      await Promise.all([fetchCoins().catch(console.error), fetchActiveMatches().catch(console.error)]);
+      await Promise.all([fetchStats().catch(console.error), fetchActiveMatches().catch(console.error)]);
       await routeToMatch(data.matchId);
     } catch (error) {
       console.error(error);

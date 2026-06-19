@@ -1,6 +1,7 @@
 'use client'
 
-import { Bell, MessageSquare, AtSign, Heart, Volume2, Vibrate, Moon, Smartphone, Loader2 } from 'lucide-react'
+import { Bell, MessageSquare, AtSign, Heart, Volume2, Vibrate, Moon, Smartphone, Loader2, BellOff, ChevronLeft } from 'lucide-react'
+import Link from 'next/link'
 import {
   SettingsPageShell, SettingsSection, SettingsGroup, SettingsSwitch,
 } from '@/components/settings/VistaSettingsWidgets'
@@ -81,6 +82,24 @@ export default function NotificationSettingsPage() {
           <SettingsSwitch icon={Volume2} title="صدای اعلان" checked={settings.sound_enabled !== false} onChange={v => set('sound_enabled', v)} disabled={isSaving} />
           <SettingsSwitch icon={Vibrate} title="لرزش" checked={settings.vibration_enabled !== false} onChange={v => set('vibration_enabled', v)} disabled={isSaving} />
           <SettingsSwitch icon={MessageSquare} title="پیش‌نمایش پیام" checked={settings.show_message_preview !== false} onChange={v => set('show_message_preview', v)} disabled={isSaving} />
+        </SettingsGroup>
+      </SettingsSection>
+
+      <SettingsSection title="مدیریت">
+        <SettingsGroup>
+          <Link
+            href="/settings/notifications/muted"
+            className="flex items-center gap-3 px-4 py-3.5 hover:bg-vista-surface-variant dark:hover:bg-vista-surface-variant-dark transition-colors"
+          >
+            <div className="w-9 h-9 rounded-xl bg-vista-primary/10 flex items-center justify-center">
+              <BellOff className="w-4.5 h-4.5 text-vista-primary" />
+            </div>
+            <div className="flex-1">
+              <p className="font-medium text-sm">اعلان‌های خاموش‌شده</p>
+              <p className="text-xs text-vista-text-secondary">کاربرانی که اعلانشان را خاموش کرده‌اید</p>
+            </div>
+            <ChevronLeft className="w-4 h-4 text-vista-text-secondary" />
+          </Link>
         </SettingsGroup>
       </SettingsSection>
 

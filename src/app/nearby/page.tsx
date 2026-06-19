@@ -8,7 +8,7 @@ import { NearbyPreferencesSheet } from '@/components/nearby/NearbyPreferencesShe
 import { LocationPermissionScreen } from '@/components/nearby/LocationPermissionScreen';
 import { NearbyMatchesList } from '@/components/nearby/NearbyMatchesList';
 import { useAuth } from '@/hooks/useAuth';
-import { SlidersHorizontal, Heart, RefreshCw, Loader2, Users } from 'lucide-react';
+import { SlidersHorizontal, Heart, RefreshCw, Loader2, Users, Shuffle } from 'lucide-react';
 import { MobileTopBar } from '@/components/layout/MobileTopBar';
 
 type Tab = 'discover' | 'matches';
@@ -64,41 +64,31 @@ export default function NearbyPage() {
       <MobileTopBar
         title="اطراف من"
         rightAction={
-          <button
-            onClick={() => setShowPrefs(true)}
-            className="p-2 rounded-xl hover:bg-vista-surface-variant dark:hover:bg-vista-surface-variant-dark transition-colors"
-            aria-label="تنظیمات"
-          >
-            <SlidersHorizontal className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => load(!locationGranted)} // Toggle random online mode
+              className="p-2 rounded-xl hover:bg-vista-surface-variant dark:hover:bg-vista-surface-variant-dark transition-colors"
+              aria-label="قاطی پاتی"
+            >
+              <Shuffle className="w-5 h-5 text-vista-text-secondary dark:text-vista-text-secondary-dark" />
+            </button>
+            <button
+              onClick={() => setTab(tab === 'matches' ? 'discover' : 'matches')}
+              className="p-2 rounded-xl hover:bg-vista-surface-variant dark:hover:bg-vista-surface-variant-dark transition-colors"
+              aria-label="متچ‌ها"
+            >
+              <Heart className={`w-5 h-5 ${tab === 'matches' ? 'text-vista-primary fill-current' : 'text-vista-primary'}`} />
+            </button>
+            <button
+              onClick={() => setShowPrefs(true)}
+              className="p-2 rounded-xl hover:bg-vista-surface-variant dark:hover:bg-vista-surface-variant-dark transition-colors"
+              aria-label="تنظیمات"
+            >
+              <SlidersHorizontal className="w-5 h-5" />
+            </button>
+          </div>
         }
       />
-
-      {/* Tab selector */}
-      <div className="flex gap-1 mx-4 mt-4 p-1 bg-vista-surface-variant dark:bg-vista-surface-variant-dark rounded-2xl">
-        <button
-          onClick={() => setTab('discover')}
-          className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-            tab === 'discover'
-              ? 'bg-white dark:bg-vista-surface-dark shadow-sm text-vista-primary'
-              : 'text-vista-text-secondary dark:text-vista-text-secondary-dark'
-          }`}
-        >
-          <Users className="w-4 h-4" />
-          کشف
-        </button>
-        <button
-          onClick={() => setTab('matches')}
-          className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-            tab === 'matches'
-              ? 'bg-white dark:bg-vista-surface-dark shadow-sm text-vista-primary'
-              : 'text-vista-text-secondary dark:text-vista-text-secondary-dark'
-          }`}
-        >
-          <Heart className="w-4 h-4" />
-          متچ‌ها
-        </button>
-      </div>
 
       {tab === 'matches' ? (
         <NearbyMatchesList />

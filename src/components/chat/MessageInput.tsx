@@ -121,6 +121,7 @@ export function MessageInput({
               </div>
               <button
                 onClick={() => setSelectedFiles(files => files.filter((_, i) => i !== index))}
+                aria-label="حذف فایل"
                 className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full"
               >
                 <X className="w-3 h-3" />
@@ -138,7 +139,7 @@ export function MessageInput({
               <p className="text-xs text-vista-text-secondary dark:text-vista-text-secondary-dark truncate">{replyToContent}</p>
             )}
           </div>
-          <button onClick={onCancelReply} className="p-1 rounded-lg hover:bg-vista-primary/10 flex-shrink-0">
+          <button onClick={onCancelReply} aria-label="لغو پاسخ" className="p-1 rounded-lg hover:bg-vista-primary/10 flex-shrink-0">
             <X className="w-4 h-4 text-vista-primary" />
           </button>
         </div>
@@ -152,7 +153,7 @@ export function MessageInput({
               <p className="text-xs text-vista-text-secondary dark:text-vista-text-secondary-dark truncate">{editingContent}</p>
             )}
           </div>
-          <button onClick={onCancelEdit} className="p-1 rounded-lg hover:bg-amber-500/10 flex-shrink-0">
+          <button onClick={onCancelEdit} aria-label="لغو ویرایش" className="p-1 rounded-lg hover:bg-amber-500/10 flex-shrink-0">
             <X className="w-4 h-4 text-amber-700 dark:text-amber-300" />
           </button>
         </div>
@@ -165,15 +166,16 @@ export function MessageInput({
       <div className="flex items-end gap-2">
         <button
           onClick={() => setShowFileSheet(true)}
+          aria-label="پیوست فایل"
           className="p-2.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition flex-shrink-0"
         >
           <Paperclip className="w-5 h-5" style={{ color: theme.icon }} />
         </button>
         <button
           onClick={() => setShowGifPicker(g => !g)}
+          aria-label="انتخاب GIF"
           className="p-2.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition flex-shrink-0 text-xs font-bold"
           style={{ color: showGifPicker ? '#6366F1' : theme.icon }}
-          title="GIF"
         >
           <Smile className="w-5 h-5" />
         </button>
@@ -197,6 +199,7 @@ export function MessageInput({
         {content.trim() || selectedFiles.length > 0 ? (
           <button
             onClick={() => void handleSend()}
+            aria-label="ارسال پیام"
             className="p-2.5 rounded-full transition flex-shrink-0 shadow-md"
             style={{ background: theme.myBubbleGradient }}
           >
@@ -205,6 +208,7 @@ export function MessageInput({
         ) : (
           <button
             onClick={() => setShowVoiceRecorder(true)}
+            aria-label="ضبط صدا"
             className="p-2.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition flex-shrink-0"
           >
             <Mic className="w-5 h-5" style={{ color: theme.icon }} />

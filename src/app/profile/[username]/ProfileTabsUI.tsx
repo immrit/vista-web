@@ -1,7 +1,7 @@
 'use client'
 
 import { PostWithProfile, Profile } from '@/lib/types'
-import { BadgeCheck, CreditCard, Grid3X3, Clapperboard, Music, MessageSquare, Share2, Settings, Lock, UserPlus, UserMinus, MoreHorizontal, Flag, Ban, Link2 } from 'lucide-react'
+import { BadgeCheck, CreditCard, Grid3X3, Clapperboard, Music, MessageSquare, Share2, Settings, Lock, UserPlus, UserMinus, MoreHorizontal, Flag, Ban, Link2, BellOff, Bell } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
@@ -75,6 +75,7 @@ export default function ProfileTabsUI({ profile, posts, musicPosts, isRtl }: {
   const [verificationSent, setVerificationSent] = useState(false)
   const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [isBlocked, setIsBlocked] = useState(false)
+  const [isMutedNotifications, setIsMutedNotifications] = useState(false)
   const [showReportUser, setShowReportUser] = useState(false)
   const [reportUserReason, setReportUserReason] = useState('inappropriate')
   const [reportingUser, setReportingUser] = useState(false)
@@ -101,6 +102,21 @@ export default function ProfileTabsUI({ profile, posts, musicPosts, isRtl }: {
         await blockApi.block(profile.id)
         setIsBlocked(true)
         toast.success('کاربر مسدود شد')
+      }
+    } catch { toast.error('خطا') }
+  }
+
+  const handleMuteNotifications = async () => {
+    setShowMoreMenu(false)
+    try {
+      if (isMutedNotifications) {
+        await blockApi.unmuteNotifications(profile.id)
+        setIsMutedNotifications(false)
+        toast.success('اعلان‌های این کاربر فعال شد')
+      } else {
+        await blockApi.muteNotifications(profile.id)
+        setIsMutedNotifications(true)
+        toast.success('اعلان‌های این کاربر خاموش شد')
       }
     } catch { toast.error('خطا') }
   }
@@ -177,16 +193,18 @@ export default function ProfileTabsUI({ profile, posts, musicPosts, isRtl }: {
 
                 {/* Stats row */}
                 <div className="flex justify-center sm:justify-start gap-8 mb-4">
-                  {[
-                    { n: profile.posts_count || localPosts.length, l: 'پست' },
-                    { n: profile.followers_count || 0, l: 'دنبال‌کننده' },
-                    { n: profile.following_count || 0, l: 'دنبال‌شونده' },
-                  ].map(({ n, l }) => (
-                    <div key={l} className="text-center">
-                      <p className="font-bold text-lg">{n.toLocaleString('fa-IR')}</p>
-                      <p className="text-xs text-vista-text-secondary">{l}</p>
-                    </div>
-                  ))}
+                  <div className="text-center">
+                    <p className="font-bold text-lg">{(profile.posts_count || localPosts.length).toLocaleString('fa-IR')}</p>
+                    <p className="text-xs text-vista-text-secondary">پست</p>
+                  </div>
+                  <Link href={`/profile/${profile.username}/followers`} className="text-center hover:opacity-75 transition-opacity">
+                    <p className="font-bold text-lg">{(profile.followers_count || 0).toLocaleString('fa-IR')}</p>
+                    <p className="text-xs text-vista-text-secondary">دنبال‌کننده</p>
+                  </Link>
+                  <Link href={`/profile/${profile.username}/following`} className="text-center hover:opacity-75 transition-opacity">
+                    <p className="font-bold text-lg">{(profile.following_count || 0).toLocaleString('fa-IR')}</p>
+                    <p className="text-xs text-vista-text-secondary">دنبال‌شونده</p>
+                  </Link>
                 </div>
 
                 {profile.bio && (
@@ -264,6 +282,13 @@ export default function ProfileTabsUI({ profile, posts, musicPosts, isRtl }: {
                                 className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                               >
                                 <Link2 className="w-4 h-4" /> کپی لینک
+                              </button>
+                              <button
+                                onClick={handleMuteNotifications}
+                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                              >
+                                {isMutedNotifications ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+                                {isMutedNotifications ? 'فعال کردن اعلان‌ها' : 'خاموش کردن اعلان‌ها'}
                               </button>
                               <button
                                 onClick={handleBlock}

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, Globe, Heart, MessageSquare, Pencil, Share2, Smartphone, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { PostWithProfile } from '@/lib/types';
 import { useAuth } from '@/hooks/useAuth';
 import { usePostStats } from '@/hooks/usePostStats';
@@ -15,6 +16,23 @@ import { useOptimisticPost } from '@/hooks/useOptimisticPost';
 import { MusicPlayerCard } from './MusicPlayerCard';
 import { postApi } from '@/lib/backendApi';
 import { toast } from 'sonner';
+
+function RichContent({ text }: { text: string }) {
+  const parts = text.split(/(#[\w؀-ۿ]+|@[\w؀-ۿ]+)/g)
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (part.startsWith('#')) {
+          return <Link key={i} href={`/hashtag/${encodeURIComponent(part.slice(1))}`} className="text-vista-primary hover:underline">{part}</Link>
+        }
+        if (part.startsWith('@')) {
+          return <Link key={i} href={`/profile/${part.slice(1)}`} className="text-vista-primary hover:underline">{part}</Link>
+        }
+        return <span key={i}>{part}</span>
+      })}
+    </>
+  )
+}
 
 interface PostCardProps {
     post: PostWithProfile;
@@ -269,7 +287,7 @@ export function PostCard({ post, onUpdate, onPostDeleted, showComments = false, 
                 ) : (
                     localPost.content && (
                         <div className="text-gray-800 dark:text-gray-200 mb-4 whitespace-pre-line leading-relaxed">
-                            {localPost.content}
+                            <RichContent text={localPost.content} />
                             {localPost.is_edited && (
                                 <span className="inline-flex items-center gap-1 mr-2 text-xs text-zinc-400 dark:text-zinc-500">
                                     <Pencil className="w-3 h-3" />

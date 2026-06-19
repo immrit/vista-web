@@ -104,11 +104,35 @@ export function useNearbyLocation() {
             resolve(false);
           }
         },
-        () => {
+        (err) => {
+          console.error('Geolocation error code:', err.code, 'message:', err.message);
+          
+          // Fallback for local development without HTTPS
+          if (err.code === 1 && process.env.NODE_ENV === 'development') {
+            console.warn('Dev mode: mocking location (Tehran) since permission was denied or blocked by HTTP');
+            nearbyApi.updateLocation(35.6892, 51.3890).then(() => {
+              setStatus('granted');
+              resolve(true);
+            }).catch(() => {
+              setStatus('denied');
+              resolve(false);
+            });
+            return;
+          }
+
+          if (err.code === 1) { // PERMISSION_DENIED
+            toast.error('دسترسی رد شد. لطفاً از تنظیمات مرورگر اجازه دهید');
+          } else if (err.code === 2) { // POSITION_UNAVAILABLE
+            toast.error('موقعیت مکانی در دسترس نیست');
+          } else if (err.code === 3) { // TIMEOUT
+            toast.error('درخواست موقعیت مکانی زمان‌بر شد');
+          } else {
+            toast.error(`خطا در موقعیت: ${err.message}`);
+          }
           setStatus('denied');
           resolve(false);
         },
-        { timeout: 10_000, maximumAge: 300_000 }
+        { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 }
       );
     });
   }, []);

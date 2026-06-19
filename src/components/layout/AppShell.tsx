@@ -23,7 +23,8 @@ export function AppShell({
     <div className="min-h-screen bg-vista-bg dark:bg-vista-bg-dark">
       {showDesktopSidebar && <DesktopSidebar />}
 
-      <div
+      <main
+        id="main-content"
         className={cn(
           'min-h-screen transition-all duration-300',
           showDesktopSidebar && 'lg:mr-sidebar',
@@ -32,7 +33,7 @@ export function AppShell({
         )}
       >
         {children}
-      </div>
+      </main>
 
       {showMobileNav && <MobileBottomNav unreadCount={unreadCount} />}
     </div>
