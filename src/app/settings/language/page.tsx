@@ -1,10 +1,10 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { MobileTopBar } from '@/components/layout/MobileTopBar';
 import { useTranslation } from 'react-i18next';
+import { useRouter } from 'next/navigation';
 import { Check } from 'lucide-react';
 import i18n from '@/lib/i18n';
+import { SettingsPageShell } from '@/components/settings/VistaSettingsWidgets';
 
 export default function LanguageSettingsPage() {
   const router = useRouter();
@@ -18,8 +18,7 @@ export default function LanguageSettingsPage() {
   };
 
   return (
-    <>
-      <MobileTopBar title={t('settings.language')} onBack={() => router.back()} />
+    <SettingsPageShell title={t('settings.language')} backHref="/settings">
       <div className="feed-container px-4 py-6 max-w-2xl mx-auto">
         <h1 className="hidden lg:block text-2xl font-bold mb-6">{t('settings.language')}</h1>
 
@@ -41,6 +40,6 @@ export default function LanguageSettingsPage() {
           </button>
         </div>
       </div>
-    </>
+    </SettingsPageShell>
   );
 }

@@ -18,12 +18,16 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { checkRateLimit, getClientIdentifier, authRateLimit } from '@/lib/rate-limit';
 
-const COOKIE_OPTS = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax' as const,
-  path: '/',
-};
+function getCookieOpts(req: NextRequest) {
+  const proto = req.headers.get('x-forwarded-proto') || req.nextUrl.protocol;
+  const isLocal = req.headers.get('host')?.includes('localhost') || req.headers.get('host')?.includes('10.0.2.2') || req.headers.get('host')?.startsWith('192.168.');
+  return {
+    httpOnly: true,
+    secure: proto.includes('https') || (process.env.NODE_ENV === 'production' && !isLocal),
+    sameSite: 'lax' as const,
+    path: '/',
+  };
+}
 
 // Keep in sync with backend AUTH_GAME_SSO_TTL (default 24h). The backend JWT
 // exp is authoritative; this only bounds the cookie.
@@ -34,7 +38,7 @@ function backendBase(): string {
     process.env.BACKEND_URL ||
     process.env.NEXT_PUBLIC_API_URL ||
     'https://api.coffevista.ir'
-  );
+  ).replace(/\/+$/, '');
 }
 
 export async function POST(req: NextRequest) {
@@ -85,14 +89,14 @@ export async function POST(req: NextRequest) {
 
   const res = NextResponse.json({ ok: true, userId: data.user_id ?? null });
   res.cookies.set('game_token', gameToken, {
-    ...COOKIE_OPTS,
+    ...getCookieOpts(req),
     maxAge: GAME_TOKEN_MAX_AGE,
   });
   return res;
 }
 
-export async function DELETE() {
+export async function DELETE(req: NextRequest) {
   const res = NextResponse.json({ ok: true });
-  res.cookies.set('game_token', '', { ...COOKIE_OPTS, maxAge: 0 });
+  res.cookies.set('game_token', '', { ...getCookieOpts(req), maxAge: 0 });
   return res;
 }

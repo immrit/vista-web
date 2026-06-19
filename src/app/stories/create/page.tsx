@@ -82,7 +82,7 @@ export default function StoryCreatePage() {
 
   const handlePointerDown = (e: ReactPointerEvent, id: string) => {
     setDraggingId(id)
-    e.target.setPointerCapture(e.pointerId)
+    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
   }
 
   const handlePointerMove = (e: ReactPointerEvent) => {
@@ -99,7 +99,7 @@ export default function StoryCreatePage() {
 
   const handlePointerUp = (e: ReactPointerEvent) => {
     setDraggingId(null)
-    e.target.releasePointerCapture(e.pointerId)
+    ;(e.target as HTMLElement).releasePointerCapture(e.pointerId)
   }
 
   const addTextElement = () => {

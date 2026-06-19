@@ -1,5 +1,21 @@
-FROM node:20-slim AS deps
+FROM node:20-slim AS builder
 WORKDIR /app
+
+ARG NEXT_PUBLIC_API_URL=https://api.coffevista.ir
+ARG NEXT_PUBLIC_APP_URL=https://cafevista.ir
+ARG NEXT_PUBLIC_APP_VERSION=2.6.0
+ARG JWT_SECRET=build-time-jwt-secret-change-me-123456
+ARG ENCRYPTION_KEY=0123456789abcdef0123456789abcdef
+ARG CSRF_SECRET=build-time-csrf-secret-change-me-123456
+
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} \
+    NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL} \
+    NEXT_PUBLIC_APP_VERSION=${NEXT_PUBLIC_APP_VERSION} \
+    JWT_SECRET=${JWT_SECRET} \
+    ENCRYPTION_KEY=${ENCRYPTION_KEY} \
+    CSRF_SECRET=${CSRF_SECRET}
 
 COPY package.json package-lock.json .npmrc ./
 ENV NODE_OPTIONS="--max_old_space_size=1536"
@@ -47,27 +63,7 @@ RUN set -e; \
         exit 1; \
     fi
 
-FROM node:20-slim AS builder
-WORKDIR /app
-
-ARG NEXT_PUBLIC_API_URL=https://api.coffevista.ir
-ARG NEXT_PUBLIC_APP_URL=https://cafevista.ir
-ARG NEXT_PUBLIC_APP_VERSION=2.6.0
-ARG JWT_SECRET=build-time-jwt-secret-change-me-123456
-ARG ENCRYPTION_KEY=0123456789abcdef0123456789abcdef
-ARG CSRF_SECRET=build-time-csrf-secret-change-me-123456
-
-ENV NODE_ENV=production \
-    NEXT_TELEMETRY_DISABLED=1 \
-    NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} \
-    NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL} \
-    NEXT_PUBLIC_APP_VERSION=${NEXT_PUBLIC_APP_VERSION} \
-    JWT_SECRET=${JWT_SECRET} \
-    ENCRYPTION_KEY=${ENCRYPTION_KEY} \
-    CSRF_SECRET=${CSRF_SECRET}
-
 COPY . .
-COPY --from=deps /app/node_modules ./node_modules
 
 # Run standard npm build script which executes local next directly without fetching network
 RUN npm run build

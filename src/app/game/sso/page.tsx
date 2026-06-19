@@ -40,8 +40,8 @@ export default function GameSSOPage() {
           setFailed(true);
           return;
         }
-        // Drop the ticket from history, land on the user's own game profile.
-        router.replace('/game/profile');
+        // Drop the ticket from history, land on the user's game lobby.
+        router.replace('/game/lobby');
       } catch {
         setFailed(true);
       }
