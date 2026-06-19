@@ -1,0 +1,17 @@
+{
+  "settings": {
+    "title": "تنظیمات",
+    "language": "زبان",
+    "persian": "فارسی",
+    "english": "انگلیسی",
+    "notifications": "اعلان‌ها",
+    "appearance": "ظاهر"
+  },
+  "nav": {
+    "home": "خانه",
+    "search": "جستجو",
+    "create": "ایجاد",
+    "notifications": "اعلان‌ها",
+    "profile": "پروفایل"
+  }
+}

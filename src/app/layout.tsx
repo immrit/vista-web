@@ -59,13 +59,15 @@ export const metadata: Metadata = {
   },
 };
 
+import { I18nProvider } from '@/components/providers/I18nProvider';
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fa" dir="rtl">
+    <html lang="fa" dir="rtl" suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="application-name" content="Vista" />
@@ -82,14 +84,26 @@ export default function RootLayout({
 
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
         <link rel="icon" type="image/png" href="/favicon.png" />
+
+        {/* iOS Splash Screens */}
+        <link rel="apple-touch-startup-image" href="/icons/splash/apple-splash-2048-2732.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+        <link rel="apple-touch-startup-image" href="/icons/splash/apple-splash-1668-2388.png" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+        <link rel="apple-touch-startup-image" href="/icons/splash/apple-splash-1536-2048.png" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+        <link rel="apple-touch-startup-image" href="/icons/splash/apple-splash-1125-2436.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+        <link rel="apple-touch-startup-image" href="/icons/splash/apple-splash-1242-2688.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+        <link rel="apple-touch-startup-image" href="/icons/splash/apple-splash-828-1792.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+        <link rel="apple-touch-startup-image" href="/icons/splash/apple-splash-750-1334.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+        <link rel="apple-touch-startup-image" href="/icons/splash/apple-splash-640-1136.png" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
       </head>
       <body className="antialiased font-vazir bg-vista-bg dark:bg-vista-bg-dark text-vista-text-primary dark:text-vista-text-primary-dark">
-        <QueryProvider>
-          <ThemeInit />
-          <LayoutWithSidebar>{children}</LayoutWithSidebar>
-          <GlobalMiniPlayer />
-          <Toaster position="top-center" richColors />
-        </QueryProvider>
+        <I18nProvider>
+          <QueryProvider>
+            <ThemeInit />
+            <LayoutWithSidebar>{children}</LayoutWithSidebar>
+            <GlobalMiniPlayer />
+            <Toaster position="top-center" richColors />
+          </QueryProvider>
+        </I18nProvider>
       </body>
     </html>
   );

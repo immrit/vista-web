@@ -6,6 +6,10 @@ export interface Profile {
     email?: string
     avatar_url?: string
     bio?: string
+    website?: string
+    birth_date?: string
+    gender?: 'male' | 'female' | 'other' | string
+    marital_status?: 'single' | 'married' | 'divorced' | string
     created_at: string
     updated_at: string
     is_verified?: boolean
@@ -16,14 +20,15 @@ export interface Profile {
     phone_number?: string
     profile_completed?: boolean
     account_status?: string
-    email_visibility?: string
-    birth_date_visibility?: string
-    gender_visibility?: string
-    marital_status_visibility?: string
+    email_visibility?: 'public' | 'followers' | 'private' | string
+    birth_date_visibility?: 'public' | 'followers' | 'private' | string
+    gender_visibility?: 'public' | 'followers' | 'private' | string
+    marital_status_visibility?: 'public' | 'followers' | 'private' | string
     posts_count?: number
     followers_count?: number
     following_count?: number
     is_private?: boolean
+    note?: string
 }
 
 export interface Post {
@@ -99,6 +104,8 @@ export interface PostWithProfile {
     likes_count?: number
     comments_count?: number
     is_saved?: boolean
+    is_edited?: boolean
+    is_pinned?: boolean
 }
 
 export interface CommentWithProfile extends Comment {

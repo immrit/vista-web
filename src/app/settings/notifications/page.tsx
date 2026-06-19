@@ -1,13 +1,15 @@
 'use client'
 
-import { Bell, MessageSquare, AtSign, Heart, Volume2, Vibrate, Moon } from 'lucide-react'
+import { Bell, MessageSquare, AtSign, Heart, Volume2, Vibrate, Moon, Smartphone, Loader2 } from 'lucide-react'
 import {
   SettingsPageShell, SettingsSection, SettingsGroup, SettingsSwitch,
 } from '@/components/settings/VistaSettingsWidgets'
 import { useNotificationSettings } from '@/hooks/useSettingsData'
+import { usePushNotifications } from '@/hooks/usePushNotifications'
 
 export default function NotificationSettingsPage() {
   const { settings, isLoading, update, isSaving } = useNotificationSettings()
+  const push = usePushNotifications()
 
   const set = async (key: string, value: unknown) => {
     await update({ ...settings, [key]: value })
@@ -27,6 +29,41 @@ export default function NotificationSettingsPage() {
 
   return (
     <SettingsPageShell title="اعلان‌ها">
+      {/* Browser push subscription */}
+      {push.isSupported && (
+        <SettingsSection title="اعلان مرورگر (PWA)">
+          <SettingsGroup>
+            <div className="px-4 py-4 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-vista-primary/10 flex items-center justify-center">
+                  <Smartphone className="w-5 h-5 text-vista-primary" />
+                </div>
+                <div>
+                  <p className="font-medium text-sm">{'اعلان PWA'}</p>
+                  <p className="text-xs text-vista-text-secondary dark:text-vista-text-secondary-dark">
+                    {push.subscribed ? 'فعال است' : push.permission === 'denied' ? 'دسترسی رد شده' : 'غیرفعال'}
+                  </p>
+                </div>
+              </div>
+              {push.permission !== 'denied' && (
+                <button
+                  onClick={push.subscribed ? push.disable : push.enable}
+                  disabled={push.loading}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-medium text-sm transition-colors ${
+                    push.subscribed
+                      ? 'bg-vista-error/10 text-vista-error hover:bg-vista-error/20'
+                      : 'bg-vista-primary text-white hover:opacity-90'
+                  }`}
+                >
+                  {push.loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  {push.subscribed ? 'غیرفعال' : 'فعال‌سازی'}
+                </button>
+              )}
+            </div>
+          </SettingsGroup>
+        </SettingsSection>
+      )}
+
       <SettingsSection title="اعلان‌ها">
         <SettingsGroup>
           <SettingsSwitch icon={Bell} title="اعلان push" checked={pushEnabled} onChange={v => set('push_notifications', v)} disabled={isSaving} />

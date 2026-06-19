@@ -30,21 +30,47 @@
             "name": "فید",
             "short_name": "فید",
             "description": "مشاهده فید",
-            "url": "/feed"
+            "url": "/feed",
+            "icons": [{ "src": "/icons/icon-192.png", "sizes": "96x96" }]
         },
         {
             "name": "پست جدید",
             "short_name": "پست",
             "description": "ایجاد پست جدید",
-            "url": "/post"
+            "url": "/post",
+            "icons": [{ "src": "/icons/icon-192.png", "sizes": "96x96" }]
         },
         {
             "name": "پیام‌ها",
             "short_name": "پیام",
             "description": "مشاهده پیام‌ها",
-            "url": "/messages"
+            "url": "/messages",
+            "icons": [{ "src": "/icons/icon-192.png", "sizes": "96x96" }]
+        },
+        {
+            "name": "اطراف من",
+            "short_name": "نزدیک",
+            "description": "افراد نزدیک به شما",
+            "url": "/nearby",
+            "icons": [{ "src": "/icons/icon-192.png", "sizes": "96x96" }]
         }
     ],
+    "share_target": {
+        "action": "/share-target",
+        "method": "POST",
+        "enctype": "multipart/form-data",
+        "params": {
+            "title": "title",
+            "text": "text",
+            "url": "url",
+            "files": [
+                {
+                    "name": "media",
+                    "accept": ["image/*", "video/*"]
+                }
+            ]
+        }
+    },
     "prefer_related_applications": false,
     "launch_handler": {
         "client_mode": "navigate-existing"

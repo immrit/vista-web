@@ -121,6 +121,7 @@ export function normalizePost(raw: BackendPost): PostWithProfile {
     comments_count: raw.comments_count ?? raw.comment_count ?? 0,
     is_liked: Boolean(raw.is_liked),
     is_saved: Boolean(raw.is_saved),
+    is_edited: Boolean(raw.is_edited),
   };
 }
 
@@ -209,6 +210,10 @@ export const profileApi = {
     const data = await apiClient.post<any>('/v1/me/notification-settings', settings);
     return data;
   },
+
+  async requestVerification() {
+    return apiClient.post('/v1/me/verification-request', {});
+  },
 };
 
 export const postApi = {
@@ -291,6 +296,14 @@ export const postApi = {
       reported_user_id: reportedUserId,
       reason,
     });
+  },
+
+  async pin(postId: string) {
+    await apiClient.post(`/v1/posts/${encodeURIComponent(postId)}/pin`);
+  },
+
+  async unpin(postId: string) {
+    await apiClient.delete(`/v1/posts/${encodeURIComponent(postId)}/pin`);
   },
 
   async byUser(userId: string, limit = 30, offset = 0) {

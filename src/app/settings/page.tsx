@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import {
   User, Shield, Bell, Languages, Palette, HardDrive, Bookmark, Lock,
-  FileText, Info, LogOut, Crown, ChevronLeft, Trash2,
+  FileText, Info, LogOut, Crown, ChevronLeft, Trash2, Fingerprint, Loader2,
 } from 'lucide-react'
 import {
   SettingsSection, SettingsGroup, SettingsTile,
@@ -12,10 +12,12 @@ import {
 import { MobileTopBar } from '@/components/layout/MobileTopBar'
 import Link from 'next/link'
 import { toast } from 'sonner'
+import { useWebAuthn } from '@/hooks/useWebAuthn'
 
 export default function SettingsPage() {
   const { profile, signOut, loading } = useAuth()
   const router = useRouter()
+  const webAuthn = useWebAuthn()
 
   const handleLogout = async () => {
     if (!confirm('آیا از خروج از حساب کاربری اطمینان دارید؟')) return
@@ -82,11 +84,38 @@ export default function SettingsPage() {
             <SettingsTile icon={User} title="حساب کاربری" href="/settings/account" />
             <SettingsTile icon={Shield} title="حریم خصوصی و امنیت" href="/settings/privacy" />
             <SettingsTile icon={Bell} title="اعلان‌ها" href="/settings/notifications" />
-            <SettingsTile icon={Languages} title="زبان" subtitle="فارسی" href="/settings/theme" />
+            <SettingsTile icon={Languages} title="زبان (Language)" subtitle="فارسی / English" href="/settings/language" />
             <SettingsTile icon={Palette} title="ظاهر" href="/settings/theme" />
             <SettingsTile icon={HardDrive} title="داده و ذخیره‌سازی" href="/settings/data" />
             <SettingsTile icon={Bookmark} title="ذخیره‌شده‌ها" href="/settings/saved" />
             <SettingsTile icon={Lock} title="تغییر رمز عبور" href="/settings/change-password" />
+            {webAuthn.isSupported && (
+              <div className="px-4 py-3 flex items-center justify-between gap-4 border-t border-vista-border dark:border-vista-border-dark">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-vista-primary/10 flex items-center justify-center">
+                    <Fingerprint className="w-5 h-5 text-vista-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">ورود بیومتریک</p>
+                    <p className="text-xs text-vista-text-secondary dark:text-vista-text-secondary-dark">
+                      {webAuthn.isRegistered ? 'فعال — اثر انگشت / Face ID' : 'غیرفعال'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={webAuthn.isRegistered ? webAuthn.disable : webAuthn.register}
+                  disabled={webAuthn.loading}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-medium text-sm transition-colors ${
+                    webAuthn.isRegistered
+                      ? 'bg-vista-error/10 text-vista-error hover:bg-vista-error/20'
+                      : 'bg-vista-primary text-white hover:opacity-90'
+                  }`}
+                >
+                  {webAuthn.loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  {webAuthn.isRegistered ? 'غیرفعال' : 'فعال‌سازی'}
+                </button>
+              </div>
+            )}
             <SettingsTile icon={Trash2} title="حذف حساب کاربری" href="/settings/delete-account" destructive />
           </SettingsGroup>
         </SettingsSection>

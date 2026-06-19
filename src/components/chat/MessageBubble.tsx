@@ -1,7 +1,9 @@
 'use client';
 
+'use client';
+
 import { useMemo, useState } from 'react';
-import { Check, CheckCheck, Clock, Reply, Edit2, Trash2, AlertCircle } from 'lucide-react';
+import { Check, CheckCheck, Clock, Forward, Reply, Edit2, Trash2, AlertCircle, Info } from 'lucide-react';
 import { Message } from '@/lib/models/message';
 import { formatTime } from '@/lib/utils/formatTime';
 import { cn } from '@/lib/utils';
@@ -9,6 +11,7 @@ import { useIsDark } from '@/hooks/useIsDark';
 import { bubbleBorderRadius, getChatTheme } from '@/lib/chat/chatTheme';
 import { escapeForPlainTextDisplay } from '@/lib/chat/security';
 import { MessageReactions } from './MessageReactions';
+import { MessageInfoSheet } from './MessageInfoSheet';
 
 interface MessageBubbleProps {
   message: Message;
@@ -17,6 +20,7 @@ interface MessageBubbleProps {
   onReply?: (messageId: string) => void;
   onEdit?: (messageId: string) => void;
   onDelete?: (messageId: string) => void;
+  onForward?: (content: string) => void;
   conversationId: string;
   currentUserId: string;
   isFirstInGroup?: boolean;
@@ -52,12 +56,14 @@ export function MessageBubble({
   onReply,
   onEdit,
   onDelete,
+  onForward,
   conversationId,
   currentUserId,
   isFirstInGroup = true,
   isLastInGroup = true,
 }: MessageBubbleProps) {
   const [showActions, setShowActions] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
   const isDark = useIsDark();
   const theme = getChatTheme(isDark);
   const isOwnMessage = message.senderId === currentUserId;
@@ -187,6 +193,15 @@ export function MessageBubble({
                 <Reply className="w-4 h-4 text-zinc-600 dark:text-zinc-300" />
               </button>
             )}
+            {onForward && message.content && (
+              <button
+                onClick={() => onForward(message.content)}
+                className="p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+                title="فوروارد"
+              >
+                <Forward className="w-4 h-4 text-zinc-600 dark:text-zinc-300" />
+              </button>
+            )}
             {isOwnMessage && onEdit && message.content && (
               <button
                 onClick={() => onEdit(message.id)}
@@ -205,9 +220,27 @@ export function MessageBubble({
                 <Trash2 className="w-4 h-4 text-red-500" />
               </button>
             )}
+            {isOwnMessage && (
+              <button
+                onClick={() => setShowInfo(true)}
+                className="p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+                title="اطلاعات پیام"
+              >
+                <Info className="w-4 h-4 text-zinc-600 dark:text-zinc-300" />
+              </button>
+            )}
           </div>
         )}
       </div>
+
+      {showInfo && (
+        <MessageInfoSheet
+          messageId={message.id}
+          conversationId={conversationId}
+          sentAt={message.createdAt}
+          onClose={() => setShowInfo(false)}
+        />
+      )}
     </div>
   );
 }

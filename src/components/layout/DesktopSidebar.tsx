@@ -12,6 +12,7 @@ import {
   Settings,
   LogOut,
   Gamepad2,
+  MapPin,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
@@ -22,6 +23,7 @@ import { useState, useRef, useEffect } from 'react'
 const navItems = [
   { href: '/feed', icon: Home, label: 'خانه', match: ['/feed'] },
   { href: '/explore', icon: Search, label: 'جستجو', match: ['/explore'] },
+  { href: '/nearby', icon: MapPin, label: 'اطراف من', match: ['/nearby'] },
   { href: '/notifications', icon: Bell, label: 'اعلان‌ها', match: ['/notifications'] },
   { href: '/messages', icon: Mail, label: 'پیام‌ها', match: ['/messages'] },
   { href: '/game', icon: Gamepad2, label: 'بازی', match: ['/game'] },

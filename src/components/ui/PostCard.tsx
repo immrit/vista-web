@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { Heart, MessageSquare, Share2, Check, Smartphone, Globe } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Check, Globe, Heart, MessageSquare, Pencil, Share2, Smartphone, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { PostWithProfile } from '@/lib/types';
 import { useAuth } from '@/hooks/useAuth';
@@ -13,6 +13,8 @@ import GoldenTickBadge from './GoldenTickBadge';
 import { ProgressiveImage } from './ProgressiveImage';
 import { useOptimisticPost } from '@/hooks/useOptimisticPost';
 import { MusicPlayerCard } from './MusicPlayerCard';
+import { postApi } from '@/lib/backendApi';
+import { toast } from 'sonner';
 
 interface PostCardProps {
     post: PostWithProfile;
@@ -33,6 +35,11 @@ export function PostCard({ post, onUpdate, onPostDeleted, showComments = false, 
     const [isMobile, setIsMobile] = useState(false);
     const [showSignUpPrompt, setShowSignUpPrompt] = useState(false);
     const [signUpAction, setSignUpAction] = useState<'like' | 'comment' | 'general'>('general');
+    const [isEditing, setIsEditing] = useState(false);
+    const [editContent, setEditContent] = useState(post.content || '');
+    const [isSavingEdit, setIsSavingEdit] = useState(false);
+    const [localPost, setLocalPost] = useState(post);
+    const editTextareaRef = useRef<HTMLTextAreaElement>(null);
     const { likePost } = useOptimisticPost();
 
     const { likesCount, commentsCount, refreshStats } = usePostStats({
@@ -42,7 +49,7 @@ export function PostCard({ post, onUpdate, onPostDeleted, showComments = false, 
         enabled: Boolean(user),
     });
 
-    const p = post.profiles;
+    const p = localPost.profiles;
 
     const hasGoldenTick = p?.verification_type === 'goldTick' || p?.verification_type === 'gold';
 
@@ -53,7 +60,8 @@ export function PostCard({ post, onUpdate, onPostDeleted, showComments = false, 
 
     useEffect(() => {
         setIsLiked(post.is_liked ?? false);
-    }, [post.id, post.is_liked]);
+        setLocalPost(post);
+    }, [post]);
 
     const handleLike = async () => {
         if (!user || !profile || isLikeLoading) {
@@ -67,9 +75,8 @@ export function PostCard({ post, onUpdate, onPostDeleted, showComments = false, 
 
         setIsLikeLoading(true);
         
-        // استفاده از Optimistic Update
-        await likePost(post.id, {
-            ...post,
+        await likePost(localPost.id, {
+            ...localPost,
             is_liked: isLiked,
             likes_count: likesCount,
         });
@@ -100,10 +107,10 @@ export function PostCard({ post, onUpdate, onPostDeleted, showComments = false, 
     const generateShareUrl = (type: 'web' | 'app') => {
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://coffevista.ir';
         const username = p?.username ? `?u=${encodeURIComponent(p.username)}` : '';
-        const postUrl = `${baseUrl}/post/${post.id}${username}`;
+        const postUrl = `${baseUrl}/post/${localPost.id}${username}`;
 
         if (type === 'app') {
-            return `vista://post/${post.id}`;
+            return `vista://post/${localPost.id}`;
         }
 
         return postUrl;
@@ -111,7 +118,7 @@ export function PostCard({ post, onUpdate, onPostDeleted, showComments = false, 
 
     const handleShare = async (type: 'web' | 'app' = 'web') => {
         const shareUrl = generateShareUrl(type);
-        const shareText = `${p?.full_name || p?.username} در ویستا نوشت:\n\n${post.content?.substring(0, 100)}${post.content && post.content.length > 100 ? '...' : ''}\n\n${shareUrl}`;
+        const shareText = `${p?.full_name || p?.username} در ویستا نوشت:\n\n${localPost.content?.substring(0, 100)}${localPost.content && localPost.content.length > 100 ? '...' : ''}\n\n${shareUrl}`;
 
         if (navigator.share && isMobile) {
             try {
@@ -135,6 +142,32 @@ export function PostCard({ post, onUpdate, onPostDeleted, showComments = false, 
             }
         }
         setShowShareOptions(false);
+    };
+
+    const handleStartEdit = () => {
+        setEditContent(localPost.content || '');
+        setIsEditing(true);
+    };
+
+    const handleCancelEdit = () => {
+        setIsEditing(false);
+    };
+
+    const handleSaveEdit = async () => {
+        const trimmed = editContent.trim();
+        if (!trimmed) return;
+        setIsSavingEdit(true);
+        try {
+            const updated = await postApi.update(localPost.id, trimmed);
+            setLocalPost({ ...updated, is_edited: true });
+            onUpdate?.(updated);
+            setIsEditing(false);
+            toast.success('پست ویرایش شد');
+        } catch {
+            toast.error('خطا در ویرایش پست');
+        } finally {
+            setIsSavingEdit(false);
+        }
     };
 
     const formatTimeAgo = (dateString: string) => {
@@ -190,41 +223,78 @@ export function PostCard({ post, onUpdate, onPostDeleted, showComments = false, 
                                 {hasGoldenTick && <GoldenTickBadge size="sm" />}
                             </div>
                             <p className="text-sm text-gray-500 dark:text-gray-400">
-                                <span className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">@{p?.username}</span> • {formatTimeAgo(post.created_at)}
+                                <span className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">@{p?.username}</span> • {formatTimeAgo(localPost.created_at)}
                             </p>
                         </div>
                     </button>
                     {user && (
                         <PostMenu
-                            post={post}
+                            post={localPost}
                             currentUserId={user.id}
                             onPostDeleted={onPostDeleted}
+                            onEdit={handleStartEdit}
                         />
                     )}
                 </div>
 
                 {/* Post Content */}
-                {post.content && (
-                    <div className="text-gray-800 dark:text-gray-200 mb-4 whitespace-pre-line leading-relaxed">
-                        {post.content}
+                {isEditing ? (
+                    <div className="mb-4">
+                        <textarea
+                            ref={editTextareaRef}
+                            value={editContent}
+                            onChange={e => setEditContent(e.target.value)}
+                            rows={4}
+                            className="w-full rounded-xl border border-vista-primary/40 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-vista-primary/30"
+                            autoFocus
+                        />
+                        <div className="flex gap-2 mt-2 justify-end">
+                            <button
+                                onClick={handleCancelEdit}
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition"
+                            >
+                                <X className="w-3.5 h-3.5" />
+                                انصراف
+                            </button>
+                            <button
+                                onClick={handleSaveEdit}
+                                disabled={isSavingEdit || !editContent.trim()}
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-vista-primary text-white hover:opacity-90 transition disabled:opacity-50"
+                            >
+                                <Check className="w-3.5 h-3.5" />
+                                {isSavingEdit ? 'در حال ذخیره...' : 'ذخیره'}
+                            </button>
+                        </div>
                     </div>
+                ) : (
+                    localPost.content && (
+                        <div className="text-gray-800 dark:text-gray-200 mb-4 whitespace-pre-line leading-relaxed">
+                            {localPost.content}
+                            {localPost.is_edited && (
+                                <span className="inline-flex items-center gap-1 mr-2 text-xs text-zinc-400 dark:text-zinc-500">
+                                    <Pencil className="w-3 h-3" />
+                                    ویرایش شده
+                                </span>
+                            )}
+                        </div>
+                    )
                 )}
 
                 {/* Post Media */}
-                {post.image_url && (
+                {localPost.image_url && (
                     <div className="mb-4 overflow-auto">
                         <ProgressiveImage
-                            src={post.image_url}
+                            src={localPost.image_url!}
                             alt="post"
                             className="rounded-xl border border-zinc-200 dark:border-zinc-700"
                         />
                     </div>
                 )}
 
-                {post.video_url && (
+                {localPost.video_url && (
                     <div className="mb-4 overflow-auto">
                         <video
-                            src={post.video_url}
+                            src={localPost.video_url!}
                             controls
                             className="rounded-xl border border-zinc-200 dark:border-zinc-700"
                             style={{ maxWidth: '100%', height: 'auto', display: 'block' }}
@@ -234,14 +304,14 @@ export function PostCard({ post, onUpdate, onPostDeleted, showComments = false, 
                     </div>
                 )}
 
-                {post.music_url && (
+                {localPost.music_url && (
                     <div className="mb-4">
                         <MusicPlayerCard
-                            src={post.music_url}
-                            postId={post.id}
-                            title={post.content?.split('\n')[0]?.substring(0, 60) || undefined}
-                            coverUrl={post.profiles?.avatar_url || undefined}
-                            artist={post.profiles?.full_name || post.profiles?.username || undefined}
+                            src={localPost.music_url!}
+                            postId={localPost.id}
+                            title={localPost.content?.split('\n')[0]?.substring(0, 60) || undefined}
+                            coverUrl={localPost.profiles?.avatar_url || undefined}
+                            artist={localPost.profiles?.full_name || localPost.profiles?.username || undefined}
                         />
                     </div>
                 )}
@@ -329,7 +399,7 @@ export function PostCard({ post, onUpdate, onPostDeleted, showComments = false, 
             <CommentSheet
                 isOpen={showCommentSheet}
                 onClose={handleCommentSheetClose}
-                post={post}
+                post={localPost}
                 onUpdate={onUpdate}
             />
 

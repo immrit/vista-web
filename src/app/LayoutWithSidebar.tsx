@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import SessionInitializer from "@/components/SessionInitializer";
 import { AppShell } from "@/components/layout/AppShell";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
+import { useBadge } from "@/hooks/useBadge";
 import {
   buildAuthNextPath,
   isOnboardingPath,
@@ -19,6 +20,7 @@ export default function LayoutWithSidebar({ children }: { children: React.ReactN
     const router = useRouter();
     const { user, loading } = useAuth();
     const unreadCount = useUnreadCount();
+    useBadge(unreadCount);
     const [isHydrated, setIsHydrated] = useState(false);
 
     useEffect(() => {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { X, Send, MessageSquare } from 'lucide-react';
+import { ArrowDownUp, MessageSquare, Send, X } from 'lucide-react';
 import { PostWithProfile, CommentWithProfile } from '@/lib/types';
 import { useAuth } from '@/hooks/useAuth';
 import { commentApi } from '@/lib/backendApi';
@@ -22,6 +22,7 @@ export function CommentSheet({ isOpen, onClose, post, onUpdate }: CommentSheetPr
     const [replyingTo, setReplyingTo] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
 
     const loadComments = useCallback(async () => {
         setIsLoading(true);
@@ -134,12 +135,22 @@ export function CommentSheet({ isOpen, onClose, post, onUpdate }: CommentSheetPr
                         <MessageSquare className="w-5 h-5 text-blue-500" />
                         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">نظرات</h2>
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setSortOrder(s => s === 'newest' ? 'oldest' : 'newest')}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
+                            title={sortOrder === 'newest' ? 'جدیدترین اول' : 'قدیمی‌ترین اول'}
+                        >
+                            <ArrowDownUp className="w-3.5 h-3.5" />
+                            {sortOrder === 'newest' ? 'جدیدترین' : 'قدیمی‌ترین'}
+                        </button>
+                        <button
+                            onClick={onClose}
+                            className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Comments List */}
@@ -154,7 +165,10 @@ export function CommentSheet({ isOpen, onClose, post, onUpdate }: CommentSheetPr
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            {comments.map((comment) => (
+                            {[...comments].sort((a, b) => {
+                                const diff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+                                return sortOrder === 'newest' ? diff : -diff;
+                            }).map((comment) => (
                                 <div key={comment.id} className="border-b border-zinc-100 dark:border-zinc-800 pb-4 last:border-b-0">
                                     <div className="flex gap-3">
                                         {comment.profiles?.avatar_url ? (

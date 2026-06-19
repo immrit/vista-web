@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { UploadService } from '@/lib/uploadService'
 import { getPostCharacterLimit, postApi } from '@/lib/backendApi'
-import { Image, Video, Music, X, Loader2, Hash } from 'lucide-react'
+import { Image, Video, Music, X, Loader2 } from 'lucide-react'
 import { MobileTopBar } from '@/components/layout/MobileTopBar'
+import { SmartTextarea } from '@/components/ui/SmartTextarea'
 import { cn } from '@/lib/theme/cn'
 import { toast } from 'sonner'
 
@@ -111,14 +112,15 @@ export default function CreatePostPage() {
             <span className="font-semibold">{profile?.full_name || profile?.username}</span>
           </div>
 
-          {/* Text area */}
-          <textarea
+          {/* Text area with hashtag/mention autocomplete */}
+          <SmartTextarea
             value={content}
-            onChange={e => setContent(e.target.value.slice(0, maxLen))}
-            placeholder="چه چیزی در ذهن دارید؟"
+            onChange={setContent}
+            placeholder="چه چیزی در ذهن دارید؟ از # برای هشتگ و @ برای منشن استفاده کنید"
+            maxLength={maxLen}
             rows={6}
             autoFocus
-            className="w-full bg-transparent text-lg resize-none outline-none placeholder:text-vista-text-secondary leading-relaxed"
+            className="text-lg placeholder:text-vista-text-secondary"
           />
           <p className={cn('text-xs text-left mb-4', content.length >= maxLen ? 'text-vista-error' : 'text-vista-text-secondary')}>
             {content.length}/{maxLen}

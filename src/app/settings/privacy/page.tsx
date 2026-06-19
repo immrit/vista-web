@@ -1,6 +1,6 @@
 'use client'
 
-import { Lock, MessageSquare, Users, Eye, Shield, Smartphone, Trash2 } from 'lucide-react'
+import { Lock, MessageSquare, Users, Eye, Shield, Smartphone, Trash2, VolumeX } from 'lucide-react'
 import {
   SettingsPageShell, SettingsSection, SettingsGroup, SettingsSwitch, SettingsChoice, SettingsTile,
 } from '@/components/settings/VistaSettingsWidgets'
@@ -78,6 +78,7 @@ export default function PrivacySettingsPage() {
             disabled={isSaving}
           />
           <SettingsTile icon={Shield} title="کاربران مسدود" href="/settings/privacy/blocked" />
+          <SettingsTile icon={VolumeX} title="کاربران بی‌صدا" href="/settings/privacy/muted" />
         </SettingsGroup>
       </SettingsSection>
 

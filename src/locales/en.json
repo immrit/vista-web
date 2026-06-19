@@ -1,0 +1,17 @@
+{
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "persian": "Persian",
+    "english": "English",
+    "notifications": "Notifications",
+    "appearance": "Appearance"
+  },
+  "nav": {
+    "home": "Home",
+    "search": "Search",
+    "create": "Create",
+    "notifications": "Notifications",
+    "profile": "Profile"
+  }
+}

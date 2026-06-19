@@ -7,6 +7,7 @@ import {
     ArrowRight,
     Eye,
     EyeOff,
+    Fingerprint,
     KeyRound,
     Loader2,
     UserRound,
@@ -16,6 +17,7 @@ import { Input } from "@/components/ui/Input"
 import { AnimatedRibbonBackground } from "@/components/auth/AnimatedRibbonBackground"
 import { AuthResponse, User as AuthUser, useAuth } from "@/hooks/useAuth"
 import { toast } from "sonner"
+import { useWebAuthn } from "@/hooks/useWebAuthn"
 
 type AuthStep = "identifier" | "password" | "otp"
 
@@ -112,6 +114,7 @@ export default function AuthPage() {
     const [error, setError] = useState<string | null>(null)
     const [otpError, setOtpError] = useState<string | null>(null)
     const [isRegistering, setIsRegistering] = useState(false)
+    const webAuthn = useWebAuthn()
 
     useEffect(() => {
         if (typeof window === "undefined") return
@@ -407,6 +410,27 @@ export default function AuthPage() {
                         <Button type="submit" size="lg" loading={submitting} className="mt-6 w-full btn-vista">
                             ادامه
                         </Button>
+
+                        {webAuthn.isSupported && webAuthn.isRegistered && (
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    const ok = await webAuthn.authenticate()
+                                    if (ok) {
+                                        toast.success('ورود موفق')
+                                        router.replace(redirectPath)
+                                    }
+                                }}
+                                disabled={webAuthn.loading}
+                                className="mt-3 w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-vista-primary/30 text-vista-primary font-semibold text-sm hover:bg-vista-primary/5 transition-colors disabled:opacity-50"
+                            >
+                                {webAuthn.loading
+                                    ? <Loader2 className="w-5 h-5 animate-spin" />
+                                    : <Fingerprint className="w-5 h-5" />
+                                }
+                                ورود با اثر انگشت / Face ID
+                            </button>
+                        )}
 
                         <p className="mt-5 text-center text-xs leading-6 text-zinc-500 dark:text-zinc-400">
                             با ورود به ویستا، قوانین و مقررات را می‌پذیرم.

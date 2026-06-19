@@ -10,6 +10,7 @@ interface MobileTopBarProps {
   showNotifications?: boolean
   className?: string
   children?: React.ReactNode
+  rightAction?: React.ReactNode
 }
 
 export function MobileTopBar({
@@ -18,6 +19,7 @@ export function MobileTopBar({
   showNotifications = true,
   className,
   children,
+  rightAction,
 }: MobileTopBarProps) {
   return (
     <header
@@ -51,7 +53,7 @@ export function MobileTopBar({
         )
       )}
 
-      <div className="w-10" />
+      {rightAction ?? <div className="w-10" />}
     </header>
   )
 }

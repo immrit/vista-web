@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Search, Mail, User, Plus } from 'lucide-react'
+import { Home, Search, Mail, User, Plus, MapPin } from 'lucide-react'
 import { cn } from '@/lib/theme/cn'
 
 interface MobileBottomNavProps {
@@ -13,8 +13,8 @@ const tabs = [
   { href: '/feed', icon: Home, label: 'خانه', index: 0 },
   { href: '/explore', icon: Search, label: 'جستجو', index: 1 },
   { href: '/post', icon: Plus, label: 'پست', index: 2, isAdd: true },
-  { href: '/messages', icon: Mail, label: 'پیام‌ها', index: 3, badge: true },
-  { href: '/profile', icon: User, label: 'پروفایل', index: 4 },
+  { href: '/nearby', icon: MapPin, label: 'اطراف', index: 3 },
+  { href: '/messages', icon: Mail, label: 'پیام‌ها', index: 4, badge: true },
 ]
 
 export function MobileBottomNav({ unreadCount = 0 }: MobileBottomNavProps) {

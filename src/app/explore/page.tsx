@@ -1,11 +1,12 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { Hash, Search, TrendingUp, User } from 'lucide-react';
+import { Hash, Search, TrendingUp, User, QrCode } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { MobileTopBar } from '@/components/layout/MobileTopBar';
 import { PostCard } from '@/components/ui/PostCard';
+import { QRScanner } from '@/components/ui/QRScanner';
 import { postApi, profileApi } from '@/lib/backendApi';
 import { PostWithProfile, Profile } from '@/lib/types';
 
@@ -25,6 +26,7 @@ export default function ExplorePage() {
   const [isSearching, setIsSearching] = useState(false);
   const [activeTab, setActiveTab] = useState<ExploreTab>('posts');
   const [authChecked, setAuthChecked] = useState(false);
+  const [showQRScanner, setShowQRScanner] = useState(false);
 
   const lang = 'fa';
   const isRtl = lang === 'fa';
@@ -150,7 +152,21 @@ export default function ExplorePage() {
 
   return (
     <>
-      <MobileTopBar title="جستجو" showLogo={false} />
+      <MobileTopBar
+        title="جستجو"
+        showLogo={false}
+        rightAction={
+          <button
+            onClick={() => setShowQRScanner(true)}
+            className="p-2 rounded-xl text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            aria-label="اسکن QR"
+          >
+            <QrCode className="w-5 h-5" />
+          </button>
+        }
+      />
+
+      {showQRScanner && <QRScanner onClose={() => setShowQRScanner(false)} />}
 
       <main className="feed-container lg:pt-6 px-4 py-4">
         <div className="max-w-2xl mx-auto lg:glass-card lg:p-6 lg:rounded-2xl">

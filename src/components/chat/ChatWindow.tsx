@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Phone, Video, Info } from 'lucide-react';
+import { ArrowLeft, Phone, Search, Video, Info, X } from 'lucide-react';
 import { Avatar } from '@/components/ui/Avatar';
 import { MessageBubble } from './MessageBubble';
 import { MessageInput } from './MessageInput';
@@ -11,6 +11,7 @@ import { GroupDetailsSheet } from './GroupDetailsSheet';
 import { SoundToggle } from './SoundToggle';
 import { ChatBackground } from './ChatBackground';
 import { ConnectionBanner } from './ConnectionBanner';
+import { ForwardMessageModal } from './ForwardMessageModal';
 import { useMessages } from '@/hooks/useMessages';
 import { useTyping } from '@/hooks/useTyping';
 import { Message } from '@/lib/models/message';
@@ -50,6 +51,10 @@ export function ChatWindow({
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [replyToMessageId, setReplyToMessageId] = useState<string | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [forwardContent, setForwardContent] = useState<string | null>(null);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const shouldStickToBottomRef = useRef(true);
 
   const {
@@ -124,7 +129,16 @@ export function ChatWindow({
     return () => container.removeEventListener('scroll', handleScroll);
   }, [hasMore, isLoadingMore, loadMoreMessages]);
 
-  const groupedMessages = messages.reduce((groups, message) => {
+  useEffect(() => {
+    if (showSearch) setTimeout(() => searchInputRef.current?.focus(), 50);
+    else setSearchQuery('');
+  }, [showSearch]);
+
+  const filteredMessages = searchQuery.trim()
+    ? messages.filter(m => m.content.toLowerCase().includes(searchQuery.toLowerCase()))
+    : messages;
+
+  const groupedMessages = filteredMessages.reduce((groups, message) => {
     const date = formatMessageDate(message.createdAt);
     if (!groups[date]) groups[date] = [];
     groups[date].push(message);
@@ -239,6 +253,12 @@ export function ChatWindow({
 
         <div className="flex items-center gap-1 flex-shrink-0">
           <SoundToggle />
+          <button
+            onClick={() => setShowSearch(s => !s)}
+            className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition"
+          >
+            <Search className="w-5 h-5" style={{ color: chatTheme.icon }} />
+          </button>
           <button className="hidden sm:flex p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition">
             <Phone className="w-5 h-5" style={{ color: chatTheme.icon }} />
           </button>
@@ -253,6 +273,28 @@ export function ChatWindow({
           </button>
         </div>
       </div>
+
+      {showSearch && (
+        <div className="flex items-center gap-2 px-3 py-2 border-b flex-shrink-0" style={{ backgroundColor: chatTheme.appBar, borderColor: chatTheme.divider }}>
+          <Search className="w-4 h-4 shrink-0" style={{ color: chatTheme.secondaryText }} />
+          <input
+            ref={searchInputRef}
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="جستجو در پیام‌ها..."
+            className="flex-1 bg-transparent text-sm outline-none"
+            style={{ color: chatTheme.text }}
+          />
+          {searchQuery && (
+            <span className="text-xs shrink-0" style={{ color: chatTheme.secondaryText }}>
+              {filteredMessages.length} نتیجه
+            </span>
+          )}
+          <button onClick={() => setShowSearch(false)} className="p-1">
+            <X className="w-4 h-4" style={{ color: chatTheme.secondaryText }} />
+          </button>
+        </div>
+      )}
 
       <div ref={containerRef} className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-1 min-h-0">
         {isLoadingMore && (
@@ -295,6 +337,7 @@ export function ChatWindow({
                       onReply={id => setReplyToMessageId(id)}
                       onEdit={id => setEditingMessageId(id)}
                       onDelete={handleDelete}
+                      onForward={content => setForwardContent(content)}
                       conversationId={conversationId}
                       currentUserId={currentUserId}
                       isFirstInGroup={isFirstInGroup}
@@ -329,7 +372,9 @@ export function ChatWindow({
         <MessageInput
           conversationId={conversationId}
           replyToMessageId={replyToMessageId}
+          replyToContent={replyToMessageId ? getReplyToMessage(replyToMessageId)?.content : null}
           editingMessageId={editingMessageId}
+          editingContent={editingMessageId ? getReplyToMessage(editingMessageId)?.content : null}
           onTyping={setTyping}
           onSend={async (content, files, replyToId, editingId) => {
             if (editingId) {
@@ -342,6 +387,13 @@ export function ChatWindow({
           onCancelEdit={() => setEditingMessageId(null)}
         />
       </div>
+
+      {forwardContent !== null && (
+        <ForwardMessageModal
+          content={forwardContent}
+          onClose={() => setForwardContent(null)}
+        />
+      )}
 
       {isGroup ? (
         <GroupDetailsSheet

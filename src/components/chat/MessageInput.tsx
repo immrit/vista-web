@@ -1,16 +1,19 @@
 'use client';
 
 import { useState, useRef, useEffect, KeyboardEvent } from 'react';
-import { Send, Paperclip, X, Mic, Image, Video, File } from 'lucide-react';
+import { Send, Paperclip, X, Mic, Image, Video, File, Smile } from 'lucide-react';
 import { FileUploadSheet } from './FileUploadSheet';
 import { VoiceRecorder } from './VoiceRecorder';
+import { GifPicker } from './GifPicker';
 import { useIsDark } from '@/hooks/useIsDark';
 import { getChatTheme } from '@/lib/chat/chatTheme';
 
 interface MessageInputProps {
   conversationId: string;
   replyToMessageId?: string | null;
+  replyToContent?: string | null;
   editingMessageId?: string | null;
+  editingContent?: string | null;
   onSend: (content: string, files?: File[], replyToId?: string | null, editingId?: string | null) => Promise<void>;
   onCancelReply?: () => void;
   onCancelEdit?: () => void;
@@ -20,7 +23,9 @@ interface MessageInputProps {
 export function MessageInput({
   conversationId,
   replyToMessageId,
+  replyToContent,
   editingMessageId,
+  editingContent,
   onSend,
   onCancelReply,
   onCancelEdit,
@@ -29,6 +34,7 @@ export function MessageInput({
   const [content, setContent] = useState('');
   const [showFileSheet, setShowFileSheet] = useState(false);
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
+  const [showGifPicker, setShowGifPicker] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -84,9 +90,16 @@ export function MessageInput({
     }
   };
 
+  const handleGifSelect = async (gifUrl: string) => {
+    try {
+      await onSend(gifUrl, [], replyToMessageId || null, null)
+      onCancelReply?.()
+    } catch { /* silent */ }
+  }
+
   return (
     <div
-      className="p-3 sm:p-4 border-t backdrop-blur-xl"
+      className="p-3 sm:p-4 border-t backdrop-blur-xl relative"
       style={{
         backgroundColor: theme.inputBg,
         borderColor: theme.inputBorder,
@@ -118,21 +131,35 @@ export function MessageInput({
       )}
 
       {replyToMessageId && (
-        <div className="mb-2 flex items-center justify-between rounded-xl px-3 py-2 bg-indigo-500/10 border border-indigo-500/20">
-          <div className="text-xs text-indigo-600 dark:text-indigo-300">در حال پاسخ به پیام...</div>
-          <button onClick={onCancelReply} className="p-1 rounded-lg hover:bg-indigo-500/10">
-            <X className="w-4 h-4" />
+        <div className="mb-2 flex items-center gap-2 rounded-xl px-3 py-2 bg-vista-primary/10 border-r-2 border-vista-primary">
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-vista-primary">{'پاسخ'}</p>
+            {replyToContent && (
+              <p className="text-xs text-vista-text-secondary dark:text-vista-text-secondary-dark truncate">{replyToContent}</p>
+            )}
+          </div>
+          <button onClick={onCancelReply} className="p-1 rounded-lg hover:bg-vista-primary/10 flex-shrink-0">
+            <X className="w-4 h-4 text-vista-primary" />
           </button>
         </div>
       )}
 
       {editingMessageId && (
-        <div className="mb-2 flex items-center justify-between rounded-xl px-3 py-2 bg-amber-500/10 border border-amber-500/20">
-          <div className="text-xs text-amber-700 dark:text-amber-300">در حال ویرایش پیام...</div>
-          <button onClick={onCancelEdit} className="p-1 rounded-lg hover:bg-amber-500/10">
-            <X className="w-4 h-4" />
+        <div className="mb-2 flex items-center gap-2 rounded-xl px-3 py-2 bg-amber-500/10 border-r-2 border-amber-500">
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">{'ویرایش پیام'}</p>
+            {editingContent && (
+              <p className="text-xs text-vista-text-secondary dark:text-vista-text-secondary-dark truncate">{editingContent}</p>
+            )}
+          </div>
+          <button onClick={onCancelEdit} className="p-1 rounded-lg hover:bg-amber-500/10 flex-shrink-0">
+            <X className="w-4 h-4 text-amber-700 dark:text-amber-300" />
           </button>
         </div>
+      )}
+
+      {showGifPicker && (
+        <GifPicker onSelect={handleGifSelect} onClose={() => setShowGifPicker(false)} />
       )}
 
       <div className="flex items-end gap-2">
@@ -141,6 +168,14 @@ export function MessageInput({
           className="p-2.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition flex-shrink-0"
         >
           <Paperclip className="w-5 h-5" style={{ color: theme.icon }} />
+        </button>
+        <button
+          onClick={() => setShowGifPicker(g => !g)}
+          className="p-2.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition flex-shrink-0 text-xs font-bold"
+          style={{ color: showGifPicker ? '#6366F1' : theme.icon }}
+          title="GIF"
+        >
+          <Smile className="w-5 h-5" />
         </button>
 
         <div

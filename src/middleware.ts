@@ -131,23 +131,29 @@ export function middleware(request: NextRequest) {
     return applySecurityHeaders(res);
   }
 
-  // Auth guard.
-  //
-  // Two session kinds:
+  const accessToken = request.cookies.get('access_token')?.value;
+  const refreshToken = request.cookies.get('refresh_token')?.value;
+  const gameToken = request.cookies.get('game_token')?.value;
+
+  const hasFullSession = Boolean(accessToken || refreshToken);
+  const isGamePath = pathname === '/game' || pathname.startsWith('/game/');
+  const isApiPath = pathname.startsWith('/api/');
+
+  // ── Game-only session confinement ───────────────────────────────────────────
+  // A webview that came in via the native handoff holds only `game_token`. It is
+  // hard-confined to the game section: every other page — including PUBLIC ones
+  // like /profile/:id, /post/:id, /feed, /auth — is redirected back into /game.
+  // (API routes pass through; the backend re-checks scope on each call.)
+  const isGameOnlySession = Boolean(gameToken) && !hasFullSession;
+  if (isGameOnlySession && !isGamePath && !isApiPath) {
+    const redirectRes = NextResponse.redirect(new URL('/game/profile', request.url));
+    return applySecurityHeaders(redirectRes);
+  }
+
+  // ── Auth guard ──────────────────────────────────────────────────────────────
   //   • full session  — access_token / refresh_token (native web users)
-  //   • game session  — game_token only, minted via the native-app handoff,
-  //                      confined to /game/* (the webview must not reach the
-  //                      rest of the app even if a link tries to navigate away).
+  //   • game session  — game_token only; authorizes /game/* exclusively
   if (requiresAuth(pathname)) {
-    const accessToken = request.cookies.get('access_token')?.value;
-    const refreshToken = request.cookies.get('refresh_token')?.value;
-    const gameToken = request.cookies.get('game_token')?.value;
-
-    const hasFullSession = Boolean(accessToken || refreshToken);
-    const isGamePath = pathname === '/game' || pathname.startsWith('/game/');
-
-    // A game-only session is valid *only* inside /game. Anywhere else it counts
-    // as unauthenticated, so the webview can never view feed/messages/etc.
     const authorized = isGamePath
       ? hasFullSession || Boolean(gameToken)
       : hasFullSession;
