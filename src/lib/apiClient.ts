@@ -39,11 +39,12 @@ export function getStoredAccessToken(): string | null {
 export async function persistAuthTokens(accessToken: string, refreshToken?: string): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch('/api/auth/token', {
+    const res = await fetch('/api/auth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ access_token: accessToken, refresh_token: refreshToken }),
     });
+    if (!res.ok) throw new Error('Token API failed');
   } catch {
     // Dev fallback (no HttpOnly so JS can read for Authorization header)
     const maxAge = 60 * 60 * 24 * 3650;
@@ -60,7 +61,8 @@ export async function persistAuthTokens(accessToken: string, refreshToken?: stri
 export async function clearAuthTokens(): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch('/api/auth/token', { method: 'DELETE' });
+    const res = await fetch('/api/auth/token', { method: 'DELETE' });
+    if (!res.ok) throw new Error('Token API failed');
   } catch {
     document.cookie = 'access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     document.cookie = 'refresh_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';

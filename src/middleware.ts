@@ -5,6 +5,8 @@ import { requiresAuth } from '@/lib/auth/routes';
 const STATIC_PREFIXES = ['/_next', '/static', '/favicon', '/icons', '/images', '/public'];
 const API_CSRF_EXEMPT = new Set([
   '/api/auth/refresh',
+  '/api/auth/token',
+  '/api/game/sso',
 ]);
 
 function isCsrfExempt(pathname: string): boolean {

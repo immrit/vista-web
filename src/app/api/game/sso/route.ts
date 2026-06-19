@@ -16,7 +16,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
-import { checkRateLimit, getClientIdentifier, authRateLimit } from '@/lib/rate-limit';
+import { checkRateLimit, getClientIdentifier, apiRateLimit } from '@/lib/rate-limit';
 
 function getCookieOpts(req: NextRequest) {
   const proto = req.headers.get('x-forwarded-proto') || req.nextUrl.protocol;
@@ -42,7 +42,7 @@ function backendBase(): string {
 }
 
 export async function POST(req: NextRequest) {
-  const rate = await checkRateLimit(getClientIdentifier(req), authRateLimit);
+  const rate = await checkRateLimit(getClientIdentifier(req), apiRateLimit);
   if (!rate.success) {
     return NextResponse.json({ ok: false, error: 'rate_limited' }, { status: 429 });
   }
