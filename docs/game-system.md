@@ -102,13 +102,35 @@ scoring/timing/answer-checking server-side; never send `CorrectOptionIndex`.
   violet palette across ALL game pages incl. profile/store/settings (were left
   blue in earlier pass).
 
+### Fixed (session 2 — economy/payment/anti-cheat)
+- **Winner criteria unified.** New `determineWinner(match)` in `redis_match.go`
+  is the single source of truth: more correct answers wins, tie on correct →
+  break by score, else `"tie"`. Used by BOTH normal finish AND timeout expiry.
+  (Was: score-based on finish, correct-count on timeout.)
+- **Atomic coin deduction.** New `profile.DeductCoins` =
+  `UPDATE ... WHERE coins >= amount RETURNING coins` (single statement,
+  race-free, can't go negative). `DeductCoinsForGame` now uses it instead of
+  read-then-write; Redis lock kept as defense-in-depth.
+- **Zibal bonus credited.** Coin packages centralized in
+  `internal/payment/packages.go` (single source: coins+bonus+price). Verify now
+  credits `coins+bonus` (was base only — frontend promised bonus, backend never
+  gave it). New `GET /v1/payment/packages`; frontend store fetches it (fallback
+  to static). Verify also cross-checks Zibal `amount == package.AmountRial`.
+- **Server-side player identity.** `resolvePlayer(ctx, userID)` derives
+  name/avatar from game profile → main profile → fallback, ignoring client-sent
+  values. Fixes duels showing "User xxxx" AND prevents name/avatar spoofing.
+  Applied to matchmake / duel create / duel join / lobby join.
+- **Economy constants centralized** in `redis_match.go` (`EntryFee`,
+  `CoinsPerCorrect`, `XPPerCorrect`, `Win/Tie/Loss` bonuses). Used by
+  `awardFinishedMatch` + all 4 entry-fee sites. Values unchanged.
+- **Zibal merchant code** lives in `.env` `ZIBAL_MERCHANT` (gitignored), NOT in
+  source. `.env.example` has a `zibal` (sandbox) placeholder. Callback in
+  `ZIBAL_CALLBACK_URL`.
+
 ### Open — backend
-- **Winner criteria inconsistency.** Normal finish (`SubmitAnswer`) decides
-  winner by **score** (correctness + time bonus). Timeout expiry
-  (`winnerByCorrectAnswers`) decides by **correct-answer count**. A player ahead
-  on score but behind on correct-count gets a different result depending on
-  path. Pick ONE rule (QoK uses correct-count, ties broken by time) and apply
-  to both paths.
+- **Mild coin inflation.** Up to 230 coins earned per match vs 100-coin sink
+  (2×`EntryFee`). Net injection per match. Tune `EntryFee`/rewards in
+  `redis_match.go` if economy needs tightening. Knobs are now one place.
 - **Poll vs rate-limit budget.** `play` polls match every 2s (=30/min),
   `match` every 3s (=20/min), both share the 60/min `game_ans:` bucket with
   submits. Heavy/dual usage can hit 429 and stall polling. Consider: separate
@@ -119,10 +141,6 @@ scoring/timing/answer-checking server-side; never send `CorrectOptionIndex`.
   N clients that's a lot of Redis writes. Consider read-only fast path.
 
 ### Open — frontend
-- **Duel create sends empty body** → backend defaults opponent name to
-  `"User xxxx"`. `handleDuelCreate`/`handleDuelJoin` read `name`/`avatarUrl`
-  but the page doesn't send them. Pass real `displayName`/`avatarUrl` like
-  `matchmake` does.
 - **No realtime.** All screens poll. Fine for async turn-based, but a WS/SSE
   push would cut latency + load.
 - **Responsive:** game is mobile-first `max-w-md mx-auto` centered column.
@@ -170,9 +188,26 @@ keep it کارتونی/پاستیلی/تپل (cartoonish/pastel/chunky). Only th
 ---
 
 ## 6. Game economy (for reference)
-- Entry fee: 50 coins (matchmake / duel create / lobby join).
+Constants live in `internal/game/redis_match.go` (backend) — change them there.
+- Entry fee: 50 coins (matchmake / duel create / duel join / lobby join).
 - Reward per correct answer: +10 coins, +20 XP.
 - Win bonus: +50 coins, +100 XP. Tie: +20 coins, +50 XP. Loss: +20 XP.
-- Level curve: `xpForLevel(n) = n² × 100`.
+- Level curve (backend `calculateLevel`): `level = floor(sqrt(xp/100)) + 1`,
+  i.e. you reach level L at `(L-1)² × 100` XP. Frontend hub mirrors this
+  (`xpForPrevLevel`/`xpForLevel`) — keep in sync.
 - 6 rounds × 3 questions = 18 questions max → up to 180 correctness coins +
   win bonus per match.
+
+## 7. Payment (Zibal)
+- Gateway: Zibal (`gateway.zibal.ir/v1`), works in **Rial** (price shown in
+  Toman; `AmountRial = PriceToman × 10`).
+- Merchant code: env `ZIBAL_MERCHANT` (gitignored `.env`). Sandbox = `"zibal"`.
+- Packages: single source `internal/payment/packages.go`
+  (`coins_1000` / `coins_5000`+500 bonus / `coins_12000`+2000 bonus). Exposed
+  via `GET /v1/payment/packages`; frontend store fetches it.
+- Flow: `POST /v1/payment/zibal/request` → redirect to `gateway.zibal.ir/start/<trackId>`
+  → callback `ZIBAL_CALLBACK_URL` (`/game/store/verify`) → `POST /v1/payment/zibal/verify`.
+- Verify safety: idempotent (tx `status='paid'` blocks double credit; Zibal 201
+  = already verified), amount cross-checked vs package, coins = base + bonus.
+- ⚠️ The merchant code `6910eb0…` was pasted in chat — rotate it if that history
+  is shared.
