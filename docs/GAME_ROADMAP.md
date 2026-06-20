@@ -3,7 +3,7 @@
 Living tracker for the game section (ویستا کوییز). Updated after each change.
 Progress bars are coarse estimates. `[██████████]` = 10 cells = 100%.
 
-**Overall: `[███████░░░] ~72%`**
+**Overall: `[███████░░░] ~74%`**
 
 Legend: ✅ done · 🟡 partial · ⬜ not started
 
@@ -44,11 +44,12 @@ Async turn-based 1v1, 6 rounds × 3 questions, category pick, scoring, timeout.
 - ⬜ **Manager config** — edit prize table/weights from admin panel
 - ⬜ **Spin SFX / better win animation**
 
-## EPIC 5 — Manager (admin panel) `[██████░░░░] 60%` 🟡
+## EPIC 5 — Manager (admin panel) `[███████░░░] 70%` 🟡
 - ✅ Game stats dashboard (active matches, queue, recent matches)
 - ✅ Question moderation (approve/reject user submissions + notify)
 - ✅ Official question CRUD (create/edit/delete, skips moderation)
-- ⬜ **Leaderboard / top players view** + search a player's game profile
+- ✅ Leaderboard / top players view (coins, level, W/L/T, total) + search
+  (`GET /api/v1/admin/game/leaderboard`, page /dashboard/game-leaderboard)
 - ⬜ **Ban/suspend player from game** (cheaters)
 - ⬜ **Economy config editor** (entry fee, rewards, packages, spin prizes)
 - ⬜ **Question bulk import** (CSV/JSON)
@@ -80,7 +81,8 @@ Ideas drawn from Quiz of Kings to deepen engagement:
 ---
 
 ## Changelog
-- **2026-06-20 (session 5):** Lifelines live — 50/50 + audience (server-side,
+- **2026-06-20 (session 5):** Manager game leaderboard (top players + stats +
+  search) with admin endpoint. Lifelines live — 50/50 + audience (server-side,
   anti-cheat, atomic coin charge, once-per-question lock) + tests; wired into
   QuestionCard.
 - **2026-06-20 (session 4):** Spin wheel (backend+frontend+tests), lobby spin
