@@ -62,6 +62,19 @@ export default function GameLobbyPage() {
         </div>
 
         <div className="p-4 flex-1 overflow-y-auto">
+          {/* Daily spin wheel */}
+          <button
+            onClick={() => router.push('/game/spin')}
+            className="w-full mb-4 bg-gradient-to-l from-[#fbbf24] to-[#f59e0b] border-2 border-yellow-300 rounded-2xl p-4 flex items-center gap-3 text-white shadow-[0_6px_0_#b45309] active:translate-y-[6px] active:shadow-none transition-all"
+          >
+            <div className="text-4xl animate-spin-slow">🎡</div>
+            <div className="flex-1 text-right">
+              <div className="font-black text-lg drop-shadow">گردونه شانس روزانه</div>
+              <div className="text-xs opacity-90 font-bold">هر روز سکه رایگان بگیر!</div>
+            </div>
+            <div className="bg-white/25 rounded-full px-3 py-1 text-sm font-black">رایگان</div>
+          </button>
+
           <div className="bg-white/10 border border-white/20 rounded-2xl p-4 mb-6 text-center text-white">
             <Users size={32} className="mx-auto mb-2 text-[#78c02c]" />
             <p className="text-sm opacity-90 leading-relaxed font-bold">
