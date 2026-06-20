@@ -46,48 +46,46 @@ export default function PlayMatchPage() {
     return () => clearInterval(interval);
   }, [fetchMatch, loading, matchId, playerId]);
 
-  const GameLoader = () => (
-    <div className="min-h-screen bg-[#0d0c1e] flex items-center justify-center">
-      <div className="w-12 h-12 rounded-full border-2 border-violet-500/30 border-t-violet-500 animate-spin" />
-    </div>
-  );
-
-  if (!match || !playerId || loading) return <GameLoader />;
+  if (!match || !playerId || loading) {
+    return (
+      <div className="min-h-screen bg-[#4c1d95] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent"></div>
+      </div>
+    );
+  }
 
   const isPlayer1 = match.player1.id === playerId;
   const opponent = isPlayer1 ? match.player2 : match.player1;
 
   const currentRound = getCurrentRound(match);
-  if (!currentRound) return <GameLoader />;
+  if (!currentRound) {
+    return (
+      <div className="min-h-screen bg-[#4c1d95] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent"></div>
+      </div>
+    );
+  }
 
   const isWaitingForOpponent = match.status === 'waiting' || match.status === 'waiting_for_opponent' || !match.player2;
   const isMyTurn = isPlayerTurn(match, playerId, currentRound);
 
   if (match.status === 'finished') {
     router.replace(`/game/match/${matchId}`);
-    return <GameLoader />;
+    return <div className="min-h-screen bg-[#4c1d95] flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent"></div></div>;
   }
 
   if (isWaitingForOpponent) {
     return (
-      <div className="min-h-screen bg-[#0d0c1e] relative overflow-hidden flex flex-col items-center justify-center gap-6 px-6 text-center">
-        <div
-          className="absolute inset-0 pointer-events-none opacity-10"
-          style={{ backgroundImage: 'radial-gradient(circle, rgba(124,58,237,0.5) 1px, transparent 1px)', backgroundSize: '32px 32px' }}
-        />
-        <div className="relative z-10 flex flex-col items-center gap-6">
-          <div className="w-16 h-16 rounded-full border-2 border-violet-500/30 border-t-violet-500 animate-spin" />
-          <div>
-            <p className="font-black text-white text-xl">در انتظار حریف...</p>
-            <p className="text-white/40 text-sm mt-2">لینک بازی را برای دوستتان ارسال کنید</p>
-          </div>
-          <button
-            onClick={() => router.push(`/game/match/${matchId}`)}
-            className="bg-white/8 border border-white/10 hover:bg-white/15 text-white/70 px-8 py-3 rounded-xl font-bold text-sm transition-colors"
-          >
-            بازگشت به صفحه بازی
-          </button>
-        </div>
+      <div className="min-h-screen bg-[#4c1d95] flex flex-col items-center justify-center gap-4 px-6 text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent"></div>
+        <p className="font-bold text-white text-xl shadow-text">در انتظار ورود حریف...</p>
+        <p className="text-white/70 text-sm">لینک بازی را برای دوستتان ارسال کنید</p>
+        <button
+          onClick={() => router.push(`/game/match/${matchId}`)}
+          className="mt-4 bg-white/10 hover:bg-white/20 text-white px-8 py-3 rounded-full font-bold backdrop-blur-sm border border-white/20 transition-colors"
+        >
+          بازگشت به صفحه بازی
+        </button>
       </div>
     );
   }
@@ -118,7 +116,7 @@ export default function PlayMatchPage() {
       });
       if (updatedMatch) {
         setMatch(updatedMatch);
-        const answeredRound = updatedMatch.rounds.find((r) => r.roundIndex === answeredRoundIndex) || null;
+        const answeredRound = updatedMatch.rounds.find((round) => round.roundIndex === answeredRoundIndex) || null;
         if (hasPlayerCompletedRound(updatedMatch, playerId, answeredRound)) {
           router.replace(`/game/match/${matchId}`);
           return;
@@ -139,31 +137,25 @@ export default function PlayMatchPage() {
   const currentQuestion = questionIndex !== -1 && questionIndex < questions.length ? questions[questionIndex] : null;
 
   return (
-    <div className="min-h-screen bg-[#0d0c1e] font-sans flex flex-col relative overflow-hidden pb-10">
-      {/* Dot grid */}
-      <div
-        className="absolute inset-0 opacity-10 pointer-events-none"
-        style={{ backgroundImage: 'radial-gradient(circle, rgba(124,58,237,0.5) 1px, transparent 1px)', backgroundSize: '32px 32px' }}
-      />
+    <div className="min-h-screen bg-[#4c1d95] font-sans flex flex-col relative overflow-hidden pb-10">
+      {/* Stars background */}
+      <div className="absolute inset-0 opacity-[0.05] pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Ctext x=\'8\' y=\'40\' font-family=\'Arial\' font-size=\'36\' fill=\'white\'%3E%E2%98%85%3C/text%3E%3C/svg%3E")', backgroundSize: '60px 60px' }}></div>
 
       <div className="flex-1 w-full flex flex-col items-center pt-8 px-4 relative z-10">
         {!isMyTurn ? (
-          <div className="flex flex-col items-center justify-center flex-1 gap-6">
-            <div className="w-20 h-20 rounded-full border-2 border-violet-500/30 border-t-violet-500 animate-spin" />
-            <div className="text-center">
-              <h2 className="text-xl font-black text-white">
-                {currentRound.status === 'picking_category'
-                  ? 'منتظر انتخاب موضوع حریف...'
-                  : <>منتظر پاسخ <span className="text-cyan-400">{opponent?.name || 'حریف'}</span>...</>
-                }
-              </h2>
-              <p className="text-white/40 text-sm mt-2">لحظه‌ای صبر کنید</p>
-            </div>
+          <div className="flex flex-col items-center justify-center flex-1 space-y-6">
+            <div className="w-24 h-24 rounded-full border-4 border-white/20 border-t-white animate-spin"></div>
+            <h2 className="text-2xl font-black text-white drop-shadow-md text-center leading-relaxed">
+              {currentRound.status === 'picking_category'
+                ? 'منتظر انتخاب موضوع حریف باش...'
+                : <>منتظر پاسخ <span className="text-[#d8b4fe]">{opponent?.name || 'حریف'}</span> باش...</>
+              }
+            </h2>
             <button
               onClick={() => router.push(`/game/match/${matchId}`)}
-              className="bg-white/8 border border-white/10 hover:bg-white/15 text-white/60 px-8 py-3 rounded-xl font-bold text-sm transition-colors"
+              className="mt-8 bg-white/10 hover:bg-white/20 text-white px-8 py-3 rounded-full font-bold backdrop-blur-sm border border-white/20 transition-colors"
             >
-              بازگشت به صفحه بازی
+              بازگشت به لابی
             </button>
           </div>
         ) : currentRound.status === 'picking_category' ? (
@@ -183,19 +175,18 @@ export default function PlayMatchPage() {
             timeLimitMs={10000}
           />
         ) : (
-          <div className="flex flex-col items-center justify-center flex-1 gap-6">
-            <div className="w-20 h-20 bg-emerald-500/15 border-2 border-emerald-500/50 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/20">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-10 h-10 text-emerald-400">
+          <div className="flex flex-col items-center justify-center flex-1 space-y-6">
+            <div className="w-24 h-24 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg border-4 border-white animate-bounce">
+              <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" className="w-12 h-12">
                 <polyline points="20 6 9 17 4 12"></polyline>
               </svg>
             </div>
-            <div className="text-center">
-              <h2 className="text-xl font-black text-white">راند شما تمام شد!</h2>
-              <p className="text-white/40 text-sm mt-1">در حال انتقال...</p>
-            </div>
+            <h2 className="text-2xl font-black text-white drop-shadow-md text-center">
+              راند شما به پایان رسید!
+            </h2>
             <button
               onClick={() => router.push(`/game/match/${matchId}`)}
-              className="bg-violet-600 hover:bg-violet-500 text-white px-8 py-3 rounded-xl font-bold text-sm transition-colors shadow-lg shadow-violet-500/25"
+              className="mt-8 bg-white/10 hover:bg-white/20 text-white px-8 py-3 rounded-full font-bold backdrop-blur-sm border border-white/20 transition-colors"
             >
               مشاهده نتیجه
             </button>

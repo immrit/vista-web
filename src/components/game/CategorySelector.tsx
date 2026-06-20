@@ -9,13 +9,6 @@ interface CategorySelectorProps {
   opponentName: string;
 }
 
-const SLOT_STYLES: Array<{ border: string; bg: string; glow: string }> = [
-  { border: 'border-violet-500/50', bg: 'bg-violet-500/10', glow: 'shadow-violet-500/20' },
-  { border: 'border-cyan-500/50',   bg: 'bg-cyan-500/10',   glow: 'shadow-cyan-500/20'   },
-  { border: 'border-rose-500/50',   bg: 'bg-rose-500/10',   glow: 'shadow-rose-500/20'   },
-  { border: 'border-amber-500/50',  bg: 'bg-amber-500/10',  glow: 'shadow-amber-500/20'  },
-];
-
 export function CategorySelector({ categories, onSelect, disabled, opponentName }: CategorySelectorProps) {
   const [selected, setSelected] = useState<Category | null>(null);
 
@@ -25,45 +18,54 @@ export function CategorySelector({ categories, onSelect, disabled, opponentName 
     setTimeout(() => onSelect(cat), 300);
   };
 
+  const slotColors = [
+    { bg: '#d2303c', shadow: '#9e1a26', text: 'text-white' },
+    { bg: '#ec6237', shadow: '#b84520', text: 'text-white' },
+    { bg: '#7c3aed', shadow: '#4c1d95', text: 'text-white' },
+    { bg: '#0f766e', shadow: '#134e4a', text: 'text-white' },
+  ];
+
   const displayCats = categories.slice(0, Math.min(4, categories.length));
-  const gridCols = displayCats.length <= 2 ? 'grid-cols-2' : displayCats.length === 3 ? 'grid-cols-3' : 'grid-cols-2';
 
   return (
-    <div className="flex flex-col items-center w-full max-w-md mx-auto gap-6 animate-in fade-in duration-500">
-      <div className="text-center space-y-1">
-        <h2 className="text-2xl font-black text-white leading-tight">انتخاب موضوع</h2>
-        <p className="text-white/40 text-sm">
-          در مقابل <span className="text-cyan-400 font-bold">{opponentName}</span>
-        </p>
+    <div className="flex flex-col items-center w-full max-w-md mx-auto space-y-6 animate-in fade-in duration-500">
+      <div className="text-center space-y-3">
+        <h2 className="text-2xl md:text-3xl font-black text-white leading-tight drop-shadow-md px-4">
+          موضوع خود را مقابل <span className="text-[#d8b4fe]">{opponentName}</span> مشخص کنید
+        </h2>
+        <p className="text-white/80 text-sm font-medium">یکی از موضوعات زیر را انتخاب کنید</p>
       </div>
 
-      <div className={`grid gap-3 w-full px-2 ${gridCols}`}>
+      <div className={`grid gap-4 w-full px-4 ${displayCats.length <= 2 ? 'grid-cols-2' : displayCats.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
         {displayCats.map((catId, idx) => {
           const cat = CATEGORIES[catId];
-          const style = SLOT_STYLES[idx % SLOT_STYLES.length];
+          const color = slotColors[idx % slotColors.length];
           const isSelected = selected === catId;
-          const isDisabled = disabled || (!!selected && selected !== catId);
 
           return (
             <button
               key={catId}
               onClick={() => handleSelect(catId)}
               disabled={disabled || !!selected}
-              className={[
-                'relative rounded-2xl p-5 flex flex-col items-center justify-center gap-3 min-h-[120px]',
-                'transition-all duration-300 border bg-white/5 backdrop-blur-sm',
-                isSelected
-                  ? `${style.border} ${style.bg} scale-95 shadow-lg ${style.glow}`
-                  : isDisabled
-                    ? 'border-white/5 opacity-40 cursor-not-allowed'
-                    : `border-white/10 hover:${style.border} hover:${style.bg} cursor-pointer active:scale-95`,
-              ].join(' ')}
+              className={`
+                relative rounded-3xl p-5 flex flex-col items-center justify-center space-y-2
+                transition-all duration-300 min-h-[120px]
+                border-2 border-white/20
+                ${isSelected ? 'scale-95 brightness-110 ring-4 ring-white/60' : 'active:scale-95'}
+                ${disabled || (selected && selected !== catId) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:brightness-110'}
+              `}
+              style={{
+                background: `linear-gradient(to bottom, ${color.bg}, ${color.shadow})`,
+                boxShadow: isSelected ? `0 0 0 4px white, 0 8px 0 ${color.shadow}` : `0 8px 0 ${color.shadow}`,
+              }}
             >
-              <span className="text-4xl drop-shadow-lg select-none">{cat.icon}</span>
-              <span className="text-white font-black text-sm text-center leading-tight">{cat.label}</span>
+              <span className="text-4xl drop-shadow-lg">{cat.icon}</span>
+              <span className="text-white font-black text-base text-center leading-tight drop-shadow-md">
+                {cat.label}
+              </span>
               {isSelected && (
-                <div className="absolute inset-0 rounded-2xl bg-black/20 flex items-center justify-center">
-                  <div className="w-7 h-7 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <div className="absolute inset-0 rounded-3xl bg-white/20 flex items-center justify-center">
+                  <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin" />
                 </div>
               )}
             </button>
@@ -71,15 +73,16 @@ export function CategorySelector({ categories, onSelect, disabled, opponentName 
         })}
       </div>
 
-      <div className="flex flex-col items-center gap-1">
-        <p className="text-white/25 text-xs">تغییر موضوعات پیشنهادی</p>
+      <div className="flex flex-col items-center space-y-2">
+        <p className="text-white/70 text-xs font-medium">می‌خوای موضوعات پیشنهادی رو تغییر بدی؟</p>
         <button
           disabled
           title="به زودی"
-          className="flex items-center gap-2 bg-white/5 border border-white/10 text-white/25 px-5 py-2 rounded-xl cursor-not-allowed text-sm font-bold"
+          className="bg-[#78c02c]/60 text-white/70 px-8 py-2 rounded-2xl shadow-[0_4px_0_#5da01f]/60 flex items-center space-x-2 space-x-reverse border border-[#a2e858]/60 cursor-not-allowed opacity-70"
         >
-          <div className="relative w-4 h-4"><Image src="/images/coin.png" alt="coin" fill /></div>
-          <span>۸۰ سکه</span>
+          <div className="relative w-5 h-5"><Image src="/images/coin.png" alt="coin" fill /></div>
+          <span className="font-bold text-lg drop-shadow-md">۸۰</span>
+          <span className="text-sm">تغییر موضوع</span>
         </button>
       </div>
     </div>

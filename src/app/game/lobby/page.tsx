@@ -52,106 +52,67 @@ export default function GameLobbyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0d0c1e] relative overflow-hidden">
-      {/* Dot grid */}
-      <div
-        className="absolute inset-0 pointer-events-none opacity-10"
-        style={{
-          backgroundImage: 'radial-gradient(circle, rgba(124,58,237,0.5) 1px, transparent 1px)',
-          backgroundSize: '32px 32px',
-        }}
-      />
+    <div className="min-h-screen bg-[#4c1d95] flex justify-center">
+      <div className="w-full max-w-md bg-[#6d28d9] flex flex-col h-[100dvh] relative shadow-2xl">
+        <div className="flex items-center p-4 bg-[#4c1d95] sticky top-0 z-20 shadow-md">
+          <button onClick={() => router.push('/game')} className="p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors">
+            <ArrowRight size={24} />
+          </button>
+          <h1 className="text-white font-bold text-lg mr-4">تالار بازی‌های آزاد</h1>
+        </div>
 
-      <div className="relative z-10 flex justify-center min-h-screen">
-        <div className="w-full max-w-md flex flex-col">
-
-          {/* Header */}
-          <div className="flex items-center gap-3 p-4 bg-[#0d0c1e]/80 backdrop-blur-md border-b border-white/5 sticky top-0 z-20">
-            <button
-              onClick={() => router.push('/game')}
-              className="w-9 h-9 flex items-center justify-center bg-white/8 border border-white/10 rounded-xl text-white hover:bg-white/15 transition-colors"
-            >
-              <ArrowRight size={18} />
-            </button>
-            <h1 className="text-white font-black text-base">تالار بازی‌های آزاد</h1>
-            <div className="mr-auto flex items-center gap-1.5 text-white/30 text-xs font-bold">
-              <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-              {matches.length} بازی
-            </div>
+        <div className="p-4 flex-1 overflow-y-auto">
+          <div className="bg-white/10 border border-white/20 rounded-2xl p-4 mb-6 text-center text-white">
+            <Users size={32} className="mx-auto mb-2 text-[#78c02c]" />
+            <p className="text-sm opacity-90 leading-relaxed font-bold">
+              در این بخش می‌توانید بازی‌هایی که منتظر حریف هستند را مشاهده کنید و به آنها بپیوندید.
+            </p>
           </div>
 
-          <div className="p-4 flex-1 overflow-y-auto space-y-4">
-            {/* Info */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-start gap-3">
-              <div className="w-9 h-9 bg-cyan-500/15 border border-cyan-500/30 rounded-xl flex items-center justify-center flex-shrink-0">
-                <Users size={18} className="text-cyan-400" />
-              </div>
-              <p className="text-white/50 text-sm leading-relaxed">
-                بازی‌هایی که منتظر حریف هستند. پیوستن به هر بازی <span className="text-white/70 font-bold">۵۰ سکه</span> هزینه دارد.
-              </p>
+          {loading && matches.length === 0 ? (
+            <div className="flex justify-center py-10">
+              <div className="w-8 h-8 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
             </div>
-
-            {/* Match list */}
-            {loading && matches.length === 0 ? (
-              <div className="flex justify-center py-16">
-                <div className="w-8 h-8 border-2 border-violet-500/30 border-t-violet-500 rounded-full animate-spin" />
-              </div>
-            ) : matches.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-white/30 gap-4">
-                <AlertCircle size={44} className="opacity-40" />
-                <p className="font-bold text-sm">هیچ بازی آزادی موجود نیست</p>
-                <button
-                  onClick={() => router.push('/game')}
-                  className="bg-violet-600 hover:bg-violet-500 text-white px-6 py-2.5 rounded-xl font-bold text-sm transition-colors shadow-lg shadow-violet-500/25"
-                >
-                  شروع بازی جدید
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {matches.map(match => (
-                  <div
-                    key={match.matchId}
-                    className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center justify-between hover:border-violet-500/30 hover:bg-white/8 transition-all"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-11 h-11 rounded-xl overflow-hidden border border-white/15 flex-shrink-0">
-                        <Image
-                          src={match.player1.avatar || '/images/default-avatar.png'}
-                          alt={match.player1.name}
-                          width={44}
-                          height={44}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div>
-                        <div className="font-bold text-white text-sm">{match.player1.name}</div>
-                        <div className="text-[10px] text-white/30 font-bold mt-0.5 flex items-center gap-1">
-                          <div className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse" />
-                          منتظر حریف
-                        </div>
-                      </div>
+          ) : matches.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-white/50">
+              <AlertCircle size={48} className="mb-4 opacity-50" />
+              <p className="font-bold">هیچ بازی آزادی در حال حاضر وجود ندارد.</p>
+              <button
+                onClick={() => router.push('/game')}
+                className="mt-6 bg-[#78c02c] text-white px-6 py-2 rounded-full font-bold shadow-[0_4px_0_#5da01f] active:translate-y-1 active:shadow-none"
+              >
+                شروع یک بازی جدید
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {matches.map(match => (
+                <div key={match.matchId} className="bg-white rounded-2xl p-4 shadow-md flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-[#6d28d9]">
+                      <Image src={match.player1.avatar || '/images/default-avatar.png'} alt={match.player1.name} fill className="object-cover" />
                     </div>
-
-                    <button
-                      onClick={() => joinLobby(match.matchId)}
-                      disabled={joining === match.matchId}
-                      className="bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white px-4 py-2 rounded-xl font-bold text-sm transition-all active:scale-95 flex items-center gap-1.5 shadow-lg shadow-violet-500/20"
-                    >
-                      {joining === match.matchId ? (
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <>
-                          <Play size={14} className="fill-white" />
-                          <span>پیوستن</span>
-                        </>
-                      )}
-                    </button>
+                    <div>
+                      <div className="font-bold text-slate-800 text-sm">{match.player1.name}</div>
+                      <div className="text-xs text-slate-500 mt-0.5">منتظر حریف...</div>
+                    </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  <button
+                    onClick={() => joinLobby(match.matchId)}
+                    disabled={joining === match.matchId}
+                    className="bg-gradient-to-r from-[#7c3aed] to-[#6d28d9] hover:from-[#6d28d9] hover:to-[#4c1d95] text-white px-5 py-2 rounded-xl font-bold shadow-[0_4px_0_#4c1d95] active:translate-y-1 active:shadow-none transition-all flex items-center gap-1 text-sm disabled:opacity-50"
+                  >
+                    {joining === match.matchId ? '...' : (
+                      <>
+                        <Play size={16} className="fill-white" />
+                        <span>بازی</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
