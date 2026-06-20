@@ -127,6 +127,20 @@ scoring/timing/answer-checking server-side; never send `CorrectOptionIndex`.
   source. `.env.example` has a `zibal` (sandbox) placeholder. Callback in
   `ZIBAL_CALLBACK_URL`.
 
+### Fixed (session 3 — engineering hardening)
+- **Method-aware rate limit** on `/v1/game/match/`. GET poll and POST action
+  no longer share one 60/min bucket: GET → `game_poll:` 180/min, POST →
+  `game_ans:` 60/min. Polling can't 429 the answer path anymore.
+- **First game unit tests** — `internal/game/game_test.go` (isAnswerPending,
+  hasPendingAnswer, countCorrectAnswers/scoring, determineWinner all branches,
+  expectedPlayingTurn turn order) + `internal/payment/packages_test.go`
+  (price×10==Rial invariant, bonus/total, lookup). Backend CI already runs
+  `go test -race ./...`.
+- **CI build unbroken** — root scratch scripts `test_bazaar.go` / `find_cols.go`
+  (both `package main`) collided → `go build ./...` failed with
+  `main redeclared`. Tagged `//go:build ignore` so they're excluded from the
+  build but still runnable via `go run`.
+
 ### Open — backend
 - **Mild coin inflation.** Up to 230 coins earned per match vs 100-coin sink
   (2×`EntryFee`). Net injection per match. Tune `EntryFee`/rewards in
