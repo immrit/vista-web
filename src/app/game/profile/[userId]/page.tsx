@@ -73,7 +73,7 @@ export default function PublicGameProfilePage() {
           <h1 className="text-white font-bold text-lg mr-4">پروفایل بازیکن</h1>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           {/* Header Section */}
           <div className="bg-gradient-to-b from-[#6d28d9] to-[#4c1d95] pt-10 pb-8 px-4 flex flex-col items-center border-b border-white/10">
             <div className="relative">

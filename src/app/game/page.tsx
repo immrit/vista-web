@@ -88,19 +88,25 @@ export default function GameHomePage() {
     if (tab === 'leaderboard') { fetchLeaderboard(); }
   }, [tab, fetchLeaderboard]);
 
+  // Tiered entry fee by active-match count: 1-5 → 50, 6-10 → 200, 11-15 → 300, cap 15.
+  const MAX_MATCHES = 15;
+  const matchFeeFor = (active: number) =>
+    active < 5 ? 50 : active < 10 ? 200 : active < MAX_MATCHES ? 300 : -1;
   const hasWaitingMatch = activeMatches.some((match) => {
     const matchPlayerId = resolveMatchPlayerId(match, playerIdCandidates);
     return match.player1.id === matchPlayerId && !match.player2 && (match.status === 'waiting' || match.status === 'waiting_for_opponent');
   });
+  const activeCount = activeMatches.length;
+  const nextMatchCost = matchFeeFor(activeCount); // -1 when at cap
   const isReady = !loading && !!currentUserId && coins !== null;
-  const hasEnoughCoins = coins !== null && (coins >= 50 || hasWaitingMatch);
-  const isAtCapacity = activeMatches.length >= 5 && !hasWaitingMatch;
+  const hasEnoughCoins = hasWaitingMatch || (nextMatchCost >= 0 && coins !== null && coins >= nextMatchCost);
+  const isAtCapacity = nextMatchCost < 0 && !hasWaitingMatch;
   const startDisabled = !isReady || isMatchmaking || isAtCapacity || !hasEnoughCoins;
 
   const handleStartGame = async () => {
     if (loading || !currentUserId || coins === null) return;
-    if (coins < 50 && !hasWaitingMatch) {
-      alert('موجودی سکه شما کافی نیست! برای ورود به مسابقه حداقل ۵۰ سکه نیاز دارید.');
+    if (!hasWaitingMatch && nextMatchCost > 0 && coins < nextMatchCost) {
+      alert(`موجودی سکه کافی نیست! هزینه شروع این بازی ${nextMatchCost.toLocaleString('fa-IR')} سکه است.`);
       return;
     }
     try {
@@ -218,7 +224,7 @@ export default function GameHomePage() {
               </div>
               {!startDisabled && (
                 <p className="text-white/70 text-sm mt-1 font-medium">
-                  {hasWaitingMatch ? 'شما در صف انتظار هستید' : 'هزینه: ۵۰ سکه'}
+                  {hasWaitingMatch ? 'شما در صف انتظار هستید' : `هزینه: ${nextMatchCost.toLocaleString('fa-IR')} سکه`}
                 </p>
               )}
               {!startDisabled && <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-20"><Gamepad2 size={40} /></div>}
@@ -228,7 +234,7 @@ export default function GameHomePage() {
             <div className="grid grid-cols-2 gap-3">
               <button
                 id="lobby-btn"
-                onClick={() => router.push('/game/lobby')}
+                onClick={() => router.push('/game')}
                 className="bg-gradient-to-b from-[#7c3aed] to-[#6d28d9] border border-[#a78bfa] rounded-2xl shadow-[0_6px_0_#4c1d95] p-4 flex flex-col items-start text-white space-y-1 active:translate-y-[6px] active:shadow-none transition-all"
               >
                 <Users size={24} className="text-white/80" />
@@ -247,6 +253,32 @@ export default function GameHomePage() {
                 <span className="text-[11px] opacity-80 z-10">با دوستت بازی کن</span>
               </button>
             </div>
+
+            {/* Daily spin wheel */}
+            <button
+              onClick={() => router.push('/game/spin')}
+              className="w-full bg-gradient-to-l from-[#a855f7] to-[#7c3aed] border-2 border-violet-300 rounded-2xl p-3.5 flex items-center gap-3 text-white shadow-[0_6px_0_#5b21b6] active:translate-y-[6px] active:shadow-none transition-all"
+            >
+              <div className="text-3xl">🎡</div>
+              <div className="flex-1 text-right">
+                <div className="font-black text-base drop-shadow">گردونه شانس روزانه</div>
+                <div className="text-[11px] opacity-90 font-bold">هر روز سکه رایگان بچرخان</div>
+              </div>
+              <span className="bg-white/25 rounded-full px-3 py-1 text-xs font-black">رایگان</span>
+            </button>
+
+            {/* Daily missions */}
+            <button
+              onClick={() => router.push('/game/missions')}
+              className="w-full bg-gradient-to-l from-[#fbbf24] to-[#f59e0b] border-2 border-yellow-300 rounded-2xl p-3.5 flex items-center gap-3 text-white shadow-[0_6px_0_#b45309] active:translate-y-[6px] active:shadow-none transition-all"
+            >
+              <div className="text-3xl">🎯</div>
+              <div className="flex-1 text-right">
+                <div className="font-black text-base drop-shadow">مأموریت‌های روزانه</div>
+                <div className="text-[11px] opacity-90 font-bold">کامل کن، سکه رایگان بگیر</div>
+              </div>
+              <span className="bg-white/25 rounded-full px-3 py-1 text-xs font-black">جایزه</span>
+            </button>
 
             {/* Active Matches */}
             {activeMatches.length > 0 && (
@@ -355,7 +387,7 @@ export default function GameHomePage() {
           <UserCircle size={24} />
           <span className="text-[10px] mt-1 font-bold">پروفایل</span>
         </button>
-        <button id="lobby-nav-btn" onClick={() => router.push('/game/lobby')} className="flex flex-col items-center text-white/50 hover:text-white transition-colors">
+        <button id="lobby-nav-btn" onClick={() => router.push('/game')} className="flex flex-col items-center text-white/50 hover:text-white transition-colors">
           <Users size={24} />
           <span className="text-[10px] mt-1 font-bold">تالار</span>
         </button>

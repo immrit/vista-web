@@ -136,7 +136,7 @@ export default function GameProfilePage() {
           <h1 className="text-white font-bold text-lg mr-4">پروفایل ویستا کوییز</h1>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           {/* Header Section */}
           <div className="bg-gradient-to-b from-[#6d28d9] to-[#4c1d95] pt-8 pb-6 px-4 flex flex-col items-center border-b border-white/10">
             <div className="relative">

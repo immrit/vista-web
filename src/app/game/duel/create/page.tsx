@@ -70,7 +70,7 @@ export default function CreateDuelPage() {
           <h1 className="text-white font-bold text-lg mr-4">دوئل خصوصی</h1>
         </div>
 
-        <div className="p-4 flex-1 overflow-y-auto space-y-6">
+        <div className="p-4 flex-1 min-h-0 overflow-y-auto space-y-6">
           <div className="bg-gradient-to-b from-[#f36b59] to-[#ea4b34] border border-[#f8a89d] rounded-2xl p-6 text-center text-white shadow-lg relative overflow-hidden">
             <div className="absolute right-0 top-0 opacity-10 pointer-events-none scale-150 -translate-y-1/4 translate-x-1/4">
               <Trophy size={120} />

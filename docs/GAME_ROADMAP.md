@@ -3,7 +3,7 @@
 Living tracker for the game section (ویستا کوییز). Updated after each change.
 Progress bars are coarse estimates. `[██████████]` = 10 cells = 100%.
 
-**Overall: `[███████░░░] ~74%`**
+**Overall: `[████████░░] ~80%`**
 
 Legend: ✅ done · 🟡 partial · ⬜ not started
 
@@ -15,6 +15,12 @@ Async turn-based 1v1, 6 rounds × 3 questions, category pick, scoring, timeout.
 - ✅ Round/turn state machine, category select, answer submit
 - ✅ Result screen, round summary, leaderboard
 - ✅ Active-matches list + polling
+- ✅ **QoK tiered match fee** — active games 1-5 → 50 coins, 6-10 → 200, 11-15
+  → 300; hard cap 15 active games. Backend `MatchFeeForActiveCount` +
+  `chargeMatchSlot` on matchmake/duel/lobby; hub shows the current tier's cost.
+- ✅ **12h turn timeout** — if the player on turn doesn't act within 12h, the
+  match ends in favor of the opponent who already played (`timeoutWinner`).
+  (Was 30min + correct-count winner.)
 
 ## EPIC 2 — Anti-cheat / security `[██████████] 100%` ✅
 - ✅ Correct answers never sent to client (`MaskForClient`)
@@ -31,6 +37,11 @@ Async turn-based 1v1, 6 rounds × 3 questions, category pick, scoring, timeout.
 - ✅ Packages single source + `GET /v1/payment/packages`
 - ✅ Centralized economy constants (entry fee, rewards)
 - ✅ Merchant code in env (not source)
+- ✅ **Prod payment fixed** — docker-compose now passes `ZIBAL_MERCHANT` /
+  `ZIBAL_CALLBACK_URL` / `ZIBAL_ALLOWED_HOSTS` into the container (was the cause
+  of "redirects to localhost" + "sandbox gateway"). Backend also honors the
+  client `callback_url` when its host is allow-listed. See game-system.md
+  "Deploy checklist (payment)".
 - ⬜ **Coin inflation tuning** — payout > sink per match; decide final numbers
 - ⬜ **Admin-tunable economy** — move constants to DB-backed config editable in manager
 - ⬜ **Transaction history view** for users (store purchases)
@@ -38,7 +49,8 @@ Async turn-based 1v1, 6 rounds × 3 questions, category pick, scoring, timeout.
 ## EPIC 4 — Daily spin wheel (گردونه شانس) `[████████░░] 80%` 🟡
 - ✅ Backend: weighted server-side prize table, atomic once-per-day claim
   (Redis SetNX, reset at Tehran midnight), `GET/POST /v1/game/spin`
-- ✅ Frontend: lobby button + animated wheel page + countdown to next spin
+- ✅ Frontend: spin button on BOTH the hub and the lobby + animated wheel page
+  + countdown to next spin
 - ✅ Unit tests (weighting, distribution, weights sum to 100)
 - ⬜ **Streak bonus** — consecutive-day multiplier (QoK-style)
 - ⬜ **Manager config** — edit prize table/weights from admin panel
@@ -61,13 +73,16 @@ Async turn-based 1v1, 6 rounds × 3 questions, category pick, scoring, timeout.
 - ⬜ Read-only fast path in `GetMatch` (avoid re-`SaveMatch` on every poll)
 - ⬜ Backoff/visibility-aware polling on the client
 
-## EPIC 7 — New game modes & features (QoK-inspired ideas) `[█░░░░░░░░░] 12%` 🟡
+## EPIC 7 — New game modes & features (QoK-inspired ideas) `[██░░░░░░░░] 22%` 🟡
 Ideas drawn from Quiz of Kings to deepen engagement:
-- 🟡 **Lifelines** — ✅ 50/50 (حذف دو گزینه) + audience % (جواب مردم) live, fully
-  server-authoritative (server picks hidden options / vote split; correct answer
-  never sent), coins charged atomically, once-per-question lock. ⬜ re-spin
-  category (شانس مجدد) still disabled.
-- ⬜ **Daily/weekly challenges & missions** (e.g. "win 3 matches" → reward)
+- ✅ **Lifelines** — 50/50 (حذف دو گزینه) + audience % (جواب مردم) +
+  re-spin category (شانس مجدد). All server-authoritative (server picks hidden
+  options / vote split / new categories; correct answer never sent), coins
+  charged atomically (40/60/80), 50-50 & audience once-per-question locked.
+- ✅ **Daily missions** — 4 missions (play 3, win 1, 15 correct, spin), progress
+  auto-tracked at match finish + spin, atomic claim with coin reward, Tehran
+  daily reset. Backend `game_missions` table + `/v1/game/missions[/claim]`;
+  page `/game/missions` + hub button. (Weekly challenges still ⬜.)
 - ⬜ **Achievements / badges** (نشان‌ها) on profile
 - ⬜ **League / rank tiers** (سطح‌بندی لیگ) with seasonal reset
 - ⬜ **Friends & rematch** — invite a recent opponent, friend list
@@ -81,6 +96,14 @@ Ideas drawn from Quiz of Kings to deepen engagement:
 ---
 
 ## Changelog
+- **2026-06-20 (session 7):** QoK match parity — tiered match fee (1-5→50,
+  6-10→200, 11-15→300, cap 15 active games); 12h turn timeout with
+  "player who played wins" (`timeoutWinner`); spin button added to the hub too;
+  hub cost UI reflects free/200. Prod payment fix (compose env pass + client
+  callback allow-list) + deploy checklist. Re-spin lifeline (شانس مجدد) done →
+  lifelines complete. (Uncommitted — pending review.)
+- **2026-06-20 (session 6):** Daily missions end-to-end (table, increment hooks
+  at match finish + spin, claim endpoint, /game/missions page + hub button).
 - **2026-06-20 (session 5):** Manager game leaderboard (top players + stats +
   search) with admin endpoint. Lifelines live — 50/50 + audience (server-side,
   anti-cheat, atomic coin charge, once-per-question lock) + tests; wired into

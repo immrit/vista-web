@@ -7,10 +7,22 @@ interface CategorySelectorProps {
   onSelect: (categoryId: Category) => void;
   disabled?: boolean;
   opponentName: string;
+  onReroll?: () => Promise<void>;
 }
 
-export function CategorySelector({ categories, onSelect, disabled, opponentName }: CategorySelectorProps) {
+export function CategorySelector({ categories, onSelect, disabled, opponentName, onReroll }: CategorySelectorProps) {
   const [selected, setSelected] = useState<Category | null>(null);
+  const [rerolling, setRerolling] = useState(false);
+
+  const handleReroll = async () => {
+    if (!onReroll || rerolling || disabled || selected) return;
+    setRerolling(true);
+    try {
+      await onReroll();
+    } finally {
+      setRerolling(false);
+    }
+  };
 
   const handleSelect = (cat: Category) => {
     if (disabled || selected) return;
@@ -76,13 +88,13 @@ export function CategorySelector({ categories, onSelect, disabled, opponentName 
       <div className="flex flex-col items-center space-y-2">
         <p className="text-white/70 text-xs font-medium">می‌خوای موضوعات پیشنهادی رو تغییر بدی؟</p>
         <button
-          disabled
-          title="به زودی"
-          className="bg-[#78c02c]/60 text-white/70 px-8 py-2 rounded-2xl shadow-[0_4px_0_#5da01f]/60 flex items-center space-x-2 space-x-reverse border border-[#a2e858]/60 cursor-not-allowed opacity-70"
+          onClick={handleReroll}
+          disabled={!onReroll || rerolling || disabled || !!selected}
+          className="bg-[#78c02c] hover:brightness-110 text-white px-8 py-2 rounded-2xl shadow-[0_4px_0_#5da01f] active:translate-y-1 active:shadow-none transition-all flex items-center space-x-2 space-x-reverse border border-[#a2e858] disabled:opacity-60 disabled:cursor-not-allowed"
         >
           <div className="relative w-5 h-5"><Image src="/images/coin.png" alt="coin" fill /></div>
           <span className="font-bold text-lg drop-shadow-md">۸۰</span>
-          <span className="text-sm">تغییر موضوع</span>
+          <span className="text-sm">{rerolling ? 'در حال تغییر...' : 'تغییر موضوع'}</span>
         </button>
       </div>
     </div>

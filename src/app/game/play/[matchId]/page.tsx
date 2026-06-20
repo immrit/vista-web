@@ -164,6 +164,15 @@ export default function PlayMatchPage() {
             onSelect={(cat) => handlePickCategory(cat)}
             disabled={loadingAction}
             opponentName={opponent?.name || 'حریف'}
+            onReroll={async () => {
+              try {
+                const res = await apiClient.post<{ categories: Category[] }>(`/v1/game/match/${matchId}/respin`);
+                if (res?.categories?.length) setRandomCats(res.categories);
+              } catch (err: any) {
+                if (err?.status === 402) alert('سکه کافی نداری');
+                else alert('خطا در تغییر موضوع');
+              }
+            }}
           />
         ) : currentRound.status === 'playing' && currentQuestion ? (
           <QuestionCard

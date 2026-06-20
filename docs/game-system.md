@@ -225,3 +225,22 @@ Constants live in `internal/game/redis_match.go` (backend) — change them there
   = already verified), amount cross-checked vs package, coins = base + bonus.
 - ⚠️ The merchant code `6910eb0…` was pasted in chat — rotate it if that history
   is shared.
+
+### Deploy checklist (payment) — IMPORTANT
+Two production bugs came from env vars not reaching the container: docker-compose
+only forwards vars listed under `environment:`. Fixed by adding `ZIBAL_MERCHANT`,
+`ZIBAL_CALLBACK_URL`, `ZIBAL_ALLOWED_HOSTS` there. On the **server**, set these
+in the backend `.env` (compose interpolates them):
+```
+ZIBAL_MERCHANT=6910eb0dad11fa000f624401      # real code → REAL gateway. "zibal" = sandbox
+ZIBAL_CALLBACK_URL=https://coffevista.ir/game/store/verify   # never localhost in prod
+ZIBAL_ALLOWED_HOSTS=coffevista.ir,www.coffevista.ir
+PAYMENT_PRODUCTION=true
+```
+Then `docker compose up -d --force-recreate api`. Notes:
+- "Redirects to localhost" = `ZIBAL_CALLBACK_URL` not set / not passed. Backend
+  now also accepts the client-sent `callback_url` (browser origin) when its host
+  is in `ZIBAL_ALLOWED_HOSTS`, so prod works even if that env is missing.
+- "Sandbox gateway / real gateway won't open" = `ZIBAL_MERCHANT` still `"zibal"`.
+  Zibal opens the real gateway only with a real merchant code (independent of
+  `PAYMENT_PRODUCTION`, which only gates Cafebazaar).
