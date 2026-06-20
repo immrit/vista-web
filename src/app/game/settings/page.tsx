@@ -38,9 +38,9 @@ export default function GameSettingsPage() {
   const fetchMyQuestions = async () => {
     try {
       setLoading(true);
-      const res = await apiClient.get('/v1/game/questions');
-      if (res.data) {
-        setQuestions(res.data);
+      const res = await apiClient.get<QuestionDTO[]>('/v1/game/questions');
+      if (res) {
+        setQuestions(res);
       }
     } catch (error) {
       console.error('Failed to fetch questions', error);
@@ -85,11 +85,11 @@ export default function GameSettingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#114b82] flex justify-center overflow-hidden">
-      <div className="w-full max-w-md bg-[#1b73b5] flex flex-col h-[100dvh] relative shadow-2xl overflow-y-auto">
+    <div className="min-h-screen bg-[#4c1d95] flex justify-center overflow-hidden">
+      <div className="w-full max-w-md bg-[#6d28d9] flex flex-col h-[100dvh] relative shadow-2xl overflow-y-auto">
         
         {/* Header */}
-        <div className="flex items-center p-4 bg-[#1b73b5] sticky top-0 z-20 shadow-md">
+        <div className="flex items-center p-4 bg-[#6d28d9] sticky top-0 z-20 shadow-md">
           <button 
             onClick={() => router.push('/game')}
             className="p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors"
@@ -166,7 +166,7 @@ export default function GameSettingsPage() {
           ) : (
             <div className="bg-white rounded-3xl p-5 shadow-xl animate-in slide-in-from-bottom-8">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="font-black text-xl text-[#114b82]">طرح سوال جدید</h2>
+                <h2 className="font-black text-xl text-[#4c1d95]">طرح سوال جدید</h2>
                 <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-slate-600">
                   <Trash2 size={20} />
                 </button>
@@ -178,7 +178,7 @@ export default function GameSettingsPage() {
                   <select 
                     value={categoryId} 
                     onChange={e => setCategoryId(e.target.value as Category)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:border-[#1b73b5] text-slate-800 font-medium"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:border-[#6d28d9] text-slate-800 font-medium"
                   >
                     {Object.values(CATEGORIES).map(c => (
                       <option key={c.id} value={c.id}>{c.icon} {c.label}</option>
@@ -192,7 +192,7 @@ export default function GameSettingsPage() {
                     value={text}
                     onChange={e => setText(e.target.value)}
                     placeholder="سوال خود را اینجا بنویسید..."
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:border-[#1b73b5] text-slate-800 font-medium resize-none h-24"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:border-[#6d28d9] text-slate-800 font-medium resize-none h-24"
                     maxLength={150}
                   />
                 </div>
@@ -225,7 +225,7 @@ export default function GameSettingsPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full bg-[#1b73b5] hover:bg-[#155a8f] text-white font-bold py-4 rounded-2xl shadow-[0_4px_0_#114b82] active:translate-y-1 active:shadow-none transition-all disabled:opacity-50 mt-6"
+                  className="w-full bg-[#6d28d9] hover:bg-[#5b21b6] text-white font-bold py-4 rounded-2xl shadow-[0_4px_0_#4c1d95] active:translate-y-1 active:shadow-none transition-all disabled:opacity-50 mt-6"
                 >
                   {submitting ? 'در حال ارسال...' : 'ارسال برای تایید'}
                 </button>

@@ -120,16 +120,16 @@ export default function GameProfilePage() {
 
   if (loading || authLoading) {
     return (
-      <div className="min-h-screen bg-[#114b82] flex items-center justify-center">
+      <div className="min-h-screen bg-[#4c1d95] flex items-center justify-center">
         <Loader2 className="w-12 h-12 text-white animate-spin" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[#114b82] flex justify-center font-sans">
-      <div className="w-full max-w-md bg-[#1b73b5] flex flex-col h-[100dvh] relative shadow-2xl">
-        <div className="flex items-center p-4 bg-[#1b73b5] sticky top-0 z-20 shadow-md">
+    <div className="min-h-screen bg-[#4c1d95] flex justify-center font-sans">
+      <div className="w-full max-w-md bg-[#6d28d9] flex flex-col h-[100dvh] relative shadow-2xl">
+        <div className="flex items-center p-4 bg-[#6d28d9] sticky top-0 z-20 shadow-md">
           <button onClick={() => router.push('/game')} className="p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors">
             <ArrowRight size={24} />
           </button>
@@ -138,9 +138,9 @@ export default function GameProfilePage() {
 
         <div className="flex-1 overflow-y-auto">
           {/* Header Section */}
-          <div className="bg-gradient-to-b from-[#1b73b5] to-[#114b82] pt-8 pb-6 px-4 flex flex-col items-center border-b border-white/10">
+          <div className="bg-gradient-to-b from-[#6d28d9] to-[#4c1d95] pt-8 pb-6 px-4 flex flex-col items-center border-b border-white/10">
             <div className="relative">
-              <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-[#3ca2ea] bg-white shadow-xl flex items-center justify-center">
+              <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-[#a855f7] bg-white shadow-xl flex items-center justify-center">
                 {avatarUrl ? (
                   <Avatar src={avatarUrl} alt="Avatar" className="w-full h-full" />
                 ) : (
@@ -169,7 +169,7 @@ export default function GameProfilePage() {
               <div className="flex justify-between items-center">
                 <div className="flex flex-col items-center flex-1">
                   <span className="text-white/60 text-xs font-bold mb-1">XP</span>
-                  <span className="font-black text-xl text-[#3ca2ea]">{xp.toLocaleString('fa-IR')}</span>
+                  <span className="font-black text-xl text-[#a855f7]">{xp.toLocaleString('fa-IR')}</span>
                 </div>
                 <div className="w-px h-10 bg-white/20"></div>
                 <div className="flex flex-col items-center flex-1">
@@ -243,7 +243,7 @@ export default function GameProfilePage() {
             {/* Profile Form */}
             <div className="bg-white rounded-2xl p-6 shadow-md">
               <h3 className="font-black text-slate-800 text-lg mb-4 flex items-center space-x-2 space-x-reverse">
-                <UserCircle className="text-[#20b2f5]" />
+                <UserCircle className="text-[#7c3aed]" />
                 <span>تنظیمات پروفایل بازی</span>
               </h3>
               
@@ -258,7 +258,7 @@ export default function GameProfilePage() {
                     type="text"
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:border-[#20b2f5] focus:ring-2 focus:ring-[#20b2f5]/20 text-slate-800 font-bold transition-all"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:border-[#7c3aed] focus:ring-2 focus:ring-[#7c3aed]/20 text-slate-800 font-bold transition-all"
                     placeholder="نام خود را وارد کنید..."
                   />
                 </div>
@@ -274,7 +274,7 @@ export default function GameProfilePage() {
                       className={cn(
                         "aspect-square rounded-2xl border-2 overflow-hidden relative group transition-all",
                         (avatarUrl === (profile?.avatar_url || user?.avatar_url) || (avatarUrl === '' && !(profile?.avatar_url || user?.avatar_url)))
-                          ? "border-[#20b2f5] ring-4 ring-[#20b2f5]/20" 
+                          ? "border-[#7c3aed] ring-4 ring-[#7c3aed]/20" 
                           : "border-slate-200 hover:border-slate-300 bg-slate-100"
                       )}
                     >
@@ -299,7 +299,7 @@ export default function GameProfilePage() {
                         className={cn(
                           "aspect-square rounded-2xl border-2 overflow-hidden transition-all bg-slate-50",
                           avatarUrl === avatar.url
-                            ? "border-[#20b2f5] ring-4 ring-[#20b2f5]/20 scale-105 shadow-md"
+                            ? "border-[#7c3aed] ring-4 ring-[#7c3aed]/20 scale-105 shadow-md"
                             : "border-slate-200 hover:border-slate-300 hover:scale-105"
                         )}
                       >

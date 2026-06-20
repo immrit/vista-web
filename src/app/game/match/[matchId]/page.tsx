@@ -377,7 +377,7 @@ export default function MatchDetailsPage() {
       </div>
 
       {/* Sticky Bottom Play Button */}
-      <div className="fixed bottom-6 left-0 right-0 md:right-[220px] px-6 z-50">
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-md px-6 z-50">
         <button
           onClick={() => router.push(`/game/play/${matchId}`)}
           disabled={!canPlay}

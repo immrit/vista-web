@@ -24,8 +24,8 @@ export default function GameStorePage() {
         package_id: packageId,
         callback_url: `${window.location.origin}/game/store/verify`
       });
-      if (res.data?.url) {
-        window.location.href = res.data.url;
+      if (res?.url) {
+        window.location.href = res.url;
       }
     } catch (error) {
       console.error(error);
@@ -35,11 +35,11 @@ export default function GameStorePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#114b82] flex justify-center overflow-hidden">
-      <div className="w-full max-w-md bg-[#1b73b5] flex flex-col h-[100dvh] relative shadow-2xl overflow-y-auto pb-8">
+    <div className="min-h-screen bg-[#4c1d95] flex justify-center overflow-hidden">
+      <div className="w-full max-w-md bg-[#6d28d9] flex flex-col h-[100dvh] relative shadow-2xl overflow-y-auto pb-8">
         
         {/* Header */}
-        <div className="flex items-center p-4 bg-[#1b73b5] sticky top-0 z-20 shadow-md">
+        <div className="flex items-center p-4 bg-[#6d28d9] sticky top-0 z-20 shadow-md">
           <button 
             onClick={() => router.push('/game')}
             className="p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors"

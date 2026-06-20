@@ -350,7 +350,7 @@ export default function GameHomePage() {
       </div>
 
       {/* Bottom Nav Bar */}
-      <div className="fixed bottom-0 left-0 right-0 md:right-[220px] bg-[#3b0764] border-t border-[#2e1065] flex items-center justify-around py-2 px-4 shadow-[0_-4px_10px_rgba(0,0,0,0.2)] z-50">
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-[#3b0764] border-t border-[#2e1065] flex items-center justify-around py-2 px-4 shadow-[0_-4px_10px_rgba(0,0,0,0.2)] z-50">
         <button onClick={() => router.push('/game/profile')} className="flex flex-col items-center text-white/50 hover:text-white transition-colors">
           <UserCircle size={24} />
           <span className="text-[10px] mt-1 font-bold">پروفایل</span>

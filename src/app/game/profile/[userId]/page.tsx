@@ -54,7 +54,7 @@ export default function PublicGameProfilePage() {
 
   if (loading || !profile) {
     return (
-      <div className="min-h-screen bg-[#114b82] flex items-center justify-center">
+      <div className="min-h-screen bg-[#4c1d95] flex items-center justify-center">
         <Loader2 className="w-12 h-12 text-white animate-spin" />
       </div>
     )
@@ -64,9 +64,9 @@ export default function PublicGameProfilePage() {
   const avatarUrl = profile.avatarUrl || `https://api.dicebear.com/7.x/avataaars/png?seed=${userId}`
 
   return (
-    <div className="min-h-screen bg-[#114b82] flex justify-center font-sans">
-      <div className="w-full max-w-md bg-[#1b73b5] flex flex-col h-[100dvh] relative shadow-2xl">
-        <div className="flex items-center p-4 bg-[#1b73b5] sticky top-0 z-20 shadow-md">
+    <div className="min-h-screen bg-[#4c1d95] flex justify-center font-sans">
+      <div className="w-full max-w-md bg-[#6d28d9] flex flex-col h-[100dvh] relative shadow-2xl">
+        <div className="flex items-center p-4 bg-[#6d28d9] sticky top-0 z-20 shadow-md">
           <button onClick={() => router.back()} className="p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors">
             <ArrowRight size={24} />
           </button>
@@ -75,9 +75,9 @@ export default function PublicGameProfilePage() {
 
         <div className="flex-1 overflow-y-auto">
           {/* Header Section */}
-          <div className="bg-gradient-to-b from-[#1b73b5] to-[#114b82] pt-10 pb-8 px-4 flex flex-col items-center border-b border-white/10">
+          <div className="bg-gradient-to-b from-[#6d28d9] to-[#4c1d95] pt-10 pb-8 px-4 flex flex-col items-center border-b border-white/10">
             <div className="relative">
-              <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-[#3ca2ea] bg-white shadow-xl">
+              <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-[#a855f7] bg-white shadow-xl">
                 <Avatar src={avatarUrl} alt="Avatar" className="w-full h-full" />
               </div>
               <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-[#78c02c] text-white text-sm font-black px-5 py-1.5 rounded-full shadow-lg border-2 border-white whitespace-nowrap">

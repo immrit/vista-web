@@ -28,10 +28,10 @@ function VerifyContent() {
           track_id: parseInt(trackId, 10)
         });
         
-        if (res.data?.success) {
+        if (res?.success) {
           setStatus('success');
-          setMessage(res.data.message);
-          setCoinsAdded(res.data.coins);
+          setMessage(res.message);
+          setCoinsAdded(res.coins);
         } else {
           setStatus('error');
           setMessage('خطا در تایید پرداخت.');
@@ -76,7 +76,7 @@ function VerifyContent() {
           <p className="text-slate-600 font-bold mb-6">{message}</p>
           <button
             onClick={() => router.push('/game/store')}
-            className="w-full bg-[#1b73b5] hover:bg-[#155a8f] text-white font-bold py-3.5 rounded-xl shadow-[0_4px_0_#114b82] active:translate-y-1 active:shadow-none transition-all"
+            className="w-full bg-[#6d28d9] hover:bg-[#5b21b6] text-white font-bold py-3.5 rounded-xl shadow-[0_4px_0_#4c1d95] active:translate-y-1 active:shadow-none transition-all"
           >
             تلاش مجدد
           </button>
@@ -96,11 +96,11 @@ export default function GameStoreVerifyPage() {
   const router = useRouter();
 
   return (
-    <div className="min-h-screen bg-[#114b82] flex justify-center overflow-hidden">
-      <div className="w-full max-w-md bg-[#1b73b5] flex flex-col h-[100dvh] relative shadow-2xl">
+    <div className="min-h-screen bg-[#4c1d95] flex justify-center overflow-hidden">
+      <div className="w-full max-w-md bg-[#6d28d9] flex flex-col h-[100dvh] relative shadow-2xl">
         
         {/* Header */}
-        <div className="flex items-center p-4 bg-[#1b73b5] sticky top-0 z-20 shadow-md">
+        <div className="flex items-center p-4 bg-[#6d28d9] sticky top-0 z-20 shadow-md">
           <button 
             onClick={() => router.push('/game/store')}
             className="p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors"
