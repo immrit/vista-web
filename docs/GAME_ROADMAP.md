@@ -3,7 +3,7 @@
 Living tracker for the game section (ویستا کوییز). Updated after each change.
 Progress bars are coarse estimates. `[██████████]` = 10 cells = 100%.
 
-**Overall: `[███████░░░] ~68%`**
+**Overall: `[███████░░░] ~72%`**
 
 Legend: ✅ done · 🟡 partial · ⬜ not started
 
@@ -60,10 +60,12 @@ Async turn-based 1v1, 6 rounds × 3 questions, category pick, scoring, timeout.
 - ⬜ Read-only fast path in `GetMatch` (avoid re-`SaveMatch` on every poll)
 - ⬜ Backoff/visibility-aware polling on the client
 
-## EPIC 7 — New game modes & features (QoK-inspired ideas) `[░░░░░░░░░░] 0%` ⬜
+## EPIC 7 — New game modes & features (QoK-inspired ideas) `[█░░░░░░░░░] 12%` 🟡
 Ideas drawn from Quiz of Kings to deepen engagement:
-- ⬜ **Lifelines actually working** — 50/50 (حذف دو گزینه), audience % (جواب مردم),
-  re-spin category — currently UI-only/disabled; wire to coins + server.
+- 🟡 **Lifelines** — ✅ 50/50 (حذف دو گزینه) + audience % (جواب مردم) live, fully
+  server-authoritative (server picks hidden options / vote split; correct answer
+  never sent), coins charged atomically, once-per-question lock. ⬜ re-spin
+  category (شانس مجدد) still disabled.
 - ⬜ **Daily/weekly challenges & missions** (e.g. "win 3 matches" → reward)
 - ⬜ **Achievements / badges** (نشان‌ها) on profile
 - ⬜ **League / rank tiers** (سطح‌بندی لیگ) with seasonal reset
@@ -78,6 +80,9 @@ Ideas drawn from Quiz of Kings to deepen engagement:
 ---
 
 ## Changelog
+- **2026-06-20 (session 5):** Lifelines live — 50/50 + audience (server-side,
+  anti-cheat, atomic coin charge, once-per-question lock) + tests; wired into
+  QuestionCard.
 - **2026-06-20 (session 4):** Spin wheel (backend+frontend+tests), lobby spin
   button, manager official-question CRUD (create/edit/delete) + backend
   endpoints. This roadmap created.

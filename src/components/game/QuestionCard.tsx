@@ -3,6 +3,8 @@ import { Category, Question, CATEGORIES } from '@/lib/game/questions';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { Pause, Percent, Bomb } from 'lucide-react';
+import { apiClient } from '@/lib/apiClient';
+import { toast } from 'sonner';
 
 interface QuestionCardProps {
   question: Question;
@@ -11,15 +13,30 @@ interface QuestionCardProps {
   opponentScore: number;
   onAnswer: (answerIndex: number, timeTakenMs: number) => void;
   timeLimitMs?: number;
+  matchId: string;
+  questionIndex: number;
 }
 
-export function QuestionCard({ question, category, myScore, opponentScore, onAnswer, timeLimitMs = 10000 }: QuestionCardProps) {
+interface LifelineResponse {
+  type: 'fifty' | 'audience';
+  hiddenOptions?: number[];
+  percentages?: number[];
+}
+
+export function QuestionCard({ question, category, myScore, opponentScore, onAnswer, timeLimitMs = 10000, matchId, questionIndex }: QuestionCardProps) {
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState(timeLimitMs);
   const startTime = useRef(Date.now());
   const submittedRef = useRef(false);
   const submitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onAnswerRef = useRef(onAnswer);
+
+  // Lifeline state (reset per question)
+  const [hiddenOptions, setHiddenOptions] = useState<number[]>([]);
+  const [audiencePct, setAudiencePct] = useState<number[] | null>(null);
+  const [usedFifty, setUsedFifty] = useState(false);
+  const [usedAudience, setUsedAudience] = useState(false);
+  const [lifelineLoading, setLifelineLoading] = useState<'fifty' | 'audience' | null>(null);
 
   useEffect(() => {
     onAnswerRef.current = onAnswer;
@@ -50,6 +67,12 @@ export function QuestionCard({ question, category, myScore, opponentScore, onAns
     setSelectedAnswer(null);
     setTimeLeft(timeLimitMs);
     startTime.current = Date.now();
+    // reset lifelines for the new question
+    setHiddenOptions([]);
+    setAudiencePct(null);
+    setUsedFifty(false);
+    setUsedAudience(false);
+    setLifelineLoading(null);
 
     const interval = setInterval(() => {
       const elapsed = Date.now() - startTime.current;
@@ -68,10 +91,40 @@ export function QuestionCard({ question, category, myScore, opponentScore, onAns
   }, [clearSubmitTimeout, commitAnswer, question.id, timeLimitMs]);
 
   const handleAnswer = (index: number) => {
+    if (hiddenOptions.includes(index)) return;
     commitAnswer(index, 1500);
   };
 
+  const useLifeline = async (type: 'fifty' | 'audience') => {
+    if (selectedAnswer !== null || lifelineLoading) return;
+    if (type === 'fifty' && usedFifty) return;
+    if (type === 'audience' && usedAudience) return;
+    setLifelineLoading(type);
+    try {
+      const res = await apiClient.post<LifelineResponse>(`/v1/game/match/${matchId}/lifeline`, {
+        questionIndex,
+        type,
+      });
+      if (type === 'fifty') {
+        setHiddenOptions(res?.hiddenOptions || []);
+        setUsedFifty(true);
+      } else {
+        setAudiencePct(res?.percentages || null);
+        setUsedAudience(true);
+      }
+    } catch (e: any) {
+      if (e?.status === 402) toast.error('سکه کافی نداری');
+      else if (e?.status === 409) {
+        toast.error('این کمک قبلاً استفاده شده');
+        if (type === 'fifty') setUsedFifty(true); else setUsedAudience(true);
+      } else toast.error('خطا در استفاده از کمک');
+    } finally {
+      setLifelineLoading(null);
+    }
+  };
+
   const progressPercent = (timeLeft / timeLimitMs) * 100;
+  const answeringDisabled = selectedAnswer !== null;
 
   return (
     <div className="w-full max-w-md flex flex-col h-full animate-in fade-in duration-500">
@@ -88,7 +141,6 @@ export function QuestionCard({ question, category, myScore, opponentScore, onAns
       {/* White Question Card */}
       <div className="flex-1 flex flex-col">
         <div className="bg-white rounded-[2rem] pt-8 pb-6 px-6 relative shadow-lg mb-4 flex-1 flex flex-col items-center justify-center min-h-[200px]">
-          {/* Category Badge */}
           <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#7c3aed] text-white px-6 py-1.5 rounded-full font-bold text-sm shadow-md">
             {CATEGORIES[category].label}
           </div>
@@ -126,13 +178,17 @@ export function QuestionCard({ question, category, myScore, opponentScore, onAns
         {/* Options Grid */}
         <div className="grid grid-cols-2 gap-3 mb-6">
           {question.options.map((option, index) => {
+            const isHidden = hiddenOptions.includes(index);
             const isSelected = selectedAnswer === index;
             const isCorrect = index === question.correctOptionIndex;
             const isWrongSelected = isSelected && !isCorrect;
             const showCorrect = selectedAnswer !== null && isCorrect;
+            const pct = audiencePct ? audiencePct[index] : null;
 
             let btnClass = "bg-white text-slate-800 shadow-[0_4px_0_#cbd5e1] active:translate-y-1 active:shadow-none";
-            if (showCorrect) {
+            if (isHidden) {
+              btnClass = "bg-slate-100 text-transparent shadow-none opacity-40 cursor-not-allowed";
+            } else if (showCorrect) {
               btnClass = "bg-[#78c02c] text-white shadow-[0_4px_0_#5da01f] scale-[1.02] z-10 font-black";
             } else if (isWrongSelected) {
               btnClass = "bg-[#e61a4b] text-white shadow-[0_4px_0_#b3153b] font-black";
@@ -144,13 +200,21 @@ export function QuestionCard({ question, category, myScore, opponentScore, onAns
               <button
                 key={index}
                 onClick={() => handleAnswer(index)}
-                disabled={selectedAnswer !== null}
+                disabled={answeringDisabled || isHidden}
                 className={cn(
-                  "p-4 rounded-[1.5rem] font-bold text-sm md:text-base transition-all duration-200 flex items-center justify-center min-h-[80px]",
+                  "relative p-4 rounded-[1.5rem] font-bold text-sm md:text-base transition-all duration-200 flex flex-col items-center justify-center min-h-[80px] overflow-hidden",
                   btnClass
                 )}
               >
-                <span className="text-center">{option}</span>
+                <span className="text-center">{isHidden ? '' : option}</span>
+                {pct !== null && !isHidden && (
+                  <div className="w-full mt-2">
+                    <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                      <div className="h-full bg-[#7c3aed] rounded-full" style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="text-[10px] text-slate-500 font-bold">{pct.toLocaleString('fa-IR')}٪</span>
+                  </div>
+                )}
               </button>
             );
           })}
@@ -158,25 +222,39 @@ export function QuestionCard({ question, category, myScore, opponentScore, onAns
 
         {/* Lifelines */}
         <div className="grid grid-cols-3 gap-2 mt-auto">
-          <button disabled title="به زودی" className="bg-[#78c02c]/70 border border-[#a2e858] shadow-[0_4px_0_#5da01f] rounded-2xl p-2 flex flex-col items-center justify-center space-y-1 cursor-not-allowed opacity-70">
-            <Percent className="text-purple-600" size={24} />
-            <span className="text-[10px] font-bold text-slate-800">جواب‌های مردم</span>
+          <button
+            onClick={() => useLifeline('audience')}
+            disabled={answeringDisabled || usedAudience || lifelineLoading !== null}
+            className={cn(
+              "bg-[#78c02c] border border-[#a2e858] shadow-[0_4px_0_#5da01f] rounded-2xl p-2 flex flex-col items-center justify-center space-y-1 active:translate-y-1 active:shadow-none transition-all",
+              (answeringDisabled || usedAudience) && "opacity-50 cursor-not-allowed grayscale"
+            )}
+          >
+            <Percent className="text-purple-700" size={24} />
+            <span className="text-[10px] font-bold text-white">جواب‌های مردم</span>
             <div className="flex items-center text-white text-[10px] font-bold bg-[#68a825] px-2 py-0.5 rounded-full w-full justify-center">
-              ۶۰ <div className="relative w-3 h-3 mr-0.5"><Image src="/images/coin.png" alt="coin" fill /></div>
+              {lifelineLoading === 'audience' ? '...' : '۶۰'} <div className="relative w-3 h-3 mr-0.5"><Image src="/images/coin.png" alt="coin" fill /></div>
             </div>
           </button>
 
-          <button disabled title="به زودی" className="bg-[#78c02c]/70 border border-[#a2e858] shadow-[0_4px_0_#5da01f] rounded-2xl p-2 flex flex-col items-center justify-center space-y-1 cursor-not-allowed opacity-70">
-            <Bomb className="text-slate-800 fill-slate-800" size={24} />
-            <span className="text-[10px] font-bold text-slate-800">حذف دو گزینه</span>
+          <button
+            onClick={() => useLifeline('fifty')}
+            disabled={answeringDisabled || usedFifty || lifelineLoading !== null}
+            className={cn(
+              "bg-[#78c02c] border border-[#a2e858] shadow-[0_4px_0_#5da01f] rounded-2xl p-2 flex flex-col items-center justify-center space-y-1 active:translate-y-1 active:shadow-none transition-all",
+              (answeringDisabled || usedFifty) && "opacity-50 cursor-not-allowed grayscale"
+            )}
+          >
+            <Bomb className="text-white fill-white" size={24} />
+            <span className="text-[10px] font-bold text-white">حذف دو گزینه</span>
             <div className="flex items-center text-white text-[10px] font-bold bg-[#68a825] px-2 py-0.5 rounded-full w-full justify-center">
-              ۴۰ <div className="relative w-3 h-3 mr-0.5"><Image src="/images/coin.png" alt="coin" fill /></div>
+              {lifelineLoading === 'fifty' ? '...' : '۴۰'} <div className="relative w-3 h-3 mr-0.5"><Image src="/images/coin.png" alt="coin" fill /></div>
             </div>
           </button>
 
           <button disabled title="به زودی" className="bg-[#78c02c]/70 border border-[#a2e858] shadow-[0_4px_0_#5da01f] rounded-2xl p-2 flex flex-col items-center justify-center space-y-1 cursor-not-allowed opacity-70">
             <div className="font-black text-xl text-yellow-300 drop-shadow-md">۲x</div>
-            <span className="text-[10px] font-bold text-slate-800">شانس مجدد</span>
+            <span className="text-[10px] font-bold text-white">شانس مجدد</span>
             <div className="flex items-center text-white text-[10px] font-bold bg-[#68a825] px-2 py-0.5 rounded-full w-full justify-center">
               ۴۰ <div className="relative w-3 h-3 mr-0.5"><Image src="/images/coin.png" alt="coin" fill /></div>
             </div>

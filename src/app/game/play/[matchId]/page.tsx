@@ -173,6 +173,8 @@ export default function PlayMatchPage() {
             opponentScore={!isPlayer1 ? match.player1.score : match.player2?.score || 0}
             onAnswer={(idx, time) => handleAnswer(idx, time, questionIndex)}
             timeLimitMs={10000}
+            matchId={matchId}
+            questionIndex={questionIndex}
           />
         ) : (
           <div className="flex flex-col items-center justify-center flex-1 space-y-6">
