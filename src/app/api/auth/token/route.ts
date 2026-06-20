@@ -10,8 +10,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
-import { checkRateLimit, getClientIdentifier, authRateLimit } from '@/lib/rate-limit';
-
 const COOKIE_OPTS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
@@ -29,11 +27,6 @@ function isLikelyJwt(token: string): boolean {
 }
 
 export async function POST(req: NextRequest) {
-  const rate = await checkRateLimit(getClientIdentifier(req), authRateLimit);
-  if (!rate.success) {
-    return NextResponse.json({ ok: false, error: 'rate_limited' }, { status: 429 });
-  }
-
   let body: { access_token?: string; refresh_token?: string };
   try {
     body = await req.json();

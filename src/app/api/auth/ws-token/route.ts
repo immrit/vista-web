@@ -4,19 +4,18 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 
-import { checkRateLimit, getClientIdentifier, apiRateLimit } from '@/lib/rate-limit';
 import { memoryRateLimit } from '@/lib/security/rateLimitFallback';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(req: NextRequest) {
-  const key = getClientIdentifier(req);
-  if (!memoryRateLimit(key)) {
-    return NextResponse.json({ error: 'rate_limited' }, { status: 429 });
-  }
+function clientKey(req: NextRequest): string {
+  const fwd = req.headers.get('x-forwarded-for');
+  const ip = fwd?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || '';
+  return ip || `ua:${req.headers.get('user-agent') || 'unknown'}`;
+}
 
-  const rate = await checkRateLimit(key, apiRateLimit);
-  if (rate.limit > 0 && !rate.success) {
+export async function GET(req: NextRequest) {
+  if (!memoryRateLimit(clientKey(req))) {
     return NextResponse.json({ error: 'rate_limited' }, { status: 429 });
   }
 
