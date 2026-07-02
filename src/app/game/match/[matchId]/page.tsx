@@ -80,7 +80,7 @@ export default function MatchDetailsPage() {
   // Finished result screen
   if (isFinished) {
     return (
-      <div className="min-h-screen bg-[#4c1d95] font-sans flex flex-col relative overflow-hidden">
+      <div className="min-h-screen bg-[#4c1d95] font-sans flex flex-col relative overflow-x-hidden">
         <div className="absolute inset-0 opacity-[0.05] pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Ctext x=\'8\' y=\'40\' font-family=\'Arial\' font-size=\'36\' fill=\'white\'%3E%E2%98%85%3C/text%3E%3C/svg%3E")', backgroundSize: '60px 60px' }}></div>
 
         <div className="bg-[#3b0764] px-4 py-3 flex items-center justify-between text-white shadow-md relative z-10">
@@ -203,7 +203,7 @@ export default function MatchDetailsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#4c1d95] font-sans flex flex-col relative overflow-hidden">
+    <div className="min-h-screen bg-[#4c1d95] font-sans flex flex-col relative overflow-x-hidden">
       {/* Stars background */}
       <div className="absolute inset-0 opacity-[0.05] pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Ctext x=\'8\' y=\'40\' font-family=\'Arial\' font-size=\'36\' fill=\'white\'%3E%E2%98%85%3C/text%3E%3C/svg%3E")', backgroundSize: '60px 60px' }}></div>
 

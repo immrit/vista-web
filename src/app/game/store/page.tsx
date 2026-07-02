@@ -53,7 +53,7 @@ export default function GameStorePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#4c1d95] flex justify-center overflow-hidden">
+    <div className="min-h-screen bg-[#4c1d95] flex justify-center overflow-x-hidden">
       <div className="w-full max-w-md bg-[#6d28d9] flex flex-col h-[100dvh] relative shadow-2xl overflow-y-auto pb-8">
         
         {/* Header */}

@@ -137,7 +137,7 @@ export default function PlayMatchPage() {
   const currentQuestion = questionIndex !== -1 && questionIndex < questions.length ? questions[questionIndex] : null;
 
   return (
-    <div className="min-h-screen bg-[#4c1d95] font-sans flex flex-col relative overflow-hidden pb-10">
+    <div className="min-h-screen bg-[#4c1d95] font-sans flex flex-col relative overflow-x-hidden pb-10">
       {/* Stars background */}
       <div className="absolute inset-0 opacity-[0.05] pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Ctext x=\'8\' y=\'40\' font-family=\'Arial\' font-size=\'36\' fill=\'white\'%3E%E2%98%85%3C/text%3E%3C/svg%3E")', backgroundSize: '60px 60px' }}></div>
 

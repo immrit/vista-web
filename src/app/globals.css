@@ -164,7 +164,7 @@
 
 /* Prevent pull-to-refresh on iOS PWA */
 html, body {
-  overflow-x: hidden;
+  overscroll-behavior-y: none;
 }
 
 .font-bauhaus {
